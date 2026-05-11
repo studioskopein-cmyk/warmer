@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N년 다이어리 (Vibe Ver.)</title>
+    <style>
+        :root { --main-color: #a29bfe; }
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 350px; text-align: center; }
+        textarea { width: 100%; height: 120px; border: 1px solid #eee; border-radius: 12px; padding: 10px; box-sizing: border-box; margin: 15px 0; outline: none; }
+        button { width: 100%; background: var(--main-color); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .hidden-log { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ddd; color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 id="title">오늘의 기록 ⏳</h2>
+    <textarea id="diaryInput" placeholder="1년 뒤의 나에게..."></textarea>
+    <button id="saveBtn" onclick="sealDiary()">기록 봉인하기</button>
+
+    <div id="recallSection" class="hidden-log">
+        <p style="font-size: 0.8rem; color: #aaa;">—— 1년 전 오늘의 기록 ——</p>
+        <p id="oldRecord"></p>
+    </div>
+</div>
+
+<script>
+    // 페이지 로드 시 기존에 저장된 봉인된 기록이 있는지 확인합니다.
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedData = localStorage.getItem('sealedDiary');
+        if (savedData) {
+            showSealedContent(savedData);
+        }
+    });
+
+    function sealDiary() {
+        const text = document.getElementById('diaryInput').value;
+        if(!text) return;
+
+        // 데이터를 브라우저에 저장하여 새로고침 후에도 유지되게 합니다.
+        localStorage.setItem('sealedDiary', text);
+
+        document.getElementById('diaryInput').disabled = true;
+        document.getElementById('saveBtn').disabled = true;
+        document.getElementById('saveBtn').innerText = "봉인됨 (1년 뒤에 열림)";
+        document.getElementById('title').innerText = "기록이 쌓였습니다 🔒";
+
+        setTimeout(() => {
+            showSealedContent(text);
+            alert("띵동! 1년 전 나에게서 메시지가 도착했습니다.");
+        }, 5000); 
+    }
+
+    function showSealedContent(text) {
+        const recallSection = document.getElementById('recallSection');
+        const oldRecord = document.getElementById('oldRecord');
+        const title = document.getElementById('title');
+        const input = document.getElementById('diaryInput');
+        const button = document.getElementById('saveBtn');
+
+        recallSection.style.display = 'block';
+        oldRecord.innerText = "📅 [과거의 기록]: " + text;
+        title.innerText = "도착한 일기 💌";
+        input.disabled = true;
+        button.style.display = 'none';
+    }
+</script>
+
+</body>
+</html>

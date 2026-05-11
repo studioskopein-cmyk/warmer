@@ -1,0 +1,16 @@
+.cache/
+.claude/
+.codeoss/
+.config/
+.docker/
+.gemini/
+.local/
+.npm/
+.vscode/
+.rustup/
+.bash_history
+.bash_logout
+.bashrc
+.profile
+.sudo_as_admin_successful
+README-cloudshell.txt
