@@ -151,42 +151,48 @@ export default {
     }
 
     try {
-      const body = await request.json() as any;
-      const weatherContext = body.weatherContext as WeatherContext;
-
-      if (!weatherContext || !weatherContext.temp || !weatherContext.delta) {
-        return new Response(
-          JSON.stringify({
-            error: "Invalid request",
-            message: "weatherContext with temp and delta is required",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
       const url = new URL(request.url);
       
-      if (url.pathname === "/layered") {
-        const layered = await translateLayered(weatherContext, env.GEMINI_API_KEY);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            layered,
-            timestamp: new Date().toISOString(),
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else {
-        const translation = await translateWeather(weatherContext, env.GEMINI_API_KEY);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            translation,
-            timestamp: new Date().toISOString(),
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // API Routes
+      if (url.pathname === "/api/layered" || url.pathname === "/api/translate") {
+        const body = await request.json() as any;
+        const weatherContext = body.weatherContext as WeatherContext;
+
+        if (!weatherContext || !weatherContext.temp || !weatherContext.delta) {
+          return new Response(
+            JSON.stringify({
+              error: "Invalid request",
+              message: "weatherContext with temp and delta is required",
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (url.pathname === "/api/layered") {
+          const layered = await translateLayered(weatherContext, env.GEMINI_API_KEY);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              layered,
+              timestamp: new Date().toISOString(),
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          const translation = await translateWeather(weatherContext, env.GEMINI_API_KEY);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              translation,
+              timestamp: new Date().toISOString(),
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
+
+      // Fallback for non-API routes (let Cloudflare serve assets)
+      return new Response("Not Found", { status: 404 });
 
     } catch (error) {
       console.error("Translation error:", error);

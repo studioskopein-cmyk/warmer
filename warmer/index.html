@@ -257,30 +257,21 @@ return(Math.abs(diff)<=1?t[lang].proseSim(fw):t[lang].proseDiff(cw,fw))+`<br><sp
 
 // ── AI 브리핑 ──
 async function getAI(p) {
-  const system_instruction = t[lang].ai.system_instruction;
-  const prompt = t[lang].ai.prompt_template(p, dsc, t[lang].slots);
-
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 250,
-        system: system_instruction,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ weatherContext: p })
     });
 
     const d = await res.json();
-    const raw = d.content?.[0]?.text || '';
-    const m = raw.match(/ITEMS:(\[.*?\])/);
-    let items = [], brief = raw;
-    if (m) {
-      try { items = JSON.parse(m[1]); } catch { }
-      brief = raw.replace(/ITEMS:.*$/, '').trim();
-    }
-    return { brief, items };
+    if (!d.success) throw new Error(d.message || 'Translation failed');
+    
+    const translation = d.translation;
+    return { 
+      brief: translation.hero + (translation.context ? ' ' + translation.context : ''), 
+      items: translation.action ? [translation.action] : [] 
+    };
   } catch (e) {
     console.error("AI API Error:", e);
     const fallbackBriefs = t[lang].ai.fallback_brief;
@@ -291,10 +282,7 @@ async function getAI(p) {
     else if (p.diff <= -2) { brief = fallbackBriefs.cold_some; }
     else { brief = fallbackBriefs.similar; }
 
-    const items = [];
-    if (p.slots.some(s => s.rain > 40)) items.push('☂️ ' + (lang === 'ko' ? '우산' : 'Umbrella'));
-    if (p.wind > 5) items.push('🧥 ' + (lang === 'ko' ? '바람막이' : 'Windbreaker'));
-    return { brief, items };
+    return { brief, items: [] };
   }
 }
 
