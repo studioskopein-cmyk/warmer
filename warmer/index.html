@@ -196,7 +196,7 @@ async function getAI(p) {
     const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weatherContext: p })
+      body: JSON.stringify({ weatherContext: p, lang: lang })
     });
     const d = await res.json();
     if (!d.success) throw new Error(d.message || 'Translation failed');
