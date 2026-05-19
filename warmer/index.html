@@ -326,25 +326,41 @@ const SYS=`너는 날씨를 엄마처럼 챙겨주는 도우미야.
 async function getAI(p) {
   const {tMax,tMin,yMax,yMin,tCode,yCode,wind,slots,diff,highU,pivot}=p;
   const uNote=highU?'\n날씨 변동성 높음. 헷징 표현 써줘.':'';
-  const pNote=pivot?`\n변곡점:"${pivot}" 녹여줘.`:'';
+  const pNote=pivot?`\n변곡점:"${pivot}" 녹여줘.`:[];
   const prompt=`오늘최고${tMax}°최저${tMin}°${dsc(tCode)}바람${wind}m/s / 어제최고${yMax}°최저${yMin}°${dsc(yCode)} / 어제대비${diff>0?'+':''}${diff}도 / 아침${slots[0].temp}°비${slots[0].rain}% 낮${slots[1].temp}°비${slots[1].rain}% 저녁${slots[2].temp}°비${slots[2].rain}%${uNote}${pNote}`;
+
+  // 🟢 Gemini API Key - 여기에 키를 넣어주세요
+  const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+
   try {
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,system:SYS,messages:[{role:'user',content:prompt}]})
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        system_instruction: { parts: [{ text: SYS }] },
+        generationConfig: {
+          maxOutputTokens: 200,
+          temperature: 0.7
+        }
+      })
     });
-    const d=await res.json();
-    const raw=d.content?.[0]?.text||'';
-    const m=raw.match(/ITEMS:(\[.*?\])/);
-    let items=[],brief=raw;
-    if(m){try{items=JSON.parse(m[1]);}catch{}brief=raw.replace(/ITEMS:.*$/,'').trim();}
-    return {brief,items};
-  } catch {
-    const items=[];
-    if(p.slots.some(s=>s.rain>40))items.push('☂️ 우산');
-    if(p.wind>5)items.push('🧥 바람막이');
-    return {brief:'',items};
+
+    const d = await res.json();
+    const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const m = raw.match(/ITEMS:(\[.*?\])/);
+    let items = [], brief = raw;
+    if (m) {
+      try { items = JSON.parse(m[1]); } catch { }
+      brief = raw.replace(/ITEMS:.*$/, '').trim();
+    }
+    return { brief, items };
+  } catch (e) {
+    console.error("Gemini API Error:", e);
+    const items = [];
+    if (p.slots.some(s => s.rain > 40)) items.push('☂️ 우산');
+    if (p.wind > 5) items.push('🧥 바람막이');
+    return { brief: '', items };
   }
 }
 
