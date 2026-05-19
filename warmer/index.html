@@ -127,6 +127,45 @@ const t={
     slots:['아침','낮','저녁'],
     pivot:{down:'저녁에 확 떨어져',up:'저녁에 많이 풀려',warm:'오후부터 따뜻해져',chill:'오후부터 쌀쌀해져'},
     cw:['훨씬 따뜻해','꽤 따뜻해','좀 따뜻해','많이 추워','꽤 추워','좀 쌀쌀해','비슷해'],
+    cw:['훨씬 따뜻해','꽤 따뜻해','좀 따뜻해','많이 추워','꽤 추워','좀 쌀쌀해','비슷해'], // core words for temperature comparison
+    ai:{
+      system_instruction: `너는 날씨를 엄마처럼 챙겨주는 도우미야.
+규칙:
+- 2~3문장으로 짧고 자연스럽게 말해줘.
+- 숫자 온도는 절대 쓰지 마. '쌀쌀하다', '포근하다', '무덥다' 등 다양한 체감 표현을 활용해줘. 어제와의 기온 차이를 바탕으로 체감 변화를 명확히 전달해.
+- 하루 중 날씨 변화(기온, 강수)가 있다면 자연스럽게 언급하고, 특히 중요한 시간대(아침, 낮, 저녁)의 특징을 강조해줘.
+- 강수 확률 언어 강도:
+  · 20% 이하 → 비 언급 안 함
+  · 20~40%   → "혹시 모르니까", "만약을 위해"
+  · 40~60%   → "챙기는 게 나을 것 같아"
+  · 60% 이상 → "꼭 챙겨" (단정)
+- 마지막 문장은 항상 구체적이고 실용적인 행동 조언으로 마무리해줘.
+- 날씨 변동성이 높을 때는 예보가 달라질 수 있음을 부드럽게 알려주고, 대비할 수 있도록 조언해줘.
+- 응답 마지막 줄: ITEMS:["☂️ 우산","🧥 바람막이"] 형식으로, 날씨와 행동 조언에 가장 적합한 1~2개의 아이템을 추천해줘.`,
+      prompt_template: (p, dsc_func, slot_labels) => {
+        const {tMax,tMin,yMax,yMin,tCode,wind,slots,diff,highU,pivot,feels} = p;
+        let promptDescription = `오늘의 날씨 정보입니다:\n`;
+        promptDescription += `- 오늘 최고 기온은 ${tMax}°C, 최저 기온은 ${tMin}°C이며, 현재 체감 온도는 ${feels}°C입니다.\n`;
+        promptDescription += `- 어제 최고 기온은 ${yMax}°C, 최저 기온은 ${yMin}°C였습니다.\n`;
+        promptDescription += `- 어제 대비 기온 변화는 ${diff > 0 ? '+' : ''}${diff}도입니다.\n`;
+        promptDescription += `- 오늘의 전반적인 날씨는 ${dsc_func(tCode)}이며, 바람은 ${wind}m/s입니다.\n`;
+        promptDescription += `- 시간대별 예보:\n`;
+        slots.forEach((s, i) => {
+          promptDescription += `  - ${slot_labels[i]}: ${s.temp}°C, ${dsc_func(s.code)}, 강수 확률 ${s.rain}%\n`;
+        });
+        if (highU) { promptDescription += `- 날씨 변동성이 높습니다. 예보가 달라질 수 있습니다.\n`; }
+        if (pivot) { promptDescription += `- 하루 중 중요한 기온 변화 포인트: "${pivot}"\n`; }
+        promptDescription += `이 정보를 바탕으로 사용자에게 친근하고 섬세한 날씨 브리핑을 해 주세요.`;
+        return promptDescription;
+      },
+      fallback_brief: {
+        warm_much: '어제보다 꽤 따뜻해. 가볍게 입어.',
+        warm_some: '어제보다 좀 따뜻해. 저녁엔 챙겨.',
+        cold_much: '어제보다 많이 추워. 따뜻하게 입고 나가.',
+        cold_some: '어제보다 쌀쌀해. 겉에 뭐 하나 걸쳐.',
+        similar: '어제랑 비슷해. 크게 다르지 않아.'
+      }
+    },
     action:['우산 꼭 챙겨.','우산 챙기는 게 나을 것 같아.','따뜻하게 입고 나가.','따뜻하게 껴입어.','겉에 뭐 하나 걸쳐.','가볍게 입어도 돼.','크게 다르진 않아.'],
     fw:['매우 차갑게','꽤 차갑게','선선하게','적당하게','따뜻하게'],
     proseSim:f=>`<span class="g">어제랑</span> <span class="w">비슷해</span><br><span class="g">체감은 </span><span class="w">${f}</span><span class="g">.</span>`,
@@ -145,6 +184,45 @@ const t={
     slots:['Morning','Day','Evening'],
     pivot:{down:'Drops sharply tonight',up:'Warmer this evening',warm:'Warmer this afternoon',chill:'Chilly this afternoon'},
     cw:['much warmer','quite warm','a bit warmer','much colder','quite cold','a bit chilly','similar'],
+    cw:['much warmer','quite warm','a bit warmer','much colder','quite cold','a bit chilly','similar'], // core words for temperature comparison
+    ai:{
+      system_instruction: `You are a weather assistant who cares for the user like a mother.
+Rules:
+- Keep it short and natural, 2-3 sentences.
+- Never use numerical temperatures. Use descriptive terms like "quite chilly", "much warmer". Clearly convey the perceived temperature change compared to yesterday.
+- If there are weather changes throughout the day (temperature, precipitation), mention them naturally, emphasizing key times (morning, day, evening).
+- Precipitation probability intensity:
+  · Below 20% → Do not mention rain.
+  · 20-40%    → "Just in case", "For a rainy day"
+  · 40-60%    → "It might be good to bring one"
+  · 60% or more → "Definitely bring one" (assertive)
+- The last sentence must always end with specific, practical advice.
+- If weather volatility is high, gently inform the user that the forecast might change and advise them to be prepared.
+- The last line of the response must be in the format: ITEMS:["☂️ Umbrella","🧥 Windbreaker"] — recommend up to 1-2 items most suitable for the weather and advice.`,
+      prompt_template: (p, dsc_func, slot_labels) => {
+        const {tMax,tMin,yMax,yMin,tCode,wind,slots,diff,highU,pivot,feels} = p;
+        let promptDescription = `Today's weather information:\n`;
+        promptDescription += `- Today's max temperature is ${tMax}°C, min temperature is ${tMin}°C, and current apparent temperature is ${feels}°C.\n`;
+        promptDescription += `- Yesterday's max temperature was ${yMax}°C, min temperature was ${yMin}°C.\n`;
+        promptDescription += `- Temperature change compared to yesterday: ${diff > 0 ? '+' : ''}${diff}°C.\n`;
+        promptDescription += `- Overall weather today is ${dsc_func(tCode)}, with wind at ${wind}m/s.\n`;
+        promptDescription += `- Hourly forecast:\n`;
+        slots.forEach((s, i) => {
+          promptDescription += `  - ${slot_labels[i]}: ${s.temp}°C, ${dsc_func(s.code)}, precipitation probability ${s.rain}%\n`;
+        });
+        if (highU) { promptDescription += `- Weather volatility is high. The forecast might change.\n`; }
+        if (pivot) { promptDescription += `- Key temperature change point today: "${pivot}"\n`; }
+        promptDescription += `Based on this information, please provide a friendly and detailed weather briefing to the user.`;
+        return promptDescription;
+      },
+      fallback_brief: {
+        warm_much: 'It\'s quite warmer than yesterday. Dress lightly.',
+        warm_some: 'It\'s a bit warmer than yesterday. Bring something for the evening.',
+        cold_much: 'It\'s much colder than yesterday. Dress warmly.',
+        cold_some: 'It\'s a bit chilly than yesterday. Wear a jacket.',
+        similar: 'It\'s similar to yesterday. Not much different.'
+      }
+    },
     action:['Take an umbrella.','Better take an umbrella.','Dress warmly.','Bundle up.','Take a jacket.','Dress light.','Not much different.'],
     fw:['very cold','quite cold','chilly','pleasant','warm'],
     proseSim:f=>`<span class="w">Similar</span> <span class="g">to yesterday</span><br><span class="g">Feels </span><span class="w">${f}</span><span class="g">.</span>`,
@@ -159,6 +237,12 @@ const t={
   }
 };
 
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
 const dsc=c=>{const l=t[lang].dsc;for(const[cd,txt]of l)if(c<=cd)return txt;return l[l.length-1][1]};
 const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
@@ -170,6 +254,50 @@ const diff=tMax-yMax,rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3,rvar=r
 const pivot=Math.abs(ne)>=5?(ne<0?t[lang].pivot.down:t[lang].pivot.up):Math.abs(mn)>=5?(mn>0?t[lang].pivot.warm:t[lang].pivot.chill):'';return{tMax,tMin,yMax,yMin,tCode,yCode,feels,slots,diff,highU,pivot,now}}
 function buildProse(p){const{diff,tCode,feels,slots}=p,cl=t[lang].cw,cw=diff>=8?cl[0]:diff>=4?cl[1]:diff>=2?cl[2]:diff<=-8?cl[3]:diff<=-4?cl[4]:diff<=-2?cl[5]:cl[6],rp=Math.max(...slots.map(s=>s.rain)),al=t[lang].action,action=rp>60?al[0]:rp>30?al[1]:tCode>=70?al[2]:diff<=-4?al[3]:diff<=-2?al[4]:diff>=4?al[5]:al[6],fl=t[lang].fw,fw=feels<=0?fl[0]:feels<=8?fl[1]:feels<=15?fl[2]:feels<=22?fl[3]:fl[4];
 return(Math.abs(diff)<=1?t[lang].proseSim(fw):t[lang].proseDiff(cw,fw))+`<br><span class="action">${action}</span>`}
+
+// ── AI 브리핑 ──
+async function getAI(p) {
+  const system_instruction = t[lang].ai.system_instruction;
+  const prompt = t[lang].ai.prompt_template(p, dsc, t[lang].slots);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 250,
+        system: system_instruction,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const d = await res.json();
+    const raw = d.content?.[0]?.text || '';
+    const m = raw.match(/ITEMS:(\[.*?\])/);
+    let items = [], brief = raw;
+    if (m) {
+      try { items = JSON.parse(m[1]); } catch { }
+      brief = raw.replace(/ITEMS:.*$/, '').trim();
+    }
+    return { brief, items };
+  } catch (e) {
+    console.error("AI API Error:", e);
+    const fallbackBriefs = t[lang].ai.fallback_brief;
+    let brief;
+    if (p.diff >= 4) { brief = fallbackBriefs.warm_much; }
+    else if (p.diff >= 2) { brief = fallbackBriefs.warm_some; }
+    else if (p.diff <= -4) { brief = fallbackBriefs.cold_much; }
+    else if (p.diff <= -2) { brief = fallbackBriefs.cold_some; }
+    else { brief = fallbackBriefs.similar; }
+
+    const items = [];
+    if (p.slots.some(s => s.rain > 40)) items.push('☂️ ' + (lang === 'ko' ? '우산' : 'Umbrella'));
+    if (p.wind > 5) items.push('🧥 ' + (lang === 'ko' ? '바람막이' : 'Windbreaker'));
+    return { brief, items };
+  }
+}
+
 let currentKey='';
 function getFbKey(lat,lon){const now=new Date(),d=now.toISOString().split('T')[0],h=Math.floor(now.getHours()/3)*3,gl=Math.round(lat*10)/10,glo=Math.round(lon*10)/10;return`fb_${gl}_${glo}_${d}_${h}`}
 async function loadCommunity(key){try{const snap=await getDoc(doc(db,'feedbacks',key));if(!snap.exists())return;const d=snap.data(),total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`${t[lang].ui.c}(${d.colder})`);if(d.warmer>0)diffs.push(`${t[lang].ui.w}(${d.warmer})`);if(d.rainy>0)diffs.push(`${t[lang].ui.r}(${d.rainy})`);if(d.windy>0)diffs.push(`${t[lang].ui.wd}(${d.windy})`);
@@ -181,6 +309,14 @@ function updateUI(){const u=t[lang].ui;document.getElementById('langBtn').textCo
 window.toggleLang=()=>{lang=lang==='ko'?'en':'ko';localStorage.setItem('lang',lang);updateUI();init()};
 function render(p,brief,items){const{tMax,yMax,diff,tCode,slots,highU,pivot,now}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=t[lang].ui.warmLabel(diff);dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=t[lang].ui.coolLabel(Math.abs(diff));dl.className='temp-diff diff-cool'}else{dl.textContent=t[lang].ui.sameLabel;dl.className='temp-diff diff-same'};const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');document.getElementById('chips').innerHTML=items.map(i=>`<div class="chip">${i}</div>`).join('');document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · ${lang==='ko'?'비':'Rain'} ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">${t[lang].ui.y}</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">${t[lang].ui.t}</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
 async function init(){updateUI();document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);render(p,'',[]);loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML=`<span style="color:rgba(0,0,0,0.3);font-size:15px">${lang==='ko'?'날씨를 불러올 수 없어.':'Unable to load weather.'}</span>`}}
+function render(p,brief,items){const{tMax,yMax,diff,tCode,slots,highU,pivot,now}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=t[lang].ui.warmLabel(diff);dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=t[lang].ui.coolLabel(Math.abs(diff));dl.className='temp-diff diff-cool'}else{dl.textContent=t[lang].ui.sameLabel;dl.className='temp-diff diff-same'};const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');
+  // brief
+  if(brief){
+    const be=document.getElementById('brief');
+    be.textContent=brief; be.style.display='block'; be.classList.add('fu');
+  }
+document.getElementById('chips').innerHTML=items.map(i=>`<div class="chip">${i}</div>`).join('');document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · ${lang==='ko'?'비':'Rain'} ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">${t[lang].ui.y}</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">${t[lang].ui.t}</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
+async function init(){updateUI();document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);const {brief,items}=await getAI(p);render(p,brief,items);loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML=`<span style="color:rgba(0,0,0,0.3);font-size:15px">${lang==='ko'?'날씨를 불러올 수 없어.':'Unable to load weather.'}</span>`}}
 window.init=init;
 init();
 </script>

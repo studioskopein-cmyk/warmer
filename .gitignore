@@ -14,3 +14,9 @@
 .profile
 .sudo_as_admin_successful
 README-cloudshell.txt
+node_modules/
+.claude.json
+.gitconfig
+.inspect-canvas.json
+.lesshst
+lib/
