@@ -9,517 +9,127 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-:root {
-  --bg: #EAECEA;
-  --text: #111111;
-  --muted: rgba(0,0,0,0.35);
-  --dim: rgba(0,0,0,0.15);
-  --chip: rgba(0,0,0,0.06);
-  --line: rgba(0,0,0,0.08);
-  --green: #3D6B35;
-  --navy: #1C2D3A;
-}
-html, body { height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; -webkit-font-smoothing:antialiased; }
-.app { max-width:390px; margin:0 auto; min-height:100vh; padding:56px 32px 48px; display:flex; flex-direction:column; }
-
-/* wordmark */
-.wordmark { font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted); margin-bottom:48px; }
-
-/* meta */
-.meta { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; margin-bottom:28px; }
-.meta-sep { color:var(--dim); }
-
-/* 온도 보조 행 */
-.temp-row { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:32px; }
-.temp-today { display:flex; flex-direction:column; gap:2px; }
-.temp-label { font-size:11px; color:var(--muted); letter-spacing:.5px; }
-.temp-val { font-size:22px; font-weight:400; color:var(--text); display:flex; align-items:center; gap:8px; }
-.temp-icon { font-size:20px; }
-.temp-yesterday { text-align:right; }
-.temp-diff { font-size:11px; margin-top:2px; }
-.diff-warm { color:#9B4A1F; }
-.diff-cool { color:var(--navy); }
-.diff-same { color:var(--muted); }
-
-/* 메인 prose */
-.prose { font-size:42px; font-weight:300; line-height:1.18; letter-spacing:-1px; margin-bottom:24px; }
-.prose .g { color:var(--muted); }
-.prose .w { color:var(--text); font-weight:500; }
-.prose .action { color:var(--green); font-style:italic; font-weight:300; font-size:38px; }
-
-/* AI 브리핑 */
-.brief { font-size:15px; font-weight:300; line-height:1.75; color:rgba(0,0,0,0.55); margin-bottom:24px; display:none; }
-
-/* 칩 */
-.chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:40px; }
-.chip { display:inline-flex; align-items:center; gap:6px; background:var(--chip); border:1px solid rgba(0,0,0,0.1); border-radius:100px; padding:7px 15px; font-size:13px; color:rgba(0,0,0,0.65); }
-
-/* divider */
-.div { height:1px; background:var(--line); margin-bottom:24px; }
-
-/* 피드백 — Waze 스타일 */
-.feedback-section { margin-bottom:28px; }
-.sec-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
-.feedback-q { font-size:14px; color:rgba(0,0,0,0.6); margin-bottom:12px; }
-.fb-row { display:flex; gap:8px; flex-wrap:wrap; }
-.fb-btn {
-  display:inline-flex; align-items:center; gap:5px;
-  background:var(--chip); border:1px solid rgba(0,0,0,0.1);
-  border-radius:100px; padding:8px 16px; font-size:13px;
-  color:rgba(0,0,0,0.65); font-family:inherit; cursor:pointer;
-  transition: all .15s;
-}
-.fb-btn:active { opacity:.6; transform:scale(.97); }
-.fb-btn.selected { background:var(--navy); color:#fff; border-color:var(--navy); }
-.fb-btn.selected.warm { background:#9B4A1F; border-color:#9B4A1F; }
-.fb-thanks { font-size:13px; color:var(--muted); display:none; margin-top:10px; }
-
-/* 커뮤니티 리포트 */
-.community { margin-bottom:28px; display:none; }
-.community-inner { background:rgba(0,0,0,0.04); border-radius:12px; padding:14px 16px; }
-.community-text { font-size:13px; color:rgba(0,0,0,0.6); line-height:1.6; }
-.community-count { font-size:11px; color:var(--muted); margin-top:4px; }
-
-/* 타임라인 */
-.tl { display:flex; flex-direction:column; gap:12px; margin-bottom:28px; }
-.tl-row { display:flex; align-items:baseline; font-size:14px; }
-.tl-t { width:40px; color:var(--muted); flex-shrink:0; }
-.tl-i { width:26px; flex-shrink:0; }
-.tl-d { flex:1; color:rgba(0,0,0,0.65); }
-.tl-n { color:var(--muted); font-size:13px; margin-left:8px; }
-
-/* 비교 바 */
-.cmp { margin-bottom:12px; }
-.cmp-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-.cmp-l { font-size:12px; color:var(--muted); width:30px; }
-.cmp-track { flex:1; height:2px; background:rgba(0,0,0,0.08); border-radius:1px; overflow:hidden; }
-.cmp-fill { height:100%; border-radius:1px; transition:width 1.2s cubic-bezier(.25,1,.5,1); }
-.fill-y { background:rgba(0,0,0,0.2); }
-.fill-t { background:rgba(0,0,0,0.75); }
-.cmp-v { font-size:12px; color:rgba(0,0,0,0.5); width:30px; text-align:right; }
-
-/* 불확실성 */
-.uncertain { display:none; font-size:12px; color:#9B6B1F; align-items:center; gap:6px; margin-bottom:20px; background:rgba(155,107,31,0.08); padding:10px 14px; border-radius:10px; }
-.uncertain.on { display:flex; }
-
-/* 변곡점 */
-.pivot { display:none; align-items:center; gap:10px; margin-bottom:20px; background:rgba(0,0,0,0.04); border-radius:12px; padding:12px 16px; }
-.pivot.on { display:flex; }
-.pivot-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:2px; }
-.pivot-text { font-size:14px; font-weight:500; }
-
-/* 로딩 */
-.dots { display:flex; gap:5px; align-items:center; padding:8px 0; }
-.dot { width:5px; height:5px; background:var(--muted); border-radius:50%; animation:dp 1.2s infinite; }
-.dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
-@keyframes dp { 0%,60%,100%{opacity:.25;transform:scale(1)} 30%{opacity:1;transform:scale(1.35)} }
-
-@keyframes fu { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-.fu { animation:fu .45s ease forwards; }
-
-/* 새로고침 */
-.refresh { display:flex; align-items:center; justify-content:center; gap:5px; margin-top:auto; padding-top:16px; background:none; border:none; color:var(--muted); font-size:11px; font-family:inherit; cursor:pointer; letter-spacing:.5px; }
-.refresh:active { opacity:.4; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#EAECEA;--text:#111111;--muted:rgba(0,0,0,0.35);--dim:rgba(0,0,0,0.15);--chip:rgba(0,0,0,0.06);--line:rgba(0,0,0,0.08);--green:#3D6B35;--navy:#1C2D3A}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+.app{max-width:390px;margin:0 auto;min-height:100vh;padding:56px 32px 48px;display:flex;flex-direction:column}
+.wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:48px}
+.meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:28px}
+.meta-sep{color:var(--dim)}
+.temp-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:32px}
+.temp-today{display:flex;flex-direction:column;gap:2px}
+.temp-label{font-size:11px;color:var(--muted);letter-spacing:.5px}
+.temp-val{font-size:22px;font-weight:400;color:var(--text);display:flex;align-items:center;gap:8px}
+.temp-yesterday{text-align:right}
+.temp-diff{font-size:11px;margin-top:2px}
+.diff-warm{color:#9B4A1F}.diff-cool{color:var(--navy)}.diff-same{color:var(--muted)}
+.prose{font-size:42px;font-weight:300;line-height:1.18;letter-spacing:-1px;margin-bottom:24px}
+.prose .g{color:var(--muted)}.prose .w{color:var(--text);font-weight:500}
+.prose .action{color:var(--green);font-style:italic;font-weight:300;font-size:38px}
+.brief{font-size:15px;font-weight:300;line-height:1.75;color:rgba(0,0,0,0.55);margin-bottom:24px;display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid rgba(0,0,0,0.1);border-radius:100px;padding:7px 15px;font-size:13px;color:rgba(0,0,0,0.65)}
+.div{height:1px;background:var(--line);margin-bottom:24px}
+.feedback-section{margin-bottom:28px}
+.sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.feedback-q{font-size:14px;color:rgba(0,0,0,0.6);margin-bottom:12px}
+.fb-row{display:flex;gap:8px;flex-wrap:wrap}
+.fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip);border:1px solid rgba(0,0,0,0.1);border-radius:100px;padding:8px 16px;font-size:13px;color:rgba(0,0,0,0.65);font-family:inherit;cursor:pointer;transition:all .15s}
+.fb-btn:active{opacity:.6;transform:scale(.97)}
+.fb-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy)}
+.fb-btn.selected.warm{background:#9B4A1F;border-color:#9B4A1F}
+.fb-thanks{font-size:13px;color:var(--muted);display:none;margin-top:10px}
+.community{margin-bottom:28px;display:none}
+.community-inner{background:rgba(0,0,0,0.04);border-radius:12px;padding:14px 16px}
+.community-text{font-size:13px;color:rgba(0,0,0,0.6);line-height:1.6}
+.community-count{font-size:11px;color:var(--muted);margin-top:4px}
+.tl{display:flex;flex-direction:column;gap:12px;margin-bottom:28px}
+.tl-row{display:flex;align-items:baseline;font-size:14px}
+.tl-t{width:40px;color:var(--muted);flex-shrink:0}
+.tl-i{width:26px;flex-shrink:0}
+.tl-d{flex:1;color:rgba(0,0,0,0.65)}
+.tl-n{color:var(--muted);font-size:13px;margin-left:8px}
+.cmp{margin-bottom:12px}
+.cmp-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cmp-l{font-size:12px;color:var(--muted);width:30px}
+.cmp-track{flex:1;height:2px;background:rgba(0,0,0,0.08);border-radius:1px;overflow:hidden}
+.cmp-fill{height:100%;border-radius:1px;transition:width 1.2s cubic-bezier(.25,1,.5,1)}
+.fill-y{background:rgba(0,0,0,0.2)}.fill-t{background:rgba(0,0,0,0.75)}
+.cmp-v{font-size:12px;color:rgba(0,0,0,0.5);width:30px;text-align:right}
+.uncertain{display:none;font-size:12px;color:#9B6B1F;align-items:center;gap:6px;margin-bottom:20px;background:rgba(155,107,31,0.08);padding:10px 14px;border-radius:10px}
+.uncertain.on{display:flex}
+.pivot{display:none;align-items:center;gap:10px;margin-bottom:20px;background:rgba(0,0,0,0.04);border-radius:12px;padding:12px 16px}
+.pivot.on{display:flex}
+.pivot-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.pivot-text{font-size:14px;font-weight:500}
+.dots{display:flex;gap:5px;align-items:center;padding:8px 0}
+.dot{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:dp 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes dp{0%,60%,100%{opacity:.25;transform:scale(1)}30%{opacity:1;transform:scale(1.35)}}
+@keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fu .45s ease forwards}
+.refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px}
+.refresh:active{opacity:.4}
 </style>
 </head>
 <body>
 <div class="app">
-
-  <div class="wordmark">Warmer</div>
-
-  <div class="meta">
-    <span id="locEl">—</span>
-    <span class="meta-sep">·</span>
-    <span id="dateEl">—</span>
-  </div>
-
-  <!-- 온도 보조 행 -->
-  <div class="temp-row">
-    <div class="temp-today">
-      <div class="temp-label">TODAY</div>
-      <div class="temp-val">
-        <span id="tempIcon">⛅</span>
-        <span id="tempVal">—°</span>
-      </div>
-    </div>
-    <div class="temp-yesterday">
-      <div class="temp-label">YESTERDAY</div>
-      <div class="temp-val" id="yestVal">—°</div>
-      <div class="temp-diff" id="diffLabel">—</div>
-    </div>
-  </div>
-
-  <!-- 메인 prose -->
-  <div class="prose" id="prose">
-    <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-  </div>
-
-  <!-- AI 브리핑 -->
-  <div class="brief" id="brief"></div>
-
-  <!-- 챙길 것 -->
-  <div class="chips" id="chips"></div>
-
-  <div class="div"></div>
-
-  <!-- 커뮤니티 리포트 (Waze 방식) -->
-  <div class="community" id="community">
-    <div class="sec-label">근처 사람들은</div>
-    <div class="community-inner">
-      <div class="community-text" id="communityText">—</div>
-      <div class="community-count" id="communityCount"></div>
-    </div>
-  </div>
-
-  <!-- 피드백 -->
-  <div class="feedback-section">
-    <div class="sec-label">지금 밖은 어때?</div>
-    <div class="feedback-q">예보랑 달라?</div>
-    <div class="fb-row" id="fbRow1">
-      <button class="fb-btn" onclick="onFeedback1('match')">👍 맞아</button>
-      <button class="fb-btn" onclick="onFeedback1('diff')">🌀 달라</button>
-    </div>
-    <div class="fb-row" id="fbRow2" style="display:none;margin-top:10px;">
-      <button class="fb-btn" onclick="onFeedback2('colder')">🥶 더 추워</button>
-      <button class="fb-btn" onclick="onFeedback2('warmer')">🌤 더 따뜻해</button>
-      <button class="fb-btn" onclick="onFeedback2('rainy')">🌧 비 와</button>
-      <button class="fb-btn" onclick="onFeedback2('windy')">💨 바람 심해</button>
-    </div>
-    <div class="fb-thanks" id="fbThanks">고마워 👋 반영할게</div>
-  </div>
-
-  <div class="div"></div>
-
-  <!-- 불확실성 -->
-  <div class="uncertain" id="uncertain">
-    <span>〰</span><span>오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.</span>
-  </div>
-
-  <!-- 변곡점 -->
-  <div class="pivot" id="pivot">
-    <span style="font-size:18px">⏱</span>
-    <div>
-      <div class="pivot-label">오늘 포인트</div>
-      <div class="pivot-text" id="pivotText">—</div>
-    </div>
-  </div>
-
-  <!-- 오늘 흐름 -->
-  <div class="sec-label">오늘 흐름</div>
-  <div class="tl" id="tl"></div>
-
-  <!-- 어제 vs 오늘 -->
-  <div class="sec-label" style="margin-top:4px">어제 vs 오늘</div>
-  <div class="cmp" id="cmp"></div>
-
-  <button class="refresh" onclick="init()">
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-      <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-    </svg>
-    새로고침
-  </button>
-
+<div class="wordmark">Warmer</div>
+<div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+<div class="temp-row">
+<div class="temp-today"><div class="temp-label">TODAY</div><div class="temp-val"><span id="tempIcon">⛅</span><span id="tempVal">—°</span></div></div>
+<div class="temp-yesterday"><div class="temp-label">YESTERDAY</div><div class="temp-val" id="yestVal">—°</div><div class="temp-diff" id="diffLabel">—</div></div>
+</div>
+<div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+<div class="brief" id="brief"></div>
+<div class="chips" id="chips"></div>
+<div class="div"></div>
+<div class="community" id="community"><div class="sec-label">근처 사람들은</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
+<div class="feedback-section">
+<div class="sec-label">지금 밖은 어때?</div>
+<div class="feedback-q">예보랑 달라?</div>
+<div class="fb-row" id="fbRow1">
+<button class="fb-btn" onclick="onFeedback1('match')">👍 맞아</button>
+<button class="fb-btn" onclick="onFeedback1('diff')">🌀 달라</button>
+</div>
+<div class="fb-row" id="fbRow2" style="display:none;margin-top:10px">
+<button class="fb-btn" onclick="onFeedback2('colder')">🥶 더 추워</button>
+<button class="fb-btn" onclick="onFeedback2('warmer')">🌤 더 따뜻해</button>
+<button class="fb-btn" onclick="onFeedback2('rainy')">🌧 비 와</button>
+<button class="fb-btn" onclick="onFeedback2('windy')">💨 바람 심해</button>
+</div>
+<div class="fb-thanks" id="fbThanks">고마워 👋 반영할게</div>
+</div>
+<div class="div"></div>
+<div class="uncertain" id="uncertain"><span>〰</span><span>오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.</span></div>
+<div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">오늘 포인트</div><div class="pivot-text" id="pivotText">—</div></div></div>
+<div class="sec-label">오늘 흐름</div>
+<div class="tl" id="tl"></div>
+<div class="sec-label" style="margin-top:4px">어제 vs 오늘</div>
+<div class="cmp" id="cmp"></div>
+<button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>새로고침</button>
 </div>
 <script type="module">
-// ── Firebase 설정 ──
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, increment } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-// 🔴 여기에 Firebase 프로젝트 설정값 넣어줘
-const firebaseConfig = {
-  apiKey: "AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",
-  authDomain: "warmer-8a7ab.firebaseapp.com",
-  projectId: "warmer-8a7ab",
-  storageBucket: "warmer-8a7ab.appspot.com",
-  messagingSenderId: "1097930276522",
-  appId: "1:1097930276522:web:a533c6efabfd1804f39ad3"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// ── 헬퍼 ──
-const emo = c => c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
-const dsc = c => c===0?'맑음':c<=2?'구름 조금':c===3?'흐림':c<=48?'안개':c<=57?'이슬비':c<=67?'비':c<=77?'눈':c<=82?'소나기':c<=86?'눈 소나기':'뇌우';
-
-// ── 위치 ──
-const geoLoc = () => new Promise(res => {
-  if (!navigator.geolocation) return res({lat:52.52,lon:13.41});
-  navigator.geolocation.getCurrentPosition(
-    p => res({lat:p.coords.latitude, lon:p.coords.longitude}),
-    () => res({lat:52.52,lon:13.41})
-  );
-});
-
-async function geoName(lat,lon) {
-  try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-    const d = await r.json();
-    return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'내 위치';
-  } catch { return '내 위치'; }
-}
-
-// ── 날씨 ──
-async function fetchW(lat,lon) {
-  const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-    +`&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m`
-    +`&daily=weathercode,temperature_2m_max,temperature_2m_min`
-    +`&past_days=1&forecast_days=1&timezone=auto`;
-  return (await fetch(u)).json();
-}
-
-function parse(data) {
-  const now=new Date(), h=now.getHours(), S=24;
-  const tMax=Math.round(data.daily.temperature_2m_max[1]);
-  const tMin=Math.round(data.daily.temperature_2m_min[1]);
-  const yMax=Math.round(data.daily.temperature_2m_max[0]);
-  const yMin=Math.round(data.daily.temperature_2m_min[0]);
-  const tCode=data.daily.weathercode[1];
-  const yCode=data.daily.weathercode[0];
-  const feels=Math.round(data.hourly.apparent_temperature[S+h]);
-  const wind=Math.round(data.hourly.windspeed_10m[S+h]/3.6*10)/10;
-  const slots=[{label:'아침',h:8},{label:'낮',h:13},{label:'저녁',h:19}].map(s=>({
-    label:s.label, temp:Math.round(data.hourly.temperature_2m[S+s.h]),
-    code:data.hourly.weathercode[S+s.h], rain:data.hourly.precipitation_probability[S+s.h]??0,
-  }));
-  const diff=tMax-yMax;
-  const rv=slots.map(s=>s.rain), rm=rv.reduce((a,b)=>a+b,0)/3;
-  const rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3;
-  const swing=Math.abs(slots[2].temp-slots[0].temp);
-  const cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st'));
-  const highU=rvar>400||swing>=8||cats.size>=3;
-  const mn=slots[1].temp-slots[0].temp, ne=slots[2].temp-slots[1].temp;
-  const pivot=Math.abs(ne)>=5?(ne<0?'저녁에 확 떨어져':'저녁에 많이 풀려')
-    :Math.abs(mn)>=5?(mn>0?'오후부터 따뜻해져':'오후부터 쌀쌀해져'):'';
-  return {tMax,tMin,yMax,yMin,tCode,yCode,feels,wind,slots,diff,highU,pivot,now};
-}
-
-// ── prose 빌더 ──
-function buildProse(p) {
-  const {diff,tCode,feels,slots}=p;
-  const coreWord=diff>=8?'훨씬 따뜻해':diff>=4?'꽤 따뜻해':diff>=2?'좀 따뜻해'
-    :diff<=-8?'많이 추워':diff<=-4?'꽤 추워':diff<=-2?'좀 쌀쌀해':'비슷해';
-  const rainPeak=Math.max(...slots.map(s=>s.rain));
-  const wxWord=rainPeak>60?'비 조심해':rainPeak>30?'비 올 수도':tCode>=70?'눈 올 수 있어':dsc(tCode);
-  const feelWord=feels<=0?'매우 차갑게':feels<=8?'꽤 차갑게':feels<=15?'선선하게':feels<=22?'적당하게':'따뜻하게';
-
-  // 행동 라인 — 이탤릭 그린
-  const action=rainPeak>60?'우산 꼭 챙겨.':rainPeak>30?'우산 챙기는 게 나을 것 같아.':
-    tCode>=70?'따뜻하게 입고 나가.':diff<=-4?'따뜻하게 껴입어.':diff<=-2?'겉에 뭐 하나 걸쳐.':
-    diff>=4?'가볍게 입어도 돼.':'크게 다르진 않아.';
-
-  return (Math.abs(diff)<=1
-    ? `<span class="g">어제랑</span> <span class="w">비슷해</span>`
-    : `<span class="g">어제보다</span> <span class="w">${coreWord}</span>`)
-    +`<br><span class="g">체감은 </span><span class="w">${feelWord}</span><span class="g">.</span>`
-    +`<br><span class="action">${action}</span>`;
-}
-
-// ── AI 브리핑 ──
-const SYS=`너는 날씨를 엄마처럼 챙겨주는 도우미야.
-규칙: 2~3문장. 숫자 온도 쓰지 마. 체감 언어만.
-강수 확률별: 20%이하→언급안함, 20~40%→"혹시모르니까", 40~60%→"챙기는게나을것같아", 60%+→"꼭챙겨"
-마지막 문장은 반드시 행동으로 끝내.
-응답 마지막 줄: ITEMS:["☂️ 우산"] 형식으로 최대 2개.`;
-
-async function getAI(p) {
-  const {tMax,tMin,yMax,yMin,tCode,yCode,wind,slots,diff,highU,pivot}=p;
-  const uNote=highU?'\n날씨 변동성 높음. 헷징 표현 써줘.':'';
-  const pNote=pivot?`\n변곡점:"${pivot}" 녹여줘.`:[];
-  const prompt=`오늘최고${tMax}°최저${tMin}°${dsc(tCode)}바람${wind}m/s / 어제최고${yMax}°최저${yMin}°${dsc(yCode)} / 어제대비${diff>0?'+':''}${diff}도 / 아침${slots[0].temp}°비${slots[0].rain}% 낮${slots[1].temp}°비${slots[1].rain}% 저녁${slots[2].temp}°비${slots[2].rain}%${uNote}${pNote}`;
-
-  // 🟢 Gemini API Key - 여기에 키를 넣어주세요
-  const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
-
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        system_instruction: { parts: [{ text: SYS }] },
-        generationConfig: {
-          maxOutputTokens: 200,
-          temperature: 0.7
-        }
-      })
-    });
-
-    const d = await res.json();
-    const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const m = raw.match(/ITEMS:(\[.*?\])/);
-    let items = [], brief = raw;
-    if (m) {
-      try { items = JSON.parse(m[1]); } catch { }
-      brief = raw.replace(/ITEMS:.*$/, '').trim();
-    }
-    return { brief, items };
-  } catch (e) {
-    console.error("Gemini API Error:", e);
-    const items = [];
-    if (p.slots.some(s => s.rain > 40)) items.push('☂️ 우산');
-    if (p.wind > 5) items.push('🧥 바람막이');
-    return { brief: '', items };
-  }
-}
-
-// ── Firebase 피드백 ──
-let currentKey='', currentLoc={lat:0,lon:0};
-
-function getFbKey(lat,lon) {
-  const now=new Date();
-  const d=now.toISOString().split('T')[0];
-  const h=Math.floor(now.getHours()/3)*3; // 3시간 단위 버킷
-  const gridLat=Math.round(lat*10)/10;
-  const gridLon=Math.round(lon*10)/10;
-  return `fb_${gridLat}_${gridLon}_${d}_${h}`;
-}
-
-async function loadCommunity(key) {
-  try {
-    const snap=await getDoc(doc(db,'feedbacks',key));
-    if(!snap.exists()) return;
-    const d=snap.data();
-    const total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);
-    if(total<2) return; // 최소 2명 이상일 때만 표시
-
-    const diffs=[];
-    if(d.colder>0) diffs.push(`더 춥다(${d.colder}명)`);
-    if(d.warmer>0) diffs.push(`더 따뜻하다(${d.warmer}명)`);
-    if(d.rainy>0)  diffs.push(`비 온다(${d.rainy}명)`);
-    if(d.windy>0)  diffs.push(`바람 심하다(${d.windy}명)`);
-
-    const commEl=document.getElementById('community');
-    const textEl=document.getElementById('communityText');
-    const cntEl=document.getElementById('communityCount');
-
-    if(diffs.length===0) {
-      textEl.textContent='예보가 맞는 것 같아';
-    } else {
-      textEl.textContent=`근처에서 ${diffs.join(', ')}고 해`;
-    }
-    cntEl.textContent=`${total}명 응답`;
-    commEl.style.display='block';
-  } catch(e) { console.log('community load err',e); }
-}
-
-async function saveFeedback(key, field) {
-  try {
-    await setDoc(doc(db,'feedbacks',key), {[field]:increment(1)}, {merge:true});
-  } catch(e) { console.log('feedback save err',e); }
-}
-
-// ── 피드백 핸들러 ──
-window.onFeedback1 = async (type) => {
-  document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));
-  event.target.classList.add('selected');
-  if(type==='match') {
-    await saveFeedback(currentKey,'match');
-    document.getElementById('fbRow2').style.display='none';
-    document.getElementById('fbThanks').style.display='block';
-    setTimeout(()=>loadCommunity(currentKey),500);
-  } else {
-    document.getElementById('fbRow2').style.display='flex';
-  }
-};
-
-window.onFeedback2 = async (type) => {
-  document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));
-  event.target.classList.add('selected');
-  if(type==='warmer') event.target.classList.add('warm');
-  await saveFeedback(currentKey, type);
-  document.getElementById('fbThanks').style.display='block';
-  setTimeout(()=>loadCommunity(currentKey),500);
-};
-
-// ── 렌더 ──
-function render(p, brief, items) {
-  const {tMax,tMin,yMax,yMin,diff,tCode,slots,highU,pivot,now,feels}=p;
-
-  document.getElementById('dateEl').textContent=
-    now.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
-
-  // 온도 행
-  document.getElementById('tempIcon').textContent=emo(tCode);
-  document.getElementById('tempVal').textContent=`${tMax}°`;
-  document.getElementById('yestVal').textContent=`${yMax}°`;
-  const dl=document.getElementById('diffLabel');
-  if(diff>=2){dl.textContent=`+${diff}도 따뜻`;dl.className='temp-diff diff-warm';}
-  else if(diff<=-2){dl.textContent=`${diff}도 추워`;dl.className='temp-diff diff-cool';}
-  else{dl.textContent='비슷';dl.className='temp-diff diff-same';}
-
-  // prose
-  const pe=document.getElementById('prose');
-  pe.innerHTML=buildProse(p); pe.classList.add('fu');
-
-  // brief
-  if(brief){
-    const be=document.getElementById('brief');
-    be.textContent=brief; be.style.display='block'; be.classList.add('fu');
-  }
-
-  // chips
-  document.getElementById('chips').innerHTML=
-    items.map(i=>`<div class="chip">${i}</div>`).join('');
-
-  // 불확실성
-  document.getElementById('uncertain').classList.toggle('on',highU);
-
-  // 변곡점
-  const pivotEl=document.getElementById('pivot');
-  if(pivot){pivotEl.classList.add('on');document.getElementById('pivotText').textContent=pivot;}
-
-  // 타임라인
-  document.getElementById('tl').innerHTML=slots.map(s=>`
-    <div class="tl-row fu">
-      <div class="tl-t">${s.label}</div>
-      <div class="tl-i">${emo(s.code)}</div>
-      <div class="tl-d">${dsc(s.code)}${s.rain>20?` · 비 ${s.rain}%`:''}</div>
-      <div class="tl-n">${s.temp}°</div>
-    </div>`).join('');
-
-  // 비교 바
-  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);
-  document.getElementById('cmp').innerHTML=`
-    <div class="cmp-row"><div class="cmp-l">어제</div>
-      <div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div>
-      <div class="cmp-v">${yMax}°</div></div>
-    <div class="cmp-row"><div class="cmp-l">오늘</div>
-      <div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div>
-      <div class="cmp-v">${tMax}°</div></div>`;
-}
-
-// ── INIT ──
-async function init() {
-  document.getElementById('prose').innerHTML=
-    '<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('brief').style.display='none';
-  document.getElementById('chips').innerHTML='';
-  document.getElementById('uncertain').classList.remove('on');
-  document.getElementById('pivot').classList.remove('on');
-  document.getElementById('community').style.display='none';
-  document.getElementById('fbThanks').style.display='none';
-  document.getElementById('fbRow2').style.display='none';
-  document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));
-
-  try {
-    const loc=await geoLoc();
-    currentLoc=loc;
-    currentKey=getFbKey(loc.lat,loc.lon);
-    const name=await geoName(loc.lat,loc.lon);
-    document.getElementById('locEl').textContent=name;
-    const raw=await fetchW(loc.lat,loc.lon);
-    const p=parse(raw);
-    const {brief,items}=await getAI(p);
-    render(p,brief,items);
-    loadCommunity(currentKey); // 커뮤니티 데이터 비동기 로드
-  } catch(e) {
-    document.getElementById('prose').innerHTML=
-      '<span style="color:rgba(0,0,0,0.3);font-size:15px">날씨를 불러올 수 없어.</span>';
-  }
-}
-
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
+const dsc=c=>c===0?'맑음':c<=2?'구름 조금':c===3?'흐림':c<=48?'안개':c<=57?'이슬비':c<=67?'비':c<=77?'눈':c<=82?'소나기':c<=86?'눈 소나기':'뇌우';
+const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
+async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'내 위치'}catch{return'내 위치'}}
+async function fetchW(lat,lon){const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(u)).json()}
+function parse(data){const now=new Date(),h=now.getHours(),S=24;const tMax=Math.round(data.daily.temperature_2m_max[1]);const tMin=Math.round(data.daily.temperature_2m_min[1]);const yMax=Math.round(data.daily.temperature_2m_max[0]);const yMin=Math.round(data.daily.temperature_2m_min[0]);const tCode=data.daily.weathercode[1];const yCode=data.daily.weathercode[0];const feels=Math.round(data.hourly.apparent_temperature[S+h]);const wind=Math.round(data.hourly.windspeed_10m[S+h]/3.6*10)/10;const slots=[{label:'아침',h:8},{label:'낮',h:13},{label:'저녁',h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));const diff=tMax-yMax;const rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3;const rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3;const swing=Math.abs(slots[2].temp-slots[0].temp);const cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st'));const highU=rvar>400||swing>=8||cats.size>=3;const mn=slots[1].temp-slots[0].temp,ne=slots[2].temp-slots[1].temp;const pivot=Math.abs(ne)>=5?(ne<0?'저녁에 확 떨어져':'저녁에 많이 풀려'):Math.abs(mn)>=5?(mn>0?'오후부터 따뜻해져':'오후부터 쌀쌀해져'):'';return{tMax,tMin,yMax,yMin,tCode,yCode,feels,wind,slots,diff,highU,pivot,now}}
+function buildProse(p){const{diff,tCode,feels,slots}=p;const cw=diff>=8?'훨씬 따뜻해':diff>=4?'꽤 따뜻해':diff>=2?'좀 따뜻해':diff<=-8?'많이 추워':diff<=-4?'꽤 추워':diff<=-2?'좀 쌀쌀해':'비슷해';const rp=Math.max(...slots.map(s=>s.rain));const action=rp>60?'우산 꼭 챙겨.':rp>30?'우산 챙기는 게 나을 것 같아.':tCode>=70?'따뜻하게 입고 나가.':diff<=-4?'따뜻하게 껴입어.':diff<=-2?'겉에 뭐 하나 걸쳐.':diff>=4?'가볍게 입어도 돼.':'크게 다르진 않아.';const fw=feels<=0?'매우 차갑게':feels<=8?'꽤 차갑게':feels<=15?'선선하게':feels<=22?'적당하게':'따뜻하게';return(Math.abs(diff)<=1?`<span class="g">어제랑</span> <span class="w">비슷해</span>`:`<span class="g">어제보다</span> <span class="w">${cw}</span>`)+`<br><span class="g">체감은 </span><span class="w">${fw}</span><span class="g">.</span><br><span class="action">${action}</span>`}
+let currentKey='';
+function getFbKey(lat,lon){const now=new Date();const d=now.toISOString().split('T')[0];const h=Math.floor(now.getHours()/3)*3;const gl=Math.round(lat*10)/10;const glo=Math.round(lon*10)/10;return`fb_${gl}_${glo}_${d}_${h}`}
+async function loadCommunity(key){try{const snap=await getDoc(doc(db,'feedbacks',key));if(!snap.exists())return;const d=snap.data();const total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`더 춥다(${d.colder}명)`);if(d.warmer>0)diffs.push(`더 따뜻하다(${d.warmer}명)`);if(d.rainy>0)diffs.push(`비 온다(${d.rainy}명)`);if(d.windy>0)diffs.push(`바람 심하다(${d.windy}명)`);const ce=document.getElementById('community');const te=document.getElementById('communityText');const cnte=document.getElementById('communityCount');te.textContent=diffs.length===0?'예보가 맞는 것 같아':`근처에서 ${diffs.join(', ')}고 해`;cnte.textContent=`${total}명 응답`;ce.style.display='block'}catch(e){}}
+async function saveFeedback(key,field){try{await setDoc(doc(db,'feedbacks',key),{[field]:increment(1)},{merge:true})}catch(e){}}
+window.onFeedback1=async(type)=>{document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='match'){await saveFeedback(currentKey,'match');document.getElementById('fbRow2').style.display='none';document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)}else{document.getElementById('fbRow2').style.display='flex'}};
+window.onFeedback2=async(type)=>{document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='warmer')event.target.classList.add('warm');await saveFeedback(currentKey,type);document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)};
+function render(p,brief,items){const{tMax,tMin,yMax,yMin,diff,tCode,slots,highU,pivot,now,feels}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=`+${diff}도 따뜻`;dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=`${diff}도 추워`;dl.className='temp-diff diff-cool'}else{dl.textContent='비슷';dl.className='temp-diff diff-same'};const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');if(brief){const be=document.getElementById('brief');be.textContent=brief;be.style.display='block';be.classList.add('fu')};document.getElementById('chips').innerHTML=items.map(i=>`<div class="chip">${i}</div>`).join('');document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · 비 ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">어제</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">오늘</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
+async function init(){document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);render(p,'',['☂️ 우산','🧥 바람막이'].filter(()=>false));loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML='<span style="color:rgba(0,0,0,0.3);font-size:15px">날씨를 불러올 수 없어.</span>'}}
 window.init=init;
 init();
 </script>
