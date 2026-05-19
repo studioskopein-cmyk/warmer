@@ -70,10 +70,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .fu{animation:fu .45s ease forwards}
 .refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px}
 .refresh:active{opacity:.4}
+.lang-toggle{position:absolute;top:56px;right:32px;font-size:11px;color:var(--muted);cursor:pointer;background:none;border:none;letter-spacing:1px;text-transform:uppercase;font-family:inherit;padding:4px}
+.lang-toggle:active{opacity:.5}
 </style>
 </head>
 <body>
 <div class="app">
+<button class="lang-toggle" onclick="toggleLang()" id="langBtn">EN</button>
 <div class="wordmark">Warmer</div>
 <div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
 <div class="temp-row">
@@ -84,30 +87,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 <div class="brief" id="brief"></div>
 <div class="chips" id="chips"></div>
 <div class="div"></div>
-<div class="community" id="community"><div class="sec-label">근처 사람들은</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
+<div class="community" id="community"><div class="sec-label" id="communityLabel">근처 사람들은</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
 <div class="feedback-section">
-<div class="sec-label">지금 밖은 어때?</div>
-<div class="feedback-q">예보랑 달라?</div>
+<div class="sec-label" id="feedbackLabel">지금 밖은 어때?</div>
+<div class="feedback-q" id="feedbackQ">예보랑 달라?</div>
 <div class="fb-row" id="fbRow1">
-<button class="fb-btn" onclick="onFeedback1('match')">👍 맞아</button>
-<button class="fb-btn" onclick="onFeedback1('diff')">🌀 달라</button>
+<button class="fb-btn" id="fbBtnMatch" onclick="onFeedback1('match')">👍 맞아</button>
+<button class="fb-btn" id="fbBtnDiff" onclick="onFeedback1('diff')">🌀 달라</button>
 </div>
 <div class="fb-row" id="fbRow2" style="display:none;margin-top:10px">
-<button class="fb-btn" onclick="onFeedback2('colder')">🥶 더 추워</button>
-<button class="fb-btn" onclick="onFeedback2('warmer')">🌤 더 따뜻해</button>
-<button class="fb-btn" onclick="onFeedback2('rainy')">🌧 비 와</button>
-<button class="fb-btn" onclick="onFeedback2('windy')">💨 바람 심해</button>
+<button class="fb-btn" id="fbBtnColder" onclick="onFeedback2('colder')">🥶 더 추워</button>
+<button class="fb-btn" id="fbBtnWarmer" onclick="onFeedback2('warmer')">🌤 더 따뜻해</button>
+<button class="fb-btn" id="fbBtnRainy" onclick="onFeedback2('rainy')">🌧 비 와</button>
+<button class="fb-btn" id="fbBtnWindy" onclick="onFeedback2('windy')">💨 바람 심해</button>
 </div>
 <div class="fb-thanks" id="fbThanks">고마워 👋 반영할게</div>
 </div>
 <div class="div"></div>
-<div class="uncertain" id="uncertain"><span>〰</span><span>오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.</span></div>
-<div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">오늘 포인트</div><div class="pivot-text" id="pivotText">—</div></div></div>
-<div class="sec-label">오늘 흐름</div>
+<div class="uncertain" id="uncertain"><span>〰</span><span id="uncertainText">오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.</span></div>
+<div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label" id="pivotLabel">오늘 포인트</div><div class="pivot-text" id="pivotText">—</div></div></div>
+<div class="sec-label" id="flowLabel">오늘 흐름</div>
 <div class="tl" id="tl"></div>
-<div class="sec-label" style="margin-top:4px">어제 vs 오늘</div>
+<div class="sec-label" id="compLabel" style="margin-top:4px">어제 vs 오늘</div>
 <div class="cmp" id="cmp"></div>
-<button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>새로고침</button>
+<button class="refresh" id="refreshBtn" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>새로고침</span></button>
 </div>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -115,21 +118,69 @@ import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/fir
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
+
+let lang=localStorage.getItem('lang')||'ko';
+const t={
+  ko:{
+    loc:'내 위치',
+    dsc:[[0,'맑음'],[2,'구름 조금'],[3,'흐림'],[48,'안개'],[57,'이슬비'],[67,'비'],[77,'눈'],[82,'소나기'],[86,'눈 소나기'],[99,'뇌우']],
+    slots:['아침','낮','저녁'],
+    pivot:{down:'저녁에 확 떨어져',up:'저녁에 많이 풀려',warm:'오후부터 따뜻해져',chill:'오후부터 쌀쌀해져'},
+    cw:['훨씬 따뜻해','꽤 따뜻해','좀 따뜻해','많이 추워','꽤 추워','좀 쌀쌀해','비슷해'],
+    action:['우산 꼭 챙겨.','우산 챙기는 게 나을 것 같아.','따뜻하게 입고 나가.','따뜻하게 껴입어.','겉에 뭐 하나 걸쳐.','가볍게 입어도 돼.','크게 다르진 않아.'],
+    fw:['매우 차갑게','꽤 차갑게','선선하게','적당하게','따뜻하게'],
+    proseSim:f=>`<span class="g">어제랑</span> <span class="w">비슷해</span><br><span class="g">체감은 </span><span class="w">${f}</span><span class="g">.</span>`,
+    proseDiff:(c,f)=>`<span class="g">어제보다</span> <span class="w">${c}</span><br><span class="g">체감은 </span><span class="w">${f}</span><span class="g">.</span>`,
+    ui:{
+      community:'근처 사람들은',match:'예보가 맞는 것 같아',people:(l,n)=>`근처에서 ${l.join(', ')}고 해`,count:n=>`${n}명 응답`,
+      feedback:'지금 밖은 어때?',q:'예보랑 달라?',m:'👍 맞아',d:'🌀 달라',
+      colder:'🥶 더 추워',warmer:'🌤 더 따뜻해',rainy:'🌧 비 와',windy:'💨 바람 심해',thanks:'고마워 👋 반영할게',
+      uncertain:'오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.',pivot:'오늘 포인트',flow:'오늘 흐름',comp:'어제 vs 오늘',refresh:'새로고침',
+      c:'더 춥다',w:'더 따뜻하다',r:'비 온다',wd:'바람 심하다',y:'어제',t:'오늘',warmLabel:d=>`+${d}도 따뜻`,coolLabel:d=>`${d}도 추워`,sameLabel:'비슷'
+    }
+  },
+  en:{
+    loc:'My Location',
+    dsc:[[0,'Clear'],[2,'Partly Cloudy'],[3,'Overcast'],[48,'Fog'],[57,'Drizzle'],[67,'Rain'],[77,'Snow'],[82,'Showers'],[86,'Snow Showers'],[99,'Thunderstorm']],
+    slots:['Morning','Day','Evening'],
+    pivot:{down:'Drops sharply tonight',up:'Warmer this evening',warm:'Warmer this afternoon',chill:'Chilly this afternoon'},
+    cw:['much warmer','quite warm','a bit warmer','much colder','quite cold','a bit chilly','similar'],
+    action:['Take an umbrella.','Better take an umbrella.','Dress warmly.','Bundle up.','Take a jacket.','Dress light.','Not much different.'],
+    fw:['very cold','quite cold','chilly','pleasant','warm'],
+    proseSim:f=>`<span class="w">Similar</span> <span class="g">to yesterday</span><br><span class="g">Feels </span><span class="w">${f}</span><span class="g">.</span>`,
+    proseDiff:(c,f)=>`<span class="w">${c}</span> <span class="g">than yesterday</span><br><span class="g">Feels </span><span class="w">${f}</span><span class="g">.</span>`,
+    ui:{
+      community:'People nearby',match:'Forecast seems correct',people:(l,n)=>`Nearby: ${l.join(', ')}`,count:n=>`${n} responses`,
+      feedback:'HOW IS IT OUTSIDE?',q:'Different from forecast?',m:'👍 Correct',d:'🌀 No',
+      colder:'🥶 Colder',warmer:'🌤 Warmer',rainy:'🌧 Rainy',windy:'💨 Windy',thanks:"Thanks! I'll update it.",
+      uncertain:'High volatility. Forecast might be off.',pivot:"TODAY'S POINT",flow:"TODAY'S FLOW",comp:'YESTERDAY VS TODAY',refresh:'REFRESH',
+      c:'Colder',w:'Warmer',r:'Rainy',wd:'Windy',y:'Yest',t:'Today',warmLabel:d=>`${d}° warmer`,coolLabel:d=>`${d}° colder`,sameLabel:'Same'
+    }
+  }
+};
+
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
-const dsc=c=>c===0?'맑음':c<=2?'구름 조금':c===3?'흐림':c<=48?'안개':c<=57?'이슬비':c<=67?'비':c<=77?'눈':c<=82?'소나기':c<=86?'눈 소나기':'뇌우';
+const dsc=c=>{const l=t[lang].dsc;for(const[cd,txt]of l)if(c<=cd)return txt;return l[l.length-1][1]};
 const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
-async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'내 위치'}catch{return'내 위치'}}
+async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||t[lang].loc}catch{return t[lang].loc}}
 async function fetchW(lat,lon){const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(u)).json()}
-function parse(data){const now=new Date(),h=now.getHours(),S=24;const tMax=Math.round(data.daily.temperature_2m_max[1]);const tMin=Math.round(data.daily.temperature_2m_min[1]);const yMax=Math.round(data.daily.temperature_2m_max[0]);const yMin=Math.round(data.daily.temperature_2m_min[0]);const tCode=data.daily.weathercode[1];const yCode=data.daily.weathercode[0];const feels=Math.round(data.hourly.apparent_temperature[S+h]);const wind=Math.round(data.hourly.windspeed_10m[S+h]/3.6*10)/10;const slots=[{label:'아침',h:8},{label:'낮',h:13},{label:'저녁',h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));const diff=tMax-yMax;const rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3;const rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3;const swing=Math.abs(slots[2].temp-slots[0].temp);const cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st'));const highU=rvar>400||swing>=8||cats.size>=3;const mn=slots[1].temp-slots[0].temp,ne=slots[2].temp-slots[1].temp;const pivot=Math.abs(ne)>=5?(ne<0?'저녁에 확 떨어져':'저녁에 많이 풀려'):Math.abs(mn)>=5?(mn>0?'오후부터 따뜻해져':'오후부터 쌀쌀해져'):'';return{tMax,tMin,yMax,yMin,tCode,yCode,feels,wind,slots,diff,highU,pivot,now}}
-function buildProse(p){const{diff,tCode,feels,slots}=p;const cw=diff>=8?'훨씬 따뜻해':diff>=4?'꽤 따뜻해':diff>=2?'좀 따뜻해':diff<=-8?'많이 추워':diff<=-4?'꽤 추워':diff<=-2?'좀 쌀쌀해':'비슷해';const rp=Math.max(...slots.map(s=>s.rain));const action=rp>60?'우산 꼭 챙겨.':rp>30?'우산 챙기는 게 나을 것 같아.':tCode>=70?'따뜻하게 입고 나가.':diff<=-4?'따뜻하게 껴입어.':diff<=-2?'겉에 뭐 하나 걸쳐.':diff>=4?'가볍게 입어도 돼.':'크게 다르진 않아.';const fw=feels<=0?'매우 차갑게':feels<=8?'꽤 차갑게':feels<=15?'선선하게':feels<=22?'적당하게':'따뜻하게';return(Math.abs(diff)<=1?`<span class="g">어제랑</span> <span class="w">비슷해</span>`:`<span class="g">어제보다</span> <span class="w">${cw}</span>`)+`<br><span class="g">체감은 </span><span class="w">${fw}</span><span class="g">.</span><br><span class="action">${action}</span>`}
+function parse(data){const now=new Date(),h=now.getHours(),S=24;const tMax=Math.round(data.daily.temperature_2m_max[1]),tMin=Math.round(data.daily.temperature_2m_min[1]),yMax=Math.round(data.daily.temperature_2m_max[0]),yMin=Math.round(data.daily.temperature_2m_min[0]),tCode=data.daily.weathercode[1],yCode=data.daily.weathercode[0],feels=Math.round(data.hourly.apparent_temperature[S+h]);
+const slots=[{label:t[lang].slots[0],h:8},{label:t[lang].slots[1],h:13},{label:t[lang].slots[2],h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));
+const diff=tMax-yMax,rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3,rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3,swing=Math.abs(slots[2].temp-slots[0].temp),cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st')),highU=rvar>400||swing>=8||cats.size>=3,mn=slots[1].temp-slots[0].temp,ne=slots[2].temp-slots[1].temp;
+const pivot=Math.abs(ne)>=5?(ne<0?t[lang].pivot.down:t[lang].pivot.up):Math.abs(mn)>=5?(mn>0?t[lang].pivot.warm:t[lang].pivot.chill):'';return{tMax,tMin,yMax,yMin,tCode,yCode,feels,slots,diff,highU,pivot,now}}
+function buildProse(p){const{diff,tCode,feels,slots}=p,cl=t[lang].cw,cw=diff>=8?cl[0]:diff>=4?cl[1]:diff>=2?cl[2]:diff<=-8?cl[3]:diff<=-4?cl[4]:diff<=-2?cl[5]:cl[6],rp=Math.max(...slots.map(s=>s.rain)),al=t[lang].action,action=rp>60?al[0]:rp>30?al[1]:tCode>=70?al[2]:diff<=-4?al[3]:diff<=-2?al[4]:diff>=4?al[5]:al[6],fl=t[lang].fw,fw=feels<=0?fl[0]:feels<=8?fl[1]:feels<=15?fl[2]:feels<=22?fl[3]:fl[4];
+return(Math.abs(diff)<=1?t[lang].proseSim(fw):t[lang].proseDiff(cw,fw))+`<br><span class="action">${action}</span>`}
 let currentKey='';
-function getFbKey(lat,lon){const now=new Date();const d=now.toISOString().split('T')[0];const h=Math.floor(now.getHours()/3)*3;const gl=Math.round(lat*10)/10;const glo=Math.round(lon*10)/10;return`fb_${gl}_${glo}_${d}_${h}`}
-async function loadCommunity(key){try{const snap=await getDoc(doc(db,'feedbacks',key));if(!snap.exists())return;const d=snap.data();const total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`더 춥다(${d.colder}명)`);if(d.warmer>0)diffs.push(`더 따뜻하다(${d.warmer}명)`);if(d.rainy>0)diffs.push(`비 온다(${d.rainy}명)`);if(d.windy>0)diffs.push(`바람 심하다(${d.windy}명)`);const ce=document.getElementById('community');const te=document.getElementById('communityText');const cnte=document.getElementById('communityCount');te.textContent=diffs.length===0?'예보가 맞는 것 같아':`근처에서 ${diffs.join(', ')}고 해`;cnte.textContent=`${total}명 응답`;ce.style.display='block'}catch(e){}}
+function getFbKey(lat,lon){const now=new Date(),d=now.toISOString().split('T')[0],h=Math.floor(now.getHours()/3)*3,gl=Math.round(lat*10)/10,glo=Math.round(lon*10)/10;return`fb_${gl}_${glo}_${d}_${h}`}
+async function loadCommunity(key){try{const snap=await getDoc(doc(db,'feedbacks',key));if(!snap.exists())return;const d=snap.data(),total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`${t[lang].ui.c}(${d.colder})`);if(d.warmer>0)diffs.push(`${t[lang].ui.w}(${d.warmer})`);if(d.rainy>0)diffs.push(`${t[lang].ui.r}(${d.rainy})`);if(d.windy>0)diffs.push(`${t[lang].ui.wd}(${d.windy})`);
+const ce=document.getElementById('community'),te=document.getElementById('communityText'),cnte=document.getElementById('communityCount');te.textContent=diffs.length===0?t[lang].ui.match:t[lang].ui.people(diffs,total);cnte.textContent=t[lang].ui.count(total);ce.style.display='block'}catch(e){}}
 async function saveFeedback(key,field){try{await setDoc(doc(db,'feedbacks',key),{[field]:increment(1)},{merge:true})}catch(e){}}
 window.onFeedback1=async(type)=>{document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='match'){await saveFeedback(currentKey,'match');document.getElementById('fbRow2').style.display='none';document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)}else{document.getElementById('fbRow2').style.display='flex'}};
 window.onFeedback2=async(type)=>{document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='warmer')event.target.classList.add('warm');await saveFeedback(currentKey,type);document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)};
-function render(p,brief,items){const{tMax,tMin,yMax,yMin,diff,tCode,slots,highU,pivot,now,feels}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=`+${diff}도 따뜻`;dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=`${diff}도 추워`;dl.className='temp-diff diff-cool'}else{dl.textContent='비슷';dl.className='temp-diff diff-same'};const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');if(brief){const be=document.getElementById('brief');be.textContent=brief;be.style.display='block';be.classList.add('fu')};document.getElementById('chips').innerHTML=items.map(i=>`<div class="chip">${i}</div>`).join('');document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · 비 ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">어제</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">오늘</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
-async function init(){document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);render(p,'',['☂️ 우산','🧥 바람막이'].filter(()=>false));loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML='<span style="color:rgba(0,0,0,0.3);font-size:15px">날씨를 불러올 수 없어.</span>'}}
+function updateUI(){const u=t[lang].ui;document.getElementById('langBtn').textContent=lang==='ko'?'EN':'KO';document.getElementById('communityLabel').textContent=u.community;document.getElementById('feedbackLabel').textContent=u.feedback;document.getElementById('feedbackQ').textContent=u.q;document.getElementById('fbBtnMatch').textContent=u.m;document.getElementById('fbBtnDiff').textContent=u.d;document.getElementById('fbBtnColder').textContent=u.colder;document.getElementById('fbBtnWarmer').textContent=u.warmer;document.getElementById('fbBtnRainy').textContent=u.rainy;document.getElementById('fbBtnWindy').textContent=u.windy;document.getElementById('fbThanks').textContent=u.thanks;document.getElementById('uncertainText').textContent=u.uncertain;document.getElementById('pivotLabel').textContent=u.pivot;document.getElementById('flowLabel').textContent=u.flow;document.getElementById('compLabel').textContent=u.comp;document.getElementById('refreshBtn').querySelector('span').textContent=u.refresh}
+window.toggleLang=()=>{lang=lang==='ko'?'en':'ko';localStorage.setItem('lang',lang);updateUI();init()};
+function render(p,brief,items){const{tMax,yMax,diff,tCode,slots,highU,pivot,now}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=t[lang].ui.warmLabel(diff);dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=t[lang].ui.coolLabel(Math.abs(diff));dl.className='temp-diff diff-cool'}else{dl.textContent=t[lang].ui.sameLabel;dl.className='temp-diff diff-same'};const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');document.getElementById('chips').innerHTML=items.map(i=>`<div class="chip">${i}</div>`).join('');document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · ${lang==='ko'?'비':'Rain'} ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">${t[lang].ui.y}</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">${t[lang].ui.t}</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
+async function init(){updateUI();document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);render(p,'',[]);loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML=`<span style="color:rgba(0,0,0,0.3);font-size:15px">${lang==='ko'?'날씨를 불러올 수 없어.':'Unable to load weather.'}</span>`}}
 window.init=init;
 init();
 </script>
