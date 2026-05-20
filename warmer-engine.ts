@@ -66,11 +66,10 @@ Respond with ONLY valid JSON, no markdown fences, no explanation. Follow this ex
       const response = result.response;
       const rawText = response.text();
 
-      // JSON 파싱 (마크다운 펜스 제거)
-      const cleanText = rawText
-        .replace(/```json\n?/g, "")
-        .replace(/\n?```/g, "")
-        .trim();
+      // JSON 파싱 (마크다운 펜스 및 주변 텍스트 제거를 위해 중괄호 추출)
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("응답에서 유효한 JSON을 찾을 수 없습니다.");
+      const cleanText = jsonMatch[0];
       
       const parsed = JSON.parse(cleanText) as WarmTranslation;
 
@@ -132,114 +131,33 @@ function applyBrandGuardrails(output: WarmTranslation): WarmTranslation {
     }
   }
 
-  const heroWords = output.hero
-cd ~/warmer-firebase/functions/src
+  const wordCount = output.hero.split(/\s+/).length;
+  if (wordCount > 12) {
+    throw new BrandViolationError("too_long", output.hero);
+  }
 
-cat > index.ts << 'EOF'
-import * as functions from "firebase-functions";
-import { translateWeather, translateLayered } from "./warmer-engine";
-import type { WeatherContext } from "./warmer-types";
-
-/**
- * HTTP Function: 날씨 번역 API (Gemini)
- */
-export const translateWeatherAPI = functions
-  .runWith({
-    secrets: ["GEMINI_API_KEY"],
-    timeoutSeconds: 60,
-    memory: "512MB",
-  })
-  .https.onRequest(async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
-    }
-
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const weatherContext = req.body.weatherContext as WeatherContext;
-
-      if (!weatherContext || !weatherContext.temp || !weatherContext.delta) {
-        res.status(400).json({
-          error: "Invalid request",
-          message: "weatherContext with temp and delta is required",
-        });
-        return;
-      }
-
-      const translation = await translateWeather(weatherContext);
-
-      res.status(200).json({
-        success: true,
-        translation,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Translation error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Translation failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  });
+  return output;
+}
 
 /**
- * HTTP Function: 레이어드 번역 (사용자 타입별)
+ * 레이어드 번역 구현
+ * index.ts에서 호출하고 있으므로 반드시 export 되어야 합니다.
  */
-export const translateWeatherLayered = functions
-  .runWith({
-    secrets: ["GEMINI_API_KEY"],
-    timeoutSeconds: 60,
-    memory: "512MB",
-  })
-  .https.onRequest(async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
+export async function translateLayered(
+  ctx: WeatherContext
+): Promise<LayeredTranslation> {
+  // 기본 번역을 수행한 뒤 각 레이어에 맞는 응답을 생성합니다.
+  const base = await translateWeather(ctx);
+  
+  return {
+    standard: base,
+    minimalist: {
+      ...base,
+      hero: base.hero.split('.')[0] + '.', // 간결한 버전
+    },
+    enthusiast: {
+      ...base,
+      hero: `Hey! ${base.hero} Let's get moving!`, // 열정적인 버전
     }
-
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const weatherContext = req.body.weatherContext as WeatherContext;
-
-      if (!weatherContext || !weatherContext.temp || !weatherContext.delta) {
-        res.status(400).json({
-          error: "Invalid request",
-          message: "weatherContext with temp and delta is required",
-        });
-        return;
-      }
-
-      const layered = await translateLayered(weatherContext);
-
-      res.status(200).json({
-        success: true,
-        layered,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Layered translation error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Translation failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  });
+  };
+}
