@@ -4,6 +4,7 @@ import { WARMER_SYSTEM_PROMPT, buildContextualHints } from "./prompt";
 
 interface Env {
   GEMINI_API_KEY: string;
+  ASSETS: { fetch: typeof fetch };
 }
 
 class BrandViolationError extends Error {
@@ -143,24 +144,25 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    if (request.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const url = new URL(request.url);
+    
+    // API Routes
+    if (url.pathname === "/api/layered" || url.pathname === "/api/translate") {
+      if (request.method !== "POST") {
+        return new Response(
+          JSON.stringify({ error: "Method not allowed" }),
+          { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    try {
-      const url = new URL(request.url);
-      
-      // API Routes
-      if (url.pathname === "/api/layered" || url.pathname === "/api/translate") {
+      try {
         const body = await request.json() as any;
         const weatherContext = body.weatherContext as WeatherContext;
 
-        if (!weatherContext || !weatherContext.temp || !weatherContext.delta) {
+        if (!weatherContext || weatherContext.temp == null || weatherContext.delta == null) {
           return new Response(
             JSON.stringify({
+              success: false,
               error: "Invalid request",
               message: "weatherContext with temp and delta is required",
             }),
@@ -189,21 +191,20 @@ export default {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+      } catch (error) {
+        console.error("Translation error:", error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Translation failed",
+            message: error instanceof Error ? error.message : String(error),
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-
-      // Fallback for non-API routes (let Cloudflare serve assets)
-      return new Response("Not Found", { status: 404 });
-
-    } catch (error) {
-      console.error("Translation error:", error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Translation failed",
-          message: error instanceof Error ? error.message : String(error),
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
+
+    // Fallback for non-API routes (serve assets)
+    return env.ASSETS.fetch(request);
   },
 };
