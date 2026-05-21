@@ -11,8 +11,6 @@
 //   2. Narrative Generation (Probabilistic): Gemini 1.5 Flash
 // ============================================================================
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export interface WeatherInput {
   feelsLike: number;
   yesterdayDelta: number;
@@ -173,15 +171,8 @@ async function generateNarrative(
   weatherInput: WeatherInput,
   plan: DocumentPlan
 ): Promise<NarrativeOutput> {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.7,
-    },
-  });
-
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
   const prompt = `You are a professional weather caster. 
 Based on the provided weather data and prioritized signals, generate a warm and natural weather narrative in Korean.
 
@@ -209,9 +200,25 @@ Example Output:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return JSON.parse(response.text()) as NarrativeOutput;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { 
+          responseMimeType: "application/json",
+          temperature: 0.7 
+        }
+      })
+    });
+
+    if (!response.ok) throw new Error(`Gemini API Error: ${response.statusText}`);
+    const data: any = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    
+    // 마크다운 펜스 제거 후 파싱
+    const cleanedText = text.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleanedText);
   } catch (error) {
     console.error("Gemini Narrative Error:", error);
     return {
