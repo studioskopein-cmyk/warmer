@@ -22,8 +22,7 @@ Respond with ONLY valid JSON. Structure:
 }`;
 
 export function buildContextualHints(ctx: WeatherContext): string {
-// ... same ...
-}
+  return `
 - Today: ${ctx.tMax}°C / ${ctx.tMin}°C
 - Yesterday: ${ctx.yMax}°C / ${ctx.yMin}°C
 - Diff: ${ctx.delta}°C

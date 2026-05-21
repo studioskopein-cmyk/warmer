@@ -3,16 +3,16 @@
 // ============================================================================
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { 
-  WeatherContext, 
-  WarmTranslation, 
+import type {
+  WeatherContext,
+  WarmTranslation,
   LayeredTranslation,
-  DataProof 
-} from "./warmer-types";
-import { 
-  WARMER_SYSTEM_PROMPT, 
-  buildContextualHints 
-} from "./warmer-prompt";
+  DataProof
+} from "./warmer/src/types";
+import {
+  WARMER_SYSTEM_PROMPT,
+  buildContextualHints
+} from "./warmer/src/prompt";
 
 // Gemini API 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -150,14 +150,11 @@ export async function translateLayered(
   const base = await translateWeather(ctx);
   
   return {
-    standard: base,
-    minimalist: {
-      ...base,
-      hero: base.hero.split('.')[0] + '.', // 간결한 버전
+    quick: base.hero,
+    outfit: {
+      message: [base.hero, base.context].filter(Boolean).join(" "),
+      key_numbers: base.proof?.delta?.display || "",
     },
-    enthusiast: {
-      ...base,
-      hero: `Hey! ${base.hero} Let's get moving!`, // 열정적인 버전
-    }
+    detailed: base,
   };
 }
