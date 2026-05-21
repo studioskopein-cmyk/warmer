@@ -148,8 +148,13 @@ Respond with ONLY valid JSON, no markdown fences, no explanation. Structure:
       };
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No valid JSON in response");
+      // Strip markdown fences (```json ... ``` or ``` ... ```)
+      const stripped = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+      const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error("Failed to extract JSON. rawText:", rawText);
+        throw new Error("No valid JSON in response");
+      }
 
       const parsed = JSON.parse(jsonMatch[0]) as WarmTranslation;
       return applyBrandGuardrails(parsed);
