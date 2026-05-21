@@ -126,7 +126,7 @@ Respond with ONLY valid JSON, no markdown fences, no explanation. Structure:
   "proof": { "delta": { "display": "..." }, "absolute": { "display": "..." } }
 }`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
