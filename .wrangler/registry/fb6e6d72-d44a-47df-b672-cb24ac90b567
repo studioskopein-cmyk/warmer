@@ -1,0 +1,5 @@
+{
+  "debugPortAddress": "127.0.0.1:37489",
+  "defaultEntrypointService": "core:user:fb6e6d72-d44a-47df-b672-cb24ac90b567",
+  "userWorkerService": "core:user:fb6e6d72-d44a-47df-b672-cb24ac90b567"
+}

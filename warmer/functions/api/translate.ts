@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import { generate } from '../../src/warmer-engine-v3';
+import { generate } from './warmer-engine-v3';
 
 interface Env {
   GEMINI_API_KEY: string;
@@ -45,14 +45,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 2. Run Engine V3
-    const engineResult = generate({
+    const engineResult = await generate({
         feelsLike,
         yesterdayDelta,
         windSpeed,
         uvIndex,
         precipProb,
         eveningDelta
-    });
+    }, API_KEY);
 
     const { action, reason } = engineResult.narrative;
     const categories = engineResult.debug.itemCategories;
