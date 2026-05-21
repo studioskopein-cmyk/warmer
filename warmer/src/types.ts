@@ -15,6 +15,11 @@ export interface WeatherContext {
   highU?: boolean;
   pivot?: string;
   feels?: number;
+  windSpeed?: number;
+  hourlySlots?: Array<{ temp: number; code: number; rain: number }>;
+  volatility?: boolean;
+  keyPoint?: string;
+  feels_like?: number;
 }
 
 export interface DataProof {
