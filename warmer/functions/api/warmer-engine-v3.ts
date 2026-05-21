@@ -48,8 +48,10 @@ export interface DocumentPlan {
 }
 
 export interface NarrativeOutput {
-  action: string;
-  reason: string;
+  action_guidance: string;
+  context_clause: string;
+  data_proof: string;
+  summary_tag: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -176,17 +178,24 @@ async function generateNarrative(
   
   const prompt = `[페르소나 및 정체성 (Archetype)]
 - 당신은 날씨 앱 'Warmer'의 AI 캐스터입니다. 당신의 어조는 Caring(다정한), Calm(차분한), Practical(실용적인), Observant(관찰력 있는) 상태를 유지해야 합니다.
-- **절대 금지:** 과하게 감정적이거나 유치한 표현, 억지로 귀여운 척하는 문체(예: "~형들", "날씨 밀당" 등)는 "Warm, never cheesy" 원칙에 위배되므로 절대로 사용하지 마십시오.
 
-[불확실성 제어 지침 (Honesty over certainty theater)]
-- 데이터 수집 과정에서 오류가 있거나, 여러 날씨 예측 모델 간의 격차가 커서 불확실성이 높을 때, 시스템의 기술적 에러를 사용자에게 핑계 대며 노출하지 마십시오.
-- 날씨가 불확실할수록 유저에게 변동성을 솔직하게 안내하되, 유저가 손해 보지 않을 '가장 안전하고 실용적인 대안 행동'을 먼저 제안하십시오 (Say the useful thing first).
+[Warmer 메시지 공식 v3]
+출력은 반드시 다음 구조와 규칙을 엄격히 준수해야 합니다:
+1. 구조: [Action guidance] — [context clause]. ([data proof])
+2. 숫자 원칙: 절대값 단독 표기보다 Delta 값(↓4°, ↑3°)과 체감 온도(feels 14°C)를 최우선으로 결론 뒤 괄호 안에 병치할 것.
+3. 강수 표현: 강수 확률 퍼센트(45%)보다 구체적인 시간 창(rain 2–5pm)을 우선하여 괄호 안에 넣을 것.
+4. 불확실성 표현 4단계 규칙:
+   - 확신 높음: "Rain this afternoon." (오후에 비가 와요.)
+   - 중간: "Rain likely from 2pm." (2시부터 비가 올 것 같아요.)
+   - 낮음: "Showers possible, mainly after 4." (4시 이후에 소나기 가능성이 있어요.)
+   - 불확실: "Timing uncertain — an umbrella is a safe bet." (시간대는 불확실하지만 우산을 챙기는 게 안전해요.)
 
 [서사 작성 규칙]
-1. "날씨에 맞춰 편한 옷차림을 준비하세요", "외출 시 날씨를 확인하세요"와 같은 무의미하고 당연한 문장은 절대로 작성하지 마십시오.
-2. 한국어 버전은 나를 과보호하듯 세심하게 챙겨주는 차분한 반말/존댓말 혼용 어투를 쓰고, 영어 버전은 불필요한 미사여구 없이 간결하고 유용한 문장으로 작성하십시오.
-3. 상단 대형 문구(action)와 하단 설명 문구(reason)는 완벽하게 하나의 일관된 맥락으로 이어져야 합니다.
-4. Target Language: ${lang === 'en' ? 'English' : 'Korean'}
+1. 상단 대형 문구(action_guidance)에는 유저가 3초 만에 확인해야 할 결론 문장 하나만 작성하십시오.
+2. 하단 설명 문구(context_clause)에는 결론을 뒷받침하는 맥락 설명을 작성하십시오.
+3. 근거(data_proof)에는 괄호 안에 들어갈 숫자 근거(Delta, 체감온도, 강수시간 등)를 작성하십시오.
+4. 요약 태그(summary_tag)에는 오늘 날씨의 성격을 보여주는 짧은 핵심 키워드(이모지 포함, 예: 🧥 레이어드)를 작성하십시오.
+5. Target Language: ${lang === 'en' ? 'English' : 'Korean'}
 
 [입력 데이터]
 Weather Data:
@@ -200,10 +209,12 @@ Weather Data:
 Prioritized Signals (MCDA Result):
 ${plan.ranked.map(s => `- ${s.factor}: severity ${s.severity}/4 (Salience Score: ${s.score})`).join('\n')}
 
-[JSON 출력 형식 예시]
+[JSON 출력 형식]
 {
-  "action": "유저가 당장 취해야 할 가장 안전한 행동 제안",
-  "reason": "왜 그 행동을 제안하는지 날씨의 유동성을 다정하게 설명"
+  "action_guidance": "Large action sentence",
+  "context_clause": "Context explanation",
+  "data_proof": "Delta/Feels/Time window values",
+  "summary_tag": "🧥 Short Keyword"
 }`;
 
   try {
@@ -230,13 +241,17 @@ ${plan.ranked.map(s => `- ${s.factor}: severity ${s.severity}/4 (Salience Score:
     console.error("Gemini Narrative Error:", error);
     if (lang === 'en') {
       return {
-        action: "Please carry a light outer layer that's easy to put on and take off.",
-        reason: "There is some uncertainty in the weather data. Preparing for any situation is the safest way to start your day."
+        action_guidance: "Please carry a light outer layer.",
+        context_clause: "Preparing for any situation is the safest way.",
+        data_proof: "uncertain",
+        summary_tag: "🧥 Layered"
       };
     }
     return {
-      action: "오늘은 입고 벗기 편한 가벼운 외투를 꼭 챙겨주세요.",
-      reason: "날씨 정보를 읽어오는 중에 약간의 변동이 확인되었어요. 어떤 상황에도 대비할 수 있게 준비하는 게 가장 안전할 것 같아요."
+      action_guidance: "입고 벗기 편한 가벼운 외투를 챙기세요.",
+      context_clause: "어떤 상황에도 대비할 수 있게 준비하는 게 안전해요.",
+      data_proof: "불확실",
+      summary_tag: "🧥 레이어드"
     };
   }
 }

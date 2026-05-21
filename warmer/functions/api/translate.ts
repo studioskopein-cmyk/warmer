@@ -54,25 +54,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         eveningDelta
     }, API_KEY, lang);
 
-    const { action, reason } = engineResult.narrative;
-    const categories = engineResult.debug.itemCategories;
+    const { action_guidance, context_clause, data_proof, summary_tag } = engineResult.narrative;
     
-    // Pick emoji based on engine's derived categories
-    let emoji = '🧥';
-    if (categories.some((c: any) => c.cat === 'umbrella')) emoji = '☔';
-    else if (categories.some((c: any) => c.cat === 'sunglasses')) emoji = '🕶️';
-    else if (categories.some((c: any) => c.cat === 'windbreaker')) emoji = '🌬️';
-    else if (categories.some((c: any) => c.cat === 'extreme_cold')) emoji = '🧤';
-    else if (categories.some((c: any) => c.cat === 'light_top')) emoji = '👕';
-
     // 3. Handle Language & Final Response
     // For Korean and English, we can use the engine directly (high performance, no cost)
     if (lang === 'ko' || lang === 'en') {
       const translation = {
-        hero: action.split('.')[0].trim().slice(0, 50),
-        context: reason,
-        action: `${emoji} ${action}`,
-        proof: `${p.tMax ?? p.temp}°C ${direction}${absDelta}°`
+        layer1: action_guidance,
+        layer2: `${context_clause} (${data_proof})`,
+        layer3: summary_tag
       };
 
       return new Response(
@@ -84,23 +74,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // For other languages, use Gemini to translate the engine's high-quality rule-based output
     const prompt = `[Persona & Identity (Archetype)]
 - You are translating weather guidance for 'Warmer'. The tone must be Caring, Calm, Practical, and Observant.
-- **ABSOLUTELY PROHIBITED:** Avoid overly emotional, childish, or forced cute expressions.
 - Keep the tone "Warm, never cheesy; Smart, never clinical".
 
 [Narrative Rules]
-1. Lead with the action or takeaway. Say the useful thing first.
-2. Translate into ${lang}. Follow the same principles of clarity and care.
+1. Translate into ${lang}. Follow the same principles of clarity and care.
+2. Maintain the 3-layer structure.
 
 Input Guidance:
-Action: ${action}
-Reason: ${reason}
+Action: ${action_guidance}
+Context: ${context_clause}
+Proof: ${data_proof}
+Tag: ${summary_tag}
 
 Return ONLY JSON:
 {
-  "hero": "Short catchy summary (max 12 words)",
-  "context": "Main briefing text (the 'reason' from input, translated with care)",
-  "action": "${emoji} Translated practical advice",
-  "proof": "${p.tMax ?? p.temp}°C ${direction}${absDelta}°"
+  "layer1": "Translated action guidance",
+  "layer2": "Translated context clause (with proof in parenthesis)",
+  "layer3": "Translated summary tag"
 }`;
 
     const response = await fetch(
