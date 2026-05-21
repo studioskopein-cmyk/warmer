@@ -169,13 +169,26 @@ export function planDocument(scores: SalienceScores): DocumentPlan {
 async function generateNarrative(
   apiKey: string,
   weatherInput: WeatherInput,
-  plan: DocumentPlan
+  plan: DocumentPlan,
+  lang: string = 'ko'
 ): Promise<NarrativeOutput> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
-  const prompt = `You are a professional weather caster. 
-Based on the provided weather data and prioritized signals, generate a warm and natural weather narrative in Korean.
+  const prompt = `[페르소나 및 정체성 (Archetype)]
+- 당신은 날씨 앱 'Warmer'의 AI 캐스터입니다. 당신의 어조는 Caring(다정한), Calm(차분한), Practical(실용적인), Observant(관찰력 있는) 상태를 유지해야 합니다.
+- **절대 금지:** 과하게 감정적이거나 유치한 표현, 억지로 귀여운 척하는 문체(예: "~형들", "날씨 밀당" 등)는 "Warm, never cheesy" 원칙에 위배되므로 절대로 사용하지 마십시오.
 
+[불확실성 제어 지침 (Honesty over certainty theater)]
+- 데이터 수집 과정에서 오류가 있거나, 여러 날씨 예측 모델 간의 격차가 커서 불확실성이 높을 때, 시스템의 기술적 에러를 사용자에게 핑계 대며 노출하지 마십시오.
+- 날씨가 불확실할수록 유저에게 변동성을 솔직하게 안내하되, 유저가 손해 보지 않을 '가장 안전하고 실용적인 대안 행동'을 먼저 제안하십시오 (Say the useful thing first).
+
+[서사 작성 규칙]
+1. "날씨에 맞춰 편한 옷차림을 준비하세요", "외출 시 날씨를 확인하세요"와 같은 무의미하고 당연한 문장은 절대로 작성하지 마십시오.
+2. 한국어 버전은 나를 과보호하듯 세심하게 챙겨주는 차분한 반말/존댓말 혼용 어투를 쓰고, 영어 버전은 불필요한 미사여구 없이 간결하고 유용한 문장으로 작성하십시오.
+3. 상단 대형 문구(action)와 하단 설명 문구(reason)는 완벽하게 하나의 일관된 맥락으로 이어져야 합니다.
+4. Target Language: ${lang === 'en' ? 'English' : 'Korean'}
+
+[입력 데이터]
 Weather Data:
 - Feels Like: ${weatherInput.feelsLike}°C
 - Yesterday Change: ${weatherInput.yesterdayDelta}°C
@@ -187,16 +200,10 @@ Weather Data:
 Prioritized Signals (MCDA Result):
 ${plan.ranked.map(s => `- ${s.factor}: severity ${s.severity}/4 (Salience Score: ${s.score})`).join('\n')}
 
-Rules:
-1. Return ONLY JSON with fields "action" (practical advice) and "reason" (weather background).
-2. The "action" should focus on what the user should do (e.g., clothes, umbrella).
-3. The "reason" should provide the context based on the signals, especially the prioritized ones.
-4. Tone: Friendly, natural, and helpful (not rigid or robotic).
-
-Example Output:
+[JSON 출력 형식 예시]
 {
-  "action": "얇은 셔츠 위에 가벼운 가디건 하나 챙기세요.",
-  "reason": "오후엔 따뜻하지만 해가 지면 기온이 확 떨어지거든요."
+  "action": "유저가 당장 취해야 할 가장 안전한 행동 제안",
+  "reason": "왜 그 행동을 제안하는지 날씨의 유동성을 다정하게 설명"
 }`;
 
   try {
@@ -221,9 +228,15 @@ Example Output:
     return JSON.parse(cleanedText);
   } catch (error) {
     console.error("Gemini Narrative Error:", error);
+    if (lang === 'en') {
+      return {
+        action: "Please carry a light outer layer that's easy to put on and take off.",
+        reason: "There is some uncertainty in the weather data. Preparing for any situation is the safest way to start your day."
+      };
+    }
     return {
-      action: "날씨에 맞춰 편한 옷차림을 준비하세요.",
-      reason: "데이터 분석 중 약간의 오류가 발생했지만, 전반적으로 평온한 날씨입니다."
+      action: "오늘은 입고 벗기 편한 가벼운 외투를 꼭 챙겨주세요.",
+      reason: "날씨 정보를 읽어오는 중에 약간의 변동이 확인되었어요. 어떤 상황에도 대비할 수 있게 준비하는 게 가장 안전할 것 같아요."
     };
   }
 }
@@ -232,13 +245,13 @@ Example Output:
 // ─────────────────────────────────────────────────────────────────────
 // MAIN PIPELINE
 // ─────────────────────────────────────────────────────────────────────
-export async function generate(weatherInput: WeatherInput, apiKey: string) {
+export async function generate(weatherInput: WeatherInput, apiKey: string, lang: string = 'ko') {
   const severities = severity(weatherInput);
   const scores     = salience(severities);
   const plan       = planDocument(scores);
   
   // LLM Narrative Generation
-  const narrative = await generateNarrative(apiKey, weatherInput, plan);
+  const narrative = await generateNarrative(apiKey, weatherInput, plan, lang);
 
   return {
     narrative,

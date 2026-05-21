@@ -52,7 +52,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         uvIndex,
         precipProb,
         eveningDelta
-    }, API_KEY);
+    }, API_KEY, lang);
 
     const { action, reason } = engineResult.narrative;
     const categories = engineResult.debug.itemCategories;
@@ -66,8 +66,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     else if (categories.some((c: any) => c.cat === 'light_top')) emoji = '👕';
 
     // 3. Handle Language & Final Response
-    // For Korean, we can use the engine directly (high performance, no cost)
-    if (lang === 'ko') {
+    // For Korean and English, we can use the engine directly (high performance, no cost)
+    if (lang === 'ko' || lang === 'en') {
       const translation = {
         hero: action.split('.')[0].trim().slice(0, 50),
         context: reason,
@@ -81,18 +81,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // For non-Korean, use Gemini to translate the engine's high-quality rule-based output
-    const prompt = `Translate this weather guidance into ${lang === 'en' ? 'English' : lang}.
-Keep the tone practical, concise, and helpful. 
-Input is from a rule-based engine.
+    // For other languages, use Gemini to translate the engine's high-quality rule-based output
+    const prompt = `[Persona & Identity (Archetype)]
+- You are translating weather guidance for 'Warmer'. The tone must be Caring, Calm, Practical, and Observant.
+- **ABSOLUTELY PROHIBITED:** Avoid overly emotional, childish, or forced cute expressions.
+- Keep the tone "Warm, never cheesy; Smart, never clinical".
 
+[Narrative Rules]
+1. Lead with the action or takeaway. Say the useful thing first.
+2. Translate into ${lang}. Follow the same principles of clarity and care.
+
+Input Guidance:
 Action: ${action}
 Reason: ${reason}
 
 Return ONLY JSON:
 {
   "hero": "Short catchy summary (max 12 words)",
-  "context": "Main briefing text",
+  "context": "Main briefing text (the 'reason' from input, translated with care)",
   "action": "${emoji} Translated practical advice",
   "proof": "${p.tMax ?? p.temp}°C ${direction}${absDelta}°"
 }`;
