@@ -168,6 +168,15 @@ export function planDocument(scores: SalienceScores): DocumentPlan {
 // ─────────────────────────────────────────────────────────────────────
 // STAGE 4: LLM NARRATIVE GENERATION (Gemini)
 // ─────────────────────────────────────────────────────────────────────
+const SIGNAL_LABELS: Record<string, string> = {
+  temp:  '체감온도 → 옷차림 결정',
+  delta: '어제 대비 변화 → 체감 차이 강조',
+  rain:  '강수 확률 → 우산 필요성',
+  wind:  '풍속 → 체감온도 보정',
+  uv:    'UV 지수 → 선글라스/자외선 차단',
+  eve:   '저녁 기온 하강 → 레이어 필요',
+};
+
 async function generateNarrative(
   apiKey: string,
   weatherInput: WeatherInput,
@@ -206,8 +215,13 @@ Weather Data:
 - Precipitation Probability: ${weatherInput.precipProb}%
 - Evening Temperature Drop: ${weatherInput.eveningDelta}°C
 
-Prioritized Signals (MCDA Result):
-${plan.ranked.map(s => `- ${s.factor}: severity ${s.severity}/4 (Salience Score: ${s.score})`).join('\n')}
+Prioritized Signals (MCDA — 행동 우선순위 결정):
+${plan.ranked.map(s => 
+  `- [${s.factor}] ${SIGNAL_LABELS[s.factor]}: 강도 ${s.severity}/4, 가중치 ${s.score} → ${
+    s.score >= 2.5 ? '핵심 action에 반드시 반영' : '보조 context에 포함'
+  }`
+).join('\n')}
+${plan.ranked.length === 0 ? '- 오늘은 특이 신호 없음. 평범한 날씨.' : ''}
 
 [JSON 출력 형식]
 {
