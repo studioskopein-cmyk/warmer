@@ -14,12 +14,55 @@
 //   - 최대 3개 신호만 선택해 cognitive load 최소화
 // ============================================================================
 
+export interface WeatherInput {
+  feelsLike: number;
+  yesterdayDelta: number;
+  uvIndex: number;
+  windSpeed: number;
+  precipProb: number;
+  eveningDelta: number;
+}
+
+export interface Severities {
+  temp: number;
+  delta: number;
+  uv: number;
+  wind: number;
+  rain: number;
+  eve: number;
+}
+
+export interface SalienceScore {
+  severity: number;
+  weight: number;
+  score: number;
+}
+
+export type SalienceScores = Record<keyof Severities, SalienceScore>;
+
+export interface RankedSignal extends SalienceScore {
+  factor: keyof Severities;
+}
+
+export interface DocumentPlan {
+  ranked: RankedSignal[];
+  core: RankedSignal[];
+  secondary: RankedSignal[];
+}
+
+export interface Phrase {
+  phrase: string;
+  action?: string;
+}
+
+export type Phrases = Record<keyof Severities, Phrase>;
+
 
 // ─────────────────────────────────────────────────────────────────────
 // CONFIG: 가중치 + 임계값
 // 가중치는 "행동에 미치는 영향력" 기준 (회의에서 합의)
 // ─────────────────────────────────────────────────────────────────────
-export const WEIGHTS = {
+export const WEIGHTS: Record<keyof Severities, number> = {
   temp:  1.0,  // 옷차림 기본 결정
   delta: 0.9,  // 어제 대비 체감 변화 (사용자 가장 민감)
   rain:  1.0,  // 행동 직결 (우산 필수)
@@ -39,7 +82,7 @@ export const THRESHOLDS = {
 // STAGE 1: SIGNAL ANALYSIS
 // 각 팩터를 5단계 강도(0-4)로 정량화
 // ─────────────────────────────────────────────────────────────────────
-export function severity(values) {
+export function severity(values: WeatherInput): Severities {
   const { feelsLike, yesterdayDelta, uvIndex, windSpeed, precipProb, eveningDelta } = values;
 
   const sevTemp = (() => {
@@ -98,15 +141,15 @@ export function severity(values) {
 // STAGE 2: SALIENCE SCORING (MCDA Weighted Linear Combination)
 // salience = severity × weight
 // ─────────────────────────────────────────────────────────────────────
-export function salience(severities) {
-  const scores = {};
-  for (const key of Object.keys(WEIGHTS)) {
+export function salience(severities: Severities): SalienceScores {
+  const scores = {} as SalienceScores;
+  (Object.keys(WEIGHTS) as Array<keyof Severities>).forEach(key => {
     scores[key] = {
       severity: severities[key],
       weight: WEIGHTS[key],
       score: +(severities[key] * WEIGHTS[key]).toFixed(2),
     };
-  }
+  });
   return scores;
 }
 
@@ -115,8 +158,8 @@ export function salience(severities) {
 // STAGE 3: DOCUMENT PLANNING
 // Top-N signal selection with core/secondary classification
 // ─────────────────────────────────────────────────────────────────────
-export function planDocument(scores) {
-  const ranked = Object.entries(scores)
+export function planDocument(scores: SalienceScores): DocumentPlan {
+  const ranked = (Object.entries(scores) as Array<[keyof Severities, SalienceScore]>)
     .map(([factor, s]) => ({ factor, ...s }))
     .filter(s => s.score >= THRESHOLDS.include)
     .sort((a, b) => b.score - a.score)
@@ -133,7 +176,7 @@ export function planDocument(scores) {
 // STAGE 4a: MICROPLANNING — phrase builders
 // Severity-modulated lexicalization
 // ─────────────────────────────────────────────────────────────────────
-function buildPhrases(values, severities) {
+function buildPhrases(values: WeatherInput, severities: Severities): Phrases {
   const { feelsLike, yesterdayDelta, uvIndex, windSpeed, precipProb, eveningDelta } = values;
   const dAbs = Math.abs(yesterdayDelta);
 
@@ -145,7 +188,7 @@ function buildPhrases(values, severities) {
   const eveChip    = `[저녁 −${eveningDelta}°]`;
 
   // ── TEMP zone-based phrasing (severity-modulated)
-  let tempPhrase;
+  let tempPhrase: string;
   if      (feelsLike >= 27) tempPhrase = severities.temp >= 4 ? `가볍게 입어. ${tempChip} 더워.` : `얇게 입어. ${tempChip}`;
   else if (feelsLike >= 22) tempPhrase = `긴팔 하나면 충분해. ${tempChip}`;
   else if (feelsLike >= 17) tempPhrase = `가벼운 겉옷 챙겨. ${tempChip}`;
@@ -201,7 +244,7 @@ function buildPhrases(values, severities) {
 // 다중 신호를 자연스러운 문장으로 병합
 // 규칙: 같은 카테고리 신호는 conjunction, 다른 카테고리는 syntactic embedding
 // ─────────────────────────────────────────────────────────────────────
-function aggregate(plan, phrases, values) {
+function aggregate(plan: DocumentPlan, phrases: Phrases, values: WeatherInput) {
   const coreFactors = plan.core.map(s => s.factor);
   const secFactors  = plan.secondary.map(s => s.factor);
 
@@ -211,8 +254,8 @@ function aggregate(plan, phrases, values) {
 
   // Rule 1: rain + wind core → bundled "바람막이" action
   if (coreFactors.includes('rain') && coreFactors.includes('wind')) {
-    const rainSev = plan.core.find(s => s.factor === 'rain').severity;
-    const windSev = plan.core.find(s => s.factor === 'wind').severity;
+    const rainSev = plan.core.find(s => s.factor === 'rain')!.severity;
+    const windSev = plan.core.find(s => s.factor === 'wind')!.severity;
     if (rainSev >= 3 && windSev >= 3) {
       action = `바람막이 꼭 챙겨. ${phrases.rain.phrase}, ${phrases.wind.phrase} 같이 와.`;
     } else {
@@ -248,8 +291,8 @@ function aggregate(plan, phrases, values) {
   }
 
   // Add secondary signals NOT already in action
-  const usedInAction = ['rain', 'wind', 'uv'].filter(f => coreFactors.includes(f));
-  ['rain', 'wind', 'uv'].forEach(f => {
+  const usedInAction = (['rain', 'wind', 'uv'] as Array<keyof Severities>).filter(f => coreFactors.includes(f));
+  (['rain', 'wind', 'uv'] as Array<keyof Severities>).forEach(f => {
     if (secFactors.includes(f) && !usedInAction.includes(f)) {
       reasonParts.push(phrases[f].phrase);
     }
@@ -273,7 +316,7 @@ function aggregate(plan, phrases, values) {
 // ─────────────────────────────────────────────────────────────────────
 // MAIN PIPELINE
 // ─────────────────────────────────────────────────────────────────────
-export function generate(weatherInput) {
+export function generate(weatherInput: WeatherInput) {
   // weatherInput: { feelsLike, yesterdayDelta, uvIndex, windSpeed, precipProb, eveningDelta }
   const severities = severity(weatherInput);
   const scores     = salience(severities);
@@ -298,8 +341,8 @@ export function generate(weatherInput) {
 // B2B EXTENSION: Item category resolver
 // CLO + signal-based categories → 상품 매핑 가능한 표준 카테고리
 // ─────────────────────────────────────────────────────────────────────
-function deriveItemCategories(values, severities, plan) {
-  const cats = [];
+function deriveItemCategories(values: WeatherInput, severities: Severities, plan: DocumentPlan) {
+  const cats: Array<{ cat: string; clo?: number }> = [];
 
   // CLO-based layer category
   const fl = values.feelsLike;
