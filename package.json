@@ -1,6 +1,9 @@
 {
-  "name": "warmer-functions",
+  "name": "warmer-root",
   "version": "1.0.0",
+  "scripts": {
+    "build": "npm install"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.21.0"
   }

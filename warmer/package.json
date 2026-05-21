@@ -2,23 +2,9 @@
   "name": "warmer-project",
   "version": "1.0.0",
   "scripts": {
-    "build": "echo 'Building static assets...'",
-    "deploy": "wrangler pages deploy .",
-    "dev": "wrangler pages dev ."
-  },
-  "engines": {
-    "node": ">=18"
+    "build": "npm install"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "firebase-admin": "^12.0.0",
-    "firebase-functions": "^5.0.0"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260520.1",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.6.0",
-    "wrangler": "^3.57.1"
-  },
-  "private": true
+    "@google/generative-ai": "^0.21.0"
+  }
 }
