@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
+import { generate } from '../../src/warmer-engine-v3';
 
 interface Env {
   GEMINI_API_KEY: string;
@@ -27,39 +28,74 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const absDelta = Math.abs(p.delta || 0);
     const direction = p.delta > 0 ? '↑' : p.delta < 0 ? '↓' : '→';
 
-    const prompt = lang === 'ko'
-      ? `날씨 데이터를 실용적인 안내로 변환해줘. 반드시 JSON만 반환해.
+    // 1. Prepare input for Warmer Engine V3
+    const feelsLike = p.feels_like ?? p.feels ?? p.tMax ?? p.temp;
+    const yesterdayDelta = p.delta;
+    const windSpeed = p.windSpeed ?? p.wind ?? 0;
+    const uvIndex = p.uvIndex ?? (p.highU ? 6 : 1);
+    const precipProb = p.precipProb ?? (p.slots?.length ? Math.max(...p.slots.map((s: any) => s.rain ?? 0)) : 0);
+    
+    let eveningDelta = p.eveningDelta ?? 0;
+    if (!p.eveningDelta && p.slots?.length) {
+        // Assume slots are hourly, index 15 is around evening (e.g. 6-9 PM)
+        const eveningSlot = p.slots[Math.min(p.slots.length - 1, 15)];
+        if (eveningSlot) {
+            eveningDelta = Math.max(0, (p.tMax ?? p.temp) - eveningSlot.temp);
+        }
+    }
 
-데이터:
-- 오늘 최고기온: ${p.tMax}°C, 최저: ${p.tMin}°C
-- 어제 최고기온: ${p.yMax}°C, 최저: ${p.yMin}°C
-- 어제 대비 변화: ${direction}${absDelta}°C
-- 체감온도: ${p.feels_like || p.feels || p.tMax}°C
-- 풍속: ${p.windSpeed || p.wind || 0}m/s
-- 날씨코드: ${p.tCode}
-${absDelta >= 3 ? `- 중요: ${absDelta}도 이상 차이남` : ''}
+    // 2. Run Engine V3
+    const engineResult = generate({
+        feelsLike,
+        yesterdayDelta,
+        windSpeed,
+        uvIndex,
+        precipProb,
+        eveningDelta
+    });
 
-규칙:
-1. hero는 최대 12단어, 행동 가이던스 우선
-2. delta 3도 이상이면 반드시 언급
-3. 금지어: 완벽한, AI, 엄마같은 말투
+    const { action, reason } = engineResult.narrative;
+    const categories = engineResult.debug.itemCategories;
+    
+    // Pick emoji based on engine's derived categories
+    let emoji = '🧥';
+    if (categories.some((c: any) => c.cat === 'umbrella')) emoji = '☔';
+    else if (categories.some((c: any) => c.cat === 'sunglasses')) emoji = '🕶️';
+    else if (categories.some((c: any) => c.cat === 'windbreaker')) emoji = '🌬️';
+    else if (categories.some((c: any) => c.cat === 'extreme_cold')) emoji = '🧤';
+    else if (categories.some((c: any) => c.cat === 'light_top')) emoji = '👕';
 
-JSON 형식:
-{"hero":"...","context":"...","action":"🧥 ...","proof":"${p.tMax}°C ${direction}${absDelta}°"}`
-      : `Convert weather data to practical guidance. Return JSON only.
+    // 3. Handle Language & Final Response
+    // For Korean, we can use the engine directly (high performance, no cost)
+    if (lang === 'ko') {
+      const translation = {
+        hero: action.split('.')[0].trim().slice(0, 50),
+        context: reason,
+        action: `${emoji} ${action}`,
+        proof: `${p.tMax ?? p.temp}°C ${direction}${absDelta}°`
+      };
 
-Data:
-- Today high: ${p.tMax}°C, low: ${p.tMin}°C
-- Yesterday high: ${p.yMax}°C, low: ${p.yMin}°C
-- Change: ${direction}${absDelta}°C
-- Feels like: ${p.feels_like || p.feels || p.tMax}°C
-- Wind: ${p.windSpeed || p.wind || 0}m/s
-${absDelta >= 3 ? `- IMPORTANT: ${absDelta}° difference` : ''}
+      return new Response(
+        JSON.stringify({ success: true, translation, timestamp: new Date().toISOString() }),
+        { headers: corsHeaders }
+      );
+    }
 
-Rules: hero max 12 words, guidance first, mention delta if 3°+
+    // For non-Korean, use Gemini to translate the engine's high-quality rule-based output
+    const prompt = `Translate this weather guidance into ${lang === 'en' ? 'English' : lang}.
+Keep the tone practical, concise, and helpful. 
+Input is from a rule-based engine.
 
-JSON format:
-{"hero":"...","context":"...","action":"🧥 ...","proof":"${p.tMax}°C ${direction}${absDelta}°"}`;
+Action: ${action}
+Reason: ${reason}
+
+Return ONLY JSON:
+{
+  "hero": "Short catchy summary (max 12 words)",
+  "context": "Main briefing text",
+  "action": "${emoji} Translated practical advice",
+  "proof": "${p.tMax ?? p.temp}°C ${direction}${absDelta}°"
+}`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
@@ -68,13 +104,12 @@ JSON format:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } }
+          generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
         })
       }
     );
 
     const data = await response.json() as any;
-
     if (!response.ok) {
       throw new Error(`Gemini API error: ${response.status} ${JSON.stringify(data?.error)}`);
     }
@@ -82,7 +117,7 @@ JSON format:
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error(`No JSON found. Raw: ${rawText.slice(0, 200)}`);
+      throw new Error(`No JSON found in translation. Raw: ${rawText.slice(0, 200)}`);
     }
 
     const translation = JSON.parse(jsonMatch[0]);
