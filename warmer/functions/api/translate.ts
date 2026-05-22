@@ -17,7 +17,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const lang = body.lang || 'en';   // ★ 기본을 'en'으로 변경
     const API_KEY = context.env.GEMINI_API_KEY;
 
-    if (!API_KEY) {
+    if (!API_KEY && lang !== 'en') {
       return new Response(
         JSON.stringify({ success: false, message: 'API Key missing' }),
         { status: 500, headers: corsHeaders }
