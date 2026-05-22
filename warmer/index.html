@@ -8,11 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<!-- Gelasio for italic action line -->
 <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
-<!-- Aspekta — self-host woff2 files in /fonts/ (download: aspekta.xyz)
-     @font-face below points to /fonts/Aspekta-*.woff2
-     DM Sans above is an instant fallback while Aspekta loads -->
 <style>
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
@@ -20,76 +16,55 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{
-  --bg:#C9E0EF;
-  --text:#7B4B49;
-  --muted:rgba(123,75,73,0.30);
-  --dim:rgba(123,75,73,0.15);
-  --chip-bg:rgba(123,75,73,0.07);
-  --chip-bd:rgba(123,75,73,0.16);
-  --line:rgba(123,75,73,0.10);
-}
-body.evening{
-  --bg:#7B4B49;
-  --text:#C9E0EF;
-  --muted:rgba(201,224,239,0.30);
-  --dim:rgba(201,224,239,0.15);
-  --chip-bg:rgba(201,224,239,0.07);
-  --chip-bd:rgba(201,224,239,0.18);
-  --line:rgba(201,224,239,0.10);
-}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.30);--dim:rgba(123,75,73,0.15);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
+body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.30);--dim:rgba(201,224,239,0.15);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease}
 .app{max-width:390px;margin:0 auto;min-height:100vh;padding:56px 32px 48px;display:flex;flex-direction:column}
 .wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:48px}
-.meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:28px}
+.meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
 .meta-sep{color:var(--dim)}
-.temp-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:32px}
-.temp-today{display:flex;flex-direction:column;gap:2px}
-.temp-label{font-size:11px;color:var(--muted);letter-spacing:.5px}
-.temp-val{font-size:22px;font-weight:400;display:flex;align-items:center;gap:8px}
-.temp-yesterday{text-align:right}
-.temp-diff{font-size:11px;margin-top:2px;color:var(--text)}
-.diff-same{color:var(--muted)}
-.prose{font-size:42px;font-weight:300;line-height:1.22;letter-spacing:-0.5px;margin-bottom:24px}
+.prose{font-size:40px;font-weight:300;line-height:1.24;letter-spacing:-0.5px;margin-bottom:24px;min-height:180px}
 .prose .g{color:var(--muted)}
 .prose .w{color:var(--text);font-weight:500}
-.prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:38px;font-family:'Gelasio',serif;letter-spacing:-0.5px}
-.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.52em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 4px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-3px;transition:background-color 2s ease,border-color 2s ease}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px}
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text);transition:background-color 2s ease,border-color 2s ease}
-.div{height:1px;background:var(--line);margin-bottom:24px;transition:background-color 2s ease}
+.prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.5px}
+.uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.5;margin-top:6px;opacity:0.85}
+.uaddon.on{display:block}
+.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 4px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:36px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
+.div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
-.feedback-section{margin-bottom:28px}
-.feedback-q{font-size:14px;color:var(--muted);margin-bottom:12px}
-.fb-row{display:flex;gap:8px;flex-wrap:wrap}
-.fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:8px 16px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;transition:all .15s}
+.nearby{margin-bottom:32px}
+.nearby-prose{font-size:19px;line-height:1.4;font-weight:300;margin-bottom:14px;color:var(--text);min-height:46px}
+.nearby-prose .g{color:var(--muted)}
+.nearby-prose .w{font-weight:500}
+.nearby-prose .em{font-style:italic;font-family:'Gelasio',serif}
+.nearby-counts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;min-height:24px}
+.nearby-count{background:var(--chip-bg);padding:4px 10px;border-radius:100px;font-size:11px;color:var(--muted)}
+.nearby-q{font-size:13px;color:var(--muted);margin-bottom:10px}
+.fb-row{display:flex;flex-wrap:wrap;gap:6px}
+.fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 14px;font-size:12px;color:var(--text);font-family:inherit;cursor:pointer;transition:all .15s}
 .fb-btn:active{opacity:.6;transform:scale(.97)}
 .fb-btn.selected{background:var(--text);color:var(--bg);border-color:var(--text)}
-.fb-thanks{font-size:13px;color:var(--muted);display:none;margin-top:10px}
-.community{margin-bottom:28px;display:none}
-.community-inner{background:var(--chip-bg);border-radius:12px;padding:14px 16px}
-.community-text{font-size:13px;color:var(--muted);line-height:1.6}
-.community-count{font-size:11px;color:var(--muted);margin-top:4px}
-.tl{display:flex;flex-direction:column;gap:12px;margin-bottom:28px}
-.tl-row{display:flex;align-items:baseline;font-size:14px}
-.tl-t{width:58px;color:var(--muted);flex-shrink:0}
-.tl-i{width:26px;flex-shrink:0}
-.tl-d{flex:1;color:var(--text)}
-.tl-n{color:var(--muted);font-size:13px;margin-left:8px}
-.cmp{margin-bottom:12px}
+.pivot{display:none;align-items:center;gap:10px;margin-bottom:24px;background:var(--chip-bg);border-radius:12px;padding:12px 16px}
+.pivot.on{display:flex}
+.pivot-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.pivot-text{font-size:14px;font-weight:500}
+.flow-section{margin-bottom:32px}
+.flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
+.flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
+.flow-legend-item{display:flex;align-items:center;gap:5px}
+.flow-legend-bar{width:12px;height:1.5px;background:var(--text)}
+.flow-consensus{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:14px;color:var(--text);opacity:0.7;line-height:1.4;margin-top:8px}
+.flow-consensus.on{display:block}
+.cmp{margin-bottom:20px}
 .cmp-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .cmp-l{font-size:12px;color:var(--muted);width:36px}
 .cmp-track{flex:1;height:2px;background:var(--dim);border-radius:1px;overflow:hidden}
 .cmp-fill{height:100%;border-radius:1px;transition:width 1.2s cubic-bezier(.25,1,.5,1)}
 .fill-y{background:var(--muted)}.fill-t{background:var(--text)}
 .cmp-v{font-size:12px;color:var(--muted);width:30px;text-align:right}
-.uncertain{display:none;font-size:12px;color:var(--text);align-items:center;gap:6px;margin-bottom:20px;background:var(--chip-bg);padding:10px 14px;border-radius:10px}
-.uncertain.on{display:flex}
-.pivot{display:none;align-items:center;gap:10px;margin-bottom:20px;background:var(--chip-bg);border-radius:12px;padding:12px 16px}
-.pivot.on{display:flex}
-.pivot-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
-.pivot-text{font-size:14px;font-weight:500}
 .dots{display:flex;gap:5px;align-items:center;padding:8px 0}
 .dot{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:dp 1.2s infinite}
 .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
@@ -104,38 +79,36 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekt
 <div class="app">
   <div class="wordmark">Warmer</div>
   <div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
-  <div class="temp-row">
-    <div class="temp-today"><div class="temp-label">TODAY</div><div class="temp-val"><span id="tempIcon">⛅</span><span id="tempVal">—°</span></div></div>
-    <div class="temp-yesterday"><div class="temp-label">YESTERDAY</div><div class="temp-val" id="yestVal">—°</div><div class="temp-diff" id="diffLabel">—</div></div>
-  </div>
   <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+  <div class="uaddon" id="uaddon"></div>
   <div class="chips" id="chips"></div>
   <div class="div"></div>
-  <div class="community" id="community"><div class="sec-label">NEARBY</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
-  <div class="feedback-section">
-    <div class="sec-label">HOW IS IT OUTSIDE?</div>
-    <div class="feedback-q">Different from forecast?</div>
-    <div class="fb-row" id="fbRow1">
-      <button class="fb-btn" onclick="onFeedback1('match')">👍 Correct</button>
-      <button class="fb-btn" onclick="onFeedback1('diff')">🌀 No</button>
+  <div class="nearby">
+    <div class="sec-label">Right now · nearby</div>
+    <div class="nearby-prose" id="nearbyProse"><span class="g">Loading nearby reports…</span></div>
+    <div class="nearby-counts" id="nearbyCounts"></div>
+    <div class="nearby-q" id="nearbyQ">How is it where you are?</div>
+    <div class="fb-row" id="fbRow">
+      <button class="fb-btn" onclick="onFB('match')">👍 Matches</button>
+      <button class="fb-btn" onclick="onFB('colder')">🥶 Colder</button>
+      <button class="fb-btn" onclick="onFB('warmer')">🌤 Warmer</button>
+      <button class="fb-btn" onclick="onFB('rainy')">🌧 Raining</button>
+      <button class="fb-btn" onclick="onFB('windy')">💨 Windy</button>
     </div>
-    <div class="fb-row" id="fbRow2" style="display:none;margin-top:10px">
-      <button class="fb-btn" onclick="onFeedback2('colder')">🥶 Colder</button>
-      <button class="fb-btn" onclick="onFeedback2('warmer')">🌤 Warmer</button>
-      <button class="fb-btn" onclick="onFeedback2('rainy')">🌧 Rainy</button>
-      <button class="fb-btn" onclick="onFeedback2('windy')">💨 Windy</button>
-    </div>
-    <div class="fb-thanks" id="fbThanks">Thanks 👋 I'll note that.</div>
   </div>
   <div class="div"></div>
-  <div class="uncertain" id="uncertain"><span>〰</span><span>High variability — forecast may shift.</span></div>
-  <div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">TODAY'S POINT</div><div class="pivot-text" id="pivotText">—</div></div></div>
-  <div class="sec-label">TODAY'S FLOW</div>
-  <div class="tl" id="tl"></div>
-  <div class="sec-label" style="margin-top:4px">YESTERDAY VS TODAY</div>
+  <div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">Today's point</div><div class="pivot-text" id="pivotText">—</div></div></div>
+  <div class="flow-section">
+    <div class="sec-label">Today's flow</div>
+    <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="flow-legend" id="flowLegend"></div>
+    <div class="flow-consensus" id="flowConsensus"></div>
+  </div>
+  <div class="sec-label">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
   <button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
 </div>
+
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -143,122 +116,159 @@ const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomai
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 
-// ── TIME MODE: 18:00–05:59 → evening (inverted palette)
 function applyTimeMode(){const h=new Date().getHours();document.body.classList.toggle('evening',h>=18||h<6)}
 applyTimeMode();
 setInterval(applyTimeMode,60_000);
 
-// ── HELPERS
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
-const dsc=c=>{const l=[[0,'Clear'],[2,'Partly cloudy'],[3,'Overcast'],[48,'Fog'],[57,'Drizzle'],[67,'Rain'],[77,'Snow'],[82,'Showers'],[86,'Snow showers'],[99,'Thunderstorm']];for(const[cd,t]of l)if(c<=cd)return t;return'—'};
 const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
 async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'My Location'}catch{return'My Location'}}
-async function fetchW(lat,lon){return(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&past_days=1&forecast_days=1&timezone=auto`)).json()}
 
-// ── PARSE
+const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
+
 function parse(data){
   const now=new Date(),h=now.getHours(),S=24;
-  const tMax=Math.round(data.daily.temperature_2m_max[1]),yMax=Math.round(data.daily.temperature_2m_max[0]);
-  const tCode=data.daily.weathercode[1];
-  const feels=Math.round(data.hourly.apparent_temperature[S+h]);
-  const wind=Math.round(data.hourly.windspeed_10m[S+h]);
-  const slots=[{label:'Morning',h:8},{label:'Day',h:13},{label:'Evening',h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));
-  const diff=tMax-yMax,rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3,rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3,swing=Math.abs(slots[2].temp-slots[0].temp);
-  const cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st'));
-  const highU=rvar>400||swing>=8||cats.size>=3,ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
+  const modelMaxToday=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[1]):null}).filter(v=>v!=null);
+  const modelMaxYest=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[0]):null}).filter(v=>v!=null);
+  const primary=MODELS[0].id;
+  const tMaxArr=data.daily[`temperature_2m_max_${primary}`]||modelMaxToday;
+  const yMaxArr=data.daily[`temperature_2m_max_${primary}`]||modelMaxYest;
+  const tCodeArr=data.daily[`weathercode_${primary}`]||[];
+  const tMax=Math.round(tMaxArr[1]??modelMaxToday[0]??0);
+  const yMax=Math.round(yMaxArr[0]??modelMaxYest[0]??0);
+  const tCode=tCodeArr[1]??0;
+
+  const hourlyByModel=MODELS.map(m=>{
+    const tArr=data.hourly?.[`temperature_2m_${m.id}`];
+    const rArr=data.hourly?.[`precipitation_probability_${m.id}`];
+    if(!tArr)return null;
+    return{model:m,hourly:Array.from({length:24},(_,i)=>({t:tArr[S+i],r:rArr?(rArr[S+i]??0):0}))};
+  }).filter(x=>x);
+
+  const primaryHourly=hourlyByModel.find(x=>x.model.id===primary)?.hourly||[];
+  const slots=[{label:'morning',h:8},{label:'midday',h:13},{label:'evening',h:19}].map(s=>({label:s.label,h:s.h,temp:Math.round(primaryHourly[s.h]?.t??0),rain:Math.round(primaryHourly[s.h]?.r??0)}));
+  const feels=Math.round(data.hourly?.[`apparent_temperature_${primary}`]?.[S+h]??slots[1].temp);
+  const wind=Math.round(data.hourly?.[`windspeed_10m_${primary}`]?.[S+h]??0);
+
+  const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;
+  let rainSpread=0,maxRain=0;
+  for(let i=0;i<24;i++){const rains=hourlyByModel.map(x=>x.hourly[i]?.r??0);const spread=Math.max(...rains)-Math.min(...rains);if(spread>rainSpread)rainSpread=spread;const avg=rains.reduce((a,b)=>a+b,0)/rains.length;if(avg>maxRain)maxRain=avg}
+
+  const envelope=Array.from({length:24},(_,i)=>{const ts=hourlyByModel.map(x=>x.hourly[i]?.t).filter(v=>v!=null);return{min:Math.min(...ts),max:Math.max(...ts),mean:ts.reduce((a,b)=>a+b,0)/ts.length}});
+
+  let consensus='HIGH';
+  if(rainSpread>=25&&maxRain>=30)consensus='RAIN_SPLIT';
+  else if(maxSpread>=3)consensus='LOW';
+  else if(maxSpread>=1.5)consensus='MEDIUM';
+
+  const meanTodayMax=modelMaxToday.reduce((a,b)=>a+b,0)/Math.max(1,modelMaxToday.length);
+  const meanYestMax=modelMaxYest.reduce((a,b)=>a+b,0)/Math.max(1,modelMaxYest.length);
+  const diff=Math.round(meanTodayMax-meanYestMax);
+
+  const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
   const pivot=Math.abs(ne)>=5?(ne<0?'Sharp drop tonight':'Warmer this evening'):Math.abs(mn)>=5?(mn>0?'Warming this afternoon':'Chilly this afternoon'):'';
-  return{tMax,yMax,tCode,feels,slots,diff,highU,pivot,now,wind};
+
+  return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday};
 }
 
-// ── BUILD RICH PROSE (Figma pattern)
 const ic=txt=>`<span class="pcip">${txt}</span>`;
-function buildRichProse(p){
-  const{diff,tCode,feels,slots,tMax}=p;
-  const rp=Math.max(...slots.map(s=>s.rain));
+function buildProse(p){
+  const{diff,tCode,feels,slots,tMax,maxRain}=p;
   const eTemp=slots[2]?.temp,eDrop=eTemp!=null?tMax-eTemp:0,abs=Math.abs(diff);
   const sign=diff>0?'+':'',arr=diff>0?'↑':'↓';
-  const dChip=abs>=2?ic(`${tMax}°\u2009·\u2009${sign}${diff}${arr}`):'';
-  const eChip=eDrop>=5&&eTemp!=null?ic(`🌙\u2009${eTemp}°`):'';
-  const rChip=rp>=40?ic(`🌂\u2009${Math.round(rp)}%`):'';
-  // Action
-  let action=rp>60?'Bring an umbrella.':rp>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':'Dress how you did yesterday.';
-  // Prose
+  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):'';
+  const eChip=eDrop>=5&&eTemp!=null?ic(`🌙 ${eTemp}°`):'';
+  const rChip=maxRain>=40?ic(`🌂 ${Math.round(maxRain)}%`):'';
+
+  let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':'Dress how you did yesterday.';
+
   let prose='';
-  if(rp>40){
-    prose=`<span class="g">Rain </span><span class="w">${rp>70?'likely':'possible'}</span>${rChip?` ${rChip}`:''}`;
-    if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip?` ${dChip}`:''}`;
-  } else if(abs>=2){
-    const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';
-    prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip?` ${dChip}`:''}`;
-    if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span> ${eChip}`;
-  } else {
-    const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';
-    prose=`<span class="w">Similar</span><span class="g"> to yesterday</span>${dChip?` ${dChip}`:''}`;
-    prose+=`<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;
-  }
+  if(maxRain>40){prose=`<span class="g">Rain </span><span class="w">${maxRain>70?'likely':'possible'}</span>${rChip?` ${rChip}`:''}`;if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip?` ${dChip}`:''}`;
+  } else if(abs>=2){const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip?` ${dChip}`:''}`;if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span> ${eChip}`;
+  } else {const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';prose=`<span class="w">Similar</span><span class="g"> to yesterday</span>${dChip?` ${dChip}`:''}`;prose+=`<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;}
   return`${prose}<br><span class="action">${action}</span>`;
 }
-function deriveChip(p){const rp=Math.max(...p.slots.map(s=>s.rain));return rp>60?'🌂 Rain':p.diff<=-4?'🥶 Colder':p.diff>=4?'🌤 Warmer':p.feels>=28?'🌡 Hot':p.feels<=0?'🧊 Freezing':'✨ Easy'}
 
-// ── AI (background — chip refinement only)
-async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:Math.max(...p.slots.map(s=>s.rain)),eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null}catch{return null}}
+function buildAddendum(p){
+  if(p.consensus==='HIGH')return'';if(p.consensus==='MEDIUM')return'';if(p.consensus==='LOW'){return`— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;}if(p.consensus==='RAIN_SPLIT')return`— rain timing's uncertain. Bring it anyway.`;return'';
+}
 
-// ── FEEDBACK
-let currentKey='';
+function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return'✨ Easy'}
+
+async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}}
+
+function buildNearbyProse(counts,userVote){
+  const labels={match:'matches',colder:'colder',warmer:'warmer',rainy:'rainy',windy:'windy'};
+  const total=Object.values(counts).reduce((a,b)=>a+b,0);
+  if(total===0){return{prose:`<span class="g">No one's chimed in yet.</span> <span class="em">be the first.</span>`,countsHTML:''};}
+  const sorted=Object.entries(counts).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const top=sorted[0],topKey=top[0],topCount=top[1];
+  const matchCount=counts.match||0;
+  const diffCount=total-matchCount;
+  const trace=userVote?` <span class="em">— you ${userVote==='match'?'agreed':'said '+labels[userVote]}.</span>`:'.';
+
+  let prose;
+  if(matchCount===total){prose=`<span class="g">${total} nearby ${total===1?'says':'agree —'} ${total===1?'matches the forecast':'forecast looks right'}</span>${trace}`;
+  } else if(topKey==='match'&&matchCount>diffCount){prose=`<span class="g">Mostly matching nearby — </span><span class="w">${matchCount}</span><span class="g"> say it's right</span>${trace}`;
+  } else if(sorted.filter(([k])=>k!=='match').length===1||(topKey!=='match'&&topCount/diffCount>=0.6)){const word=labels[topKey]||topKey;if(total===1)prose=`<span class="g">1 nearby says it's </span><span class="w">${word}</span><span class="g"> than the forecast</span>${trace}`;else if(matchCount===0)prose=`<span class="g">${total} nearby say it's </span><span class="w">${word}</span><span class="g"> than the forecast</span>${trace}`;else prose=`<span class="g">${topCount} of ${total} nearby say it's </span><span class="w">${word}</span><span class="g"> than the forecast</span>${trace}`;
+  } else {prose=`<span class="g">Mixed reports nearby — </span><span class="w">${total} responses, no clear pattern</span>${trace}`;}
+  const countsHTML=sorted.map(([k,v])=>{const icon={match:'👍',colder:'🥶',warmer:'🌤',rainy:'🌧',windy:'💨'}[k]||'';return`<span class="nearby-count">${icon} ${labels[k]} × ${v}</span>`;}).join('');
+  return{prose,countsHTML};
+}
+
+let currentKey='',userVote=null;
 function getFbKey(lat,lon){const n=new Date(),d=n.toISOString().split('T')[0],h=Math.floor(n.getHours()/3)*3;return`fb_${Math.round(lat*10)/10}_${Math.round(lon*10)/10}_${d}_${h}`}
-async function loadCommunity(key){try{const s=await getDoc(doc(db,'feedbacks',key));if(!s.exists())return;const d=s.data(),total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`colder(${d.colder})`);if(d.warmer>0)diffs.push(`warmer(${d.warmer})`);if(d.rainy>0)diffs.push(`rainy(${d.rainy})`);if(d.windy>0)diffs.push(`windy(${d.windy})`);document.getElementById('communityText').textContent=diffs.length===0?'Forecast looks right.':diffs.join(', ') + ' nearby.';document.getElementById('communityCount').textContent=`${total} responses`;document.getElementById('community').style.display='block'}catch{}}
+
+async function loadNearby(key){try{const s=await getDoc(doc(db,'feedbacks',key));const counts=s.exists()?{match:s.data().match||0,colder:s.data().colder||0,warmer:s.data().warmer||0,rainy:s.data().rainy||0,windy:s.data().windy||0}:{match:0,colder:0,warmer:0,rainy:0,windy:0};const{prose,countsHTML}=buildNearbyProse(counts,userVote);document.getElementById('nearbyProse').innerHTML=prose;document.getElementById('nearbyCounts').innerHTML=countsHTML;}catch{}}
+
 async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:increment(1)},{merge:true})}catch{}}
-window.onFeedback1=async t=>{document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(t==='match'){await saveFeedback(currentKey,'match');document.getElementById('fbRow2').style.display='none';document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)}else document.getElementById('fbRow2').style.display='flex'};
-window.onFeedback2=async t=>{document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');await saveFeedback(currentKey,t);document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)};
 
-// ── RENDER
+window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
+
+function renderFlow(p){
+  const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerW=W-padX*2,innerH=H-padY*2-24;
+  const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
+  if(allTemps.length===0){svg.innerHTML='';return}
+  const tMin=Math.min(...allTemps),tMax=Math.max(...allTemps);const pad=Math.max(1,(tMax-tMin)*0.15);const yMin=tMin-pad,yMax=tMax+pad;
+  const yScale=t=>padY+(1-(t-yMin)/(yMax-yMin))*innerH;const xScale=i=>padX+(i/23)*innerW;
+  const buildPath=(hourly)=>{return hourly.map((pt,i)=>{const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);return i===0?`M ${x},${y}`:`L ${x},${y}`}).join(' ')};
+  let bandPath='';if(p.envelope&&p.envelope.length===24){const top=p.envelope.map((e,i)=>`${i===0?'M':'L'} ${xScale(i).toFixed(1)},${yScale(e.max).toFixed(1)}`).join(' ');const bot=p.envelope.slice().reverse().map((e,i)=>{const idx=23-i;return`L ${xScale(idx).toFixed(1)},${yScale(e.min).toFixed(1)}`}).join(' ');bandPath=`${top} ${bot} Z`;}
+  const primary=p.hourlyByModel[0];const peakIdx=primary?primary.hourly.reduce((best,pt,i)=>pt.t>primary.hourly[best].t?i:best,0):13;const peakX=xScale(peakIdx),peakY=yScale(primary?.hourly[peakIdx]?.t??p.tMax);
+  const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
+  let html=`<defs></defs>`;if(bandPath)html+=`<path d="${bandPath}" fill="rgb(var(--text-rgb))" fill-opacity="0.07"/>`;
+  p.hourlyByModel.slice().reverse().forEach(x=>{const path=buildPath(x.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;});
+  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="${a.bold?'500':'400'}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
+  const labelY=H-8;html+=`<text x="${xScale(8).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(13).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(19).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
+  svg.innerHTML=html;
+  const legend=document.getElementById('flowLegend');legend.innerHTML=p.hourlyByModel.map(x=>`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:${x.model.opacity}"></span>${x.model.label}</span>`).join('');
+  const cn=document.getElementById('flowConsensus');if(p.consensus==='LOW'){cn.textContent=`Models split by ${p.maxSpread}° on today's peak.`;cn.classList.add('on');} else if(p.consensus==='RAIN_SPLIT'){cn.textContent=`Models disagree on rain timing today.`;cn.classList.add('on');} else {cn.classList.remove('on');cn.textContent=''}
+}
+
 function render(p){
-  const{tMax,yMax,diff,slots,highU,pivot,now,tCode}=p;
+  const{now,tMax,yMax,diff}=p;
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
-  document.getElementById('tempIcon').textContent=emo(tCode);
-  document.getElementById('tempVal').textContent=`${tMax}°`;
-  document.getElementById('yestVal').textContent=`${yMax}°`;
-  const dl=document.getElementById('diffLabel');
-  if(diff>=2){dl.textContent=`+${diff}° warmer`;dl.className='temp-diff'}
-  else if(diff<=-2){dl.textContent=`${diff}° colder`;dl.className='temp-diff'}
-  else{dl.textContent='Similar';dl.className='temp-diff diff-same'}
-  const pe=document.getElementById('prose');
-  pe.innerHTML=buildRichProse(p);pe.classList.add('fu');
+  const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');
+  const add=buildAddendum(p);const uel=document.getElementById('uaddon');if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
   document.getElementById('chips').innerHTML=`<div class="chip">${deriveChip(p)}</div>`;
-  document.getElementById('uncertain').classList.toggle('on',highU);
-  const pv=document.getElementById('pivot');
-  if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot}
-  document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · Rain ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');
-  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);
-  document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
+  const pv=document.getElementById('pivot');if(p.pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=p.pivot}else pv.classList.remove('on');
+  renderFlow(p);
+  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
 }
 
-// ── INIT
 async function init(){
-  applyTimeMode();
+  applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('chips').innerHTML='';
-  document.getElementById('uncertain').classList.remove('on');
-  document.getElementById('pivot').classList.remove('on');
-  document.getElementById('community').style.display='none';
-  document.getElementById('fbThanks').style.display='none';
-  document.getElementById('fbRow2').style.display='none';
-  document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('pivot').classList.remove('on');document.getElementById('flowSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
+
   try{
-    const loc=await geoLoc();
-    currentKey=getFbKey(loc.lat,loc.lon);
-    document.getElementById('locEl').textContent=await geoName(loc.lat,loc.lon);
-    const p=parse(await fetchW(loc.lat,loc.lon));
-    render(p);
-    const ai=await getAI(p);
-    if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
-    loadCommunity(currentKey);
-  }catch{
-    document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;
-  }
+    const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);document.getElementById('locEl').textContent=await geoName(loc.lat,loc.lon);
+    const data=await fetchMultiModel(loc.lat,loc.lon);const p=parse(data);render(p);loadNearby(currentKey);
+    const ai=await getAI(p);if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
+  }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;}
 }
-window.init=init;
-init();
+window.init=init;init();
 </script>
 </body>
 </html>
