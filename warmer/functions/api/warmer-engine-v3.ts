@@ -1,16 +1,22 @@
 // ============================================================================
-// Warmer Narrative Engine v3.0 (Hybrid AI Refactored)
-// Multi-Criteria Decision Analysis + LLM Narrative Generation
+// Warmer Narrative Engine v4.0 — Dominant-First Single-Sentence
 //
-// 학술 기반:
-//   - UTCI (Universal Thermal Climate Index) — 다변량 thermal stress 통합
-//   - MCDA Weighted Linear Combination — 신호 우선순위 결정
+// 핵심 원칙:
+//   1. MCDA가 dominant signal을 결정 (deterministic)
+//   2. 엔진이 dominant 기반 영문 seed sentence 생성 (deterministic)
+//   3. Gemini는 polish만 담당 (probabilistic, narrow scope)
+//   4. 출력은 단일 string — UI title/subtitle 분리 없음
+//   5. 영문이 native, 한국어/기타는 polish 단계에서 번역
 //
-// 구조:
-//   1. Data Analysis (Deterministic): severity, salience, planDocument
-//   2. Narrative Generation (Probabilistic): Gemini 1.5 Flash
+// 아키텍처:
+//   Stage 1-3: 신호 정량화 + 우선순위 (변경 없음)
+//   Stage 4:   Seed 구성 (NEW - 결정론적 라이브러리)
+//   Stage 5:   LLM polish (NEW - 좁은 역할)
 // ============================================================================
 
+// ─────────────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────────────
 export interface WeatherInput {
   feelsLike: number;
   yesterdayDelta: number;
@@ -21,18 +27,12 @@ export interface WeatherInput {
 }
 
 export interface Severities {
-  temp: number;
-  delta: number;
-  uv: number;
-  wind: number;
-  rain: number;
-  eve: number;
+  temp: number; delta: number; uv: number;
+  wind: number; rain: number; eve: number;
 }
 
 export interface SalienceScore {
-  severity: number;
-  weight: number;
-  score: number;
+  severity: number; weight: number; score: number;
 }
 
 export type SalienceScores = Record<keyof Severities, SalienceScore>;
@@ -47,109 +47,100 @@ export interface DocumentPlan {
   secondary: RankedSignal[];
 }
 
-export interface NarrativeOutput {
-  action_guidance: string;
-  context_clause: string;
-  data_proof: string;
-  summary_tag: string;
+// Dominant signal — 출력의 첫 부분을 결정하는 단일 신호
+export type DominantFactor =
+  | 'rain' | 'wind' | 'cold_delta' | 'warm_delta'
+  | 'hot' | 'cold' | 'uv' | 'eve' | 'mild';
+
+export interface Dominant {
+  factor: DominantFactor;
+  severity: number;
+  direction: 'up' | 'down' | 'neutral';
+}
+
+export interface NarrativeV4 {
+  text: string;             // 단일 출력 — UI에 그대로 표시
+  dominantFactor: string;   // 디버그/분석용
+  chip?: string;            // 시각적 칩 (선택)
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// CONFIG: 가중치 + 임계값
+// CONFIG
 // ─────────────────────────────────────────────────────────────────────
 export const WEIGHTS: Record<keyof Severities, number> = {
-  temp:  1.0,  // 옷차림 기본 결정
-  delta: 0.9,  // 어제 대비 체감 변화 (사용자 가장 민감)
-  rain:  1.0,  // 행동 직결 (우산 필수)
-  wind:  0.7,  // 체감 보정
-  uv:    0.6,  // 선글라스/자차
-  eve:   0.6,  // 저녁 옷 추가
+  temp: 1.0, delta: 0.9, rain: 1.0,
+  wind: 0.7, uv: 0.6, eve: 0.6,
 };
 
 export const THRESHOLDS = {
-  include: 1.5,  // 내러티브 포함 기준
-  core:    2.5,  // 핵심 위치(action) 배치 기준
-  maxSignals: 3, // cognitive load 제한
+  include: 1.5,
+  core: 2.5,
+  maxSignals: 3,
 };
 
-
 // ─────────────────────────────────────────────────────────────────────
-// STAGE 1: SIGNAL ANALYSIS
-// 각 팩터를 5단계 강도(0-4)로 정량화
+// STAGE 1: SEVERITY
 // ─────────────────────────────────────────────────────────────────────
-export function severity(values: WeatherInput): Severities {
-  const { feelsLike, yesterdayDelta, uvIndex, windSpeed, precipProb, eveningDelta } = values;
+export function severity(v: WeatherInput): Severities {
+  const { feelsLike: fl, yesterdayDelta: dv, uvIndex: uv,
+          windSpeed: ws, precipProb: pp, eveningDelta: ev } = v;
 
   const sevTemp = (() => {
-    if (feelsLike >= 17 && feelsLike <= 24) return 1;
-    if ((feelsLike >= 12 && feelsLike < 17) || (feelsLike > 24 && feelsLike <= 27)) return 2;
-    if ((feelsLike >= 6  && feelsLike < 12) || (feelsLike > 27 && feelsLike <= 32)) return 3;
+    if (fl >= 17 && fl <= 24) return 1;
+    if ((fl >= 12 && fl < 17) || (fl > 24 && fl <= 27)) return 2;
+    if ((fl >= 6 && fl < 12) || (fl > 27 && fl <= 32)) return 3;
     return 4;
   })();
 
   const sevDelta = (() => {
-    const a = Math.abs(yesterdayDelta);
-    if (a < 2)  return 0;
-    if (a < 5)  return 1;
-    if (a < 8)  return 2;
-    if (a < 11) return 3;
+    const a = Math.abs(dv);
+    if (a < 2) return 0; if (a < 5) return 1;
+    if (a < 8) return 2; if (a < 11) return 3;
     return 4;
   })();
 
   const sevUV = (() => {
-    if (uvIndex < 3) return 0;
-    if (uvIndex < 6) return 1;
-    if (uvIndex < 8) return 2;
-    if (uvIndex < 11) return 3;
+    if (uv < 3) return 0; if (uv < 6) return 1;
+    if (uv < 8) return 2; if (uv < 11) return 3;
     return 4;
   })();
 
   const sevWind = (() => {
-    if (windSpeed < 3) return 0;
-    if (windSpeed < 5) return 1;
-    if (windSpeed < 8) return 2;
-    if (windSpeed < 11) return 3;
+    if (ws < 3) return 0; if (ws < 5) return 1;
+    if (ws < 8) return 2; if (ws < 11) return 3;
     return 4;
   })();
 
   const sevRain = (() => {
-    if (precipProb < 30) return 0;
-    if (precipProb < 50) return 1;
-    if (precipProb < 70) return 2;
-    if (precipProb < 85) return 3;
+    if (pp < 30) return 0; if (pp < 50) return 1;
+    if (pp < 70) return 2; if (pp < 85) return 3;
     return 4;
   })();
 
   const sevEve = (() => {
-    if (eveningDelta < 4) return 0;
-    if (eveningDelta < 6) return 1;
-    if (eveningDelta < 8) return 2;
-    if (eveningDelta < 10) return 3;
+    if (ev < 4) return 0; if (ev < 6) return 1;
+    if (ev < 8) return 2; if (ev < 10) return 3;
     return 4;
   })();
 
-  return { temp: sevTemp, delta: sevDelta, uv: sevUV, wind: sevWind, rain: sevRain, eve: sevEve };
+  return { temp: sevTemp, delta: sevDelta, uv: sevUV,
+           wind: sevWind, rain: sevRain, eve: sevEve };
 }
 
-
 // ─────────────────────────────────────────────────────────────────────
-// STAGE 2: SALIENCE SCORING
+// STAGE 2: SALIENCE
 // ─────────────────────────────────────────────────────────────────────
-export function salience(severities: Severities): SalienceScores {
-  const scores = {} as SalienceScores;
-  (Object.keys(WEIGHTS) as Array<keyof Severities>).forEach(key => {
-    scores[key] = {
-      severity: severities[key],
-      weight: WEIGHTS[key],
-      score: +(severities[key] * WEIGHTS[key]).toFixed(2),
-    };
+export function salience(s: Severities): SalienceScores {
+  const out = {} as SalienceScores;
+  (Object.keys(WEIGHTS) as Array<keyof Severities>).forEach(k => {
+    out[k] = { severity: s[k], weight: WEIGHTS[k],
+               score: +(s[k] * WEIGHTS[k]).toFixed(2) };
   });
-  return scores;
+  return out;
 }
 
-
 // ─────────────────────────────────────────────────────────────────────
-// STAGE 3: DOCUMENT PLANNING
+// STAGE 3: DOCUMENT PLAN
 // ─────────────────────────────────────────────────────────────────────
 export function planDocument(scores: SalienceScores): DocumentPlan {
   const ranked = (Object.entries(scores) as Array<[keyof Severities, SalienceScore]>)
@@ -158,148 +149,288 @@ export function planDocument(scores: SalienceScores): DocumentPlan {
     .sort((a, b) => b.score - a.score)
     .slice(0, THRESHOLDS.maxSignals);
 
-  const core      = ranked.filter(s => s.score >= THRESHOLDS.core);
-  const secondary = ranked.filter(s => s.score < THRESHOLDS.core);
-
-  return { ranked, core, secondary };
+  return {
+    ranked,
+    core: ranked.filter(s => s.score >= THRESHOLDS.core),
+    secondary: ranked.filter(s => s.score < THRESHOLDS.core),
+  };
 }
 
-
 // ─────────────────────────────────────────────────────────────────────
-// STAGE 4: LLM NARRATIVE GENERATION (Gemini)
+// STAGE 4a: DOMINANT SELECTION
+// Plan의 top-ranked signal을 dominant로 매핑.
+// temp + delta 조합 시: delta가 우선 (어제 대비가 더 인지적으로 중요)
 // ─────────────────────────────────────────────────────────────────────
-const SIGNAL_LABELS: Record<string, string> = {
-  temp:  '체감온도 → 옷차림 결정',
-  delta: '어제 대비 변화 → 체감 차이 강조',
-  rain:  '강수 확률 → 우산 필요성',
-  wind:  '풍속 → 체감온도 보정',
-  uv:    'UV 지수 → 선글라스/자외선 차단',
-  eve:   '저녁 기온 하강 → 레이어 필요',
-};
+export function selectDominant(plan: DocumentPlan, input: WeatherInput): Dominant {
+  if (plan.ranked.length === 0) {
+    return { factor: 'mild', severity: 0, direction: 'neutral' };
+  }
 
-async function generateNarrative(
-  apiKey: string,
-  weatherInput: WeatherInput,
-  plan: DocumentPlan,
-  lang: string = 'ko'
-): Promise<NarrativeOutput> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
-  const prompt = `[페르소나 및 정체성 (Archetype)]
-- 당신은 날씨 앱 'Warmer'의 AI 캐스터입니다. 당신의 어조는 Caring(다정한), Calm(차분한), Practical(실용적인), Observant(관찰력 있는) 상태를 유지해야 합니다.
+  const top = plan.ranked[0];
+  const dv = input.yesterdayDelta;
+  const fl = input.feelsLike;
 
-[Warmer 메시지 공식 v3]
-출력은 반드시 다음 구조와 규칙을 엄격히 준수해야 합니다:
-1. 구조: [Action guidance] — [context clause]. ([data proof])
-2. 숫자 원칙: 절대값 단독 표기보다 Delta 값(↓4°, ↑3°)과 체감 온도(feels 14°C)를 최우선으로 결론 뒤 괄호 안에 병치할 것.
-3. 강수 표현: 강수 확률 퍼센트(45%)보다 구체적인 시간 창(rain 2–5pm)을 우선하여 괄호 안에 넣을 것.
-4. 불확실성 표현 4단계 규칙:
-   - 확신 높음: "Rain this afternoon." (오후에 비가 와요.)
-   - 중간: "Rain likely from 2pm." (2시부터 비가 올 것 같아요.)
-   - 낮음: "Showers possible, mainly after 4." (4시 이후에 소나기 가능성이 있어요.)
-   - 불확실: "Timing uncertain — an umbrella is a safe bet." (시간대는 불확실하지만 우산을 챙기는 게 안전해요.)
-
-[서사 작성 규칙]
-1. 상단 대형 문구(action_guidance)에는 유저가 3초 만에 확인해야 할 결론 문장 하나만 작성하십시오.
-2. 하단 설명 문구(context_clause)에는 결론을 뒷받침하는 맥락 설명을 작성하십시오.
-3. 근거(data_proof)에는 괄호 안에 들어갈 숫자 근거(Delta, 체감온도, 강수시간 등)를 작성하십시오.
-4. 요약 태그(summary_tag)에는 오늘 날씨의 성격을 보여주는 짧은 핵심 키워드(이모지 포함, 예: 🧥 레이어드)를 작성하십시오.
-5. Target Language: ${lang === 'en' ? 'English' : 'Korean'}
-
-[입력 데이터]
-Weather Data:
-- Feels Like: ${weatherInput.feelsLike}°C
-- Yesterday Change: ${weatherInput.yesterdayDelta}°C
-- UV Index: ${weatherInput.uvIndex}
-- Wind Speed: ${weatherInput.windSpeed}m/s
-- Precipitation Probability: ${weatherInput.precipProb}%
-- Evening Temperature Drop: ${weatherInput.eveningDelta}°C
-
-Prioritized Signals (MCDA — 행동 우선순위 결정):
-${plan.ranked.map(s => 
-  `- [${s.factor}] ${SIGNAL_LABELS[s.factor]}: 강도 ${s.severity}/4, 가중치 ${s.score} → ${
-    s.score >= 2.5 ? '핵심 action에 반드시 반영' : '보조 context에 포함'
-  }`
-).join('\n')}
-${plan.ranked.length === 0 ? '- 오늘은 특이 신호 없음. 평범한 날씨.' : ''}
-
-[JSON 출력 형식]
-{
-  "action_guidance": "Large action sentence",
-  "context_clause": "Context explanation",
-  "data_proof": "Delta/Feels/Time window values",
-  "summary_tag": "🧥 Short Keyword"
-}`;
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-          responseMimeType: "application/json",
-          temperature: 0.7 
-        }
-      })
-    });
-
-    if (!response.ok) throw new Error(`Gemini API Error: ${response.statusText}`);
-    const data: any = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    
-    // 마크다운 펜스 제거 후 파싱
-    const cleanedText = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(cleanedText);
-  } catch (error) {
-    console.error("Gemini Narrative Error:", error);
-    if (lang === 'en') {
+  switch (top.factor) {
+    case 'rain':
+      return { factor: 'rain', severity: top.severity, direction: 'neutral' };
+    case 'wind':
+      return { factor: 'wind', severity: top.severity, direction: 'neutral' };
+    case 'uv':
+      return { factor: 'uv', severity: top.severity, direction: 'neutral' };
+    case 'eve':
+      return { factor: 'eve', severity: top.severity, direction: 'down' };
+    case 'delta':
       return {
-        action_guidance: "Please carry a light outer layer.",
-        context_clause: "Preparing for any situation is the safest way.",
-        data_proof: "uncertain",
-        summary_tag: "🧥 Layered"
+        factor: dv > 0 ? 'warm_delta' : 'cold_delta',
+        severity: top.severity,
+        direction: dv > 0 ? 'up' : 'down',
       };
-    }
-    return {
-      action_guidance: "입고 벗기 편한 가벼운 외투를 챙기세요.",
-      context_clause: "어떤 상황에도 대비할 수 있게 준비하는 게 안전해요.",
-      data_proof: "불확실",
-      summary_tag: "🧥 레이어드"
-    };
+    case 'temp':
+      return {
+        factor: fl >= 27 ? 'hot' : fl < 6 ? 'cold' : 'mild',
+        severity: top.severity,
+        direction: 'neutral',
+      };
+    default:
+      return { factor: 'mild', severity: 0, direction: 'neutral' };
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// STAGE 4b: SEED SENTENCE LIBRARY (English-first)
+// Soo의 영문 라이브러리. Severity × factor → seed sentence.
+// ─────────────────────────────────────────────────────────────────────
+const SEEDS: Record<DominantFactor, Record<number, string>> = {
+  rain: {
+    4: "Heavy rain today — umbrella is non-negotiable.",
+    3: "Rain rolling in — bring an umbrella.",
+    2: "Showers possible — umbrella's worth tossing in your bag.",
+    1: "A little drizzle possible — you'll probably be fine without an umbrella.",
+    0: "",
+  },
+  wind: {
+    4: "Powerful wind today — a windproof shell makes a real difference.",
+    3: "Wind's strong — a shell or windbreaker helps.",
+    2: "Breezy out — something to block the wind helps.",
+    1: "Light breeze, nothing serious.",
+    0: "",
+  },
+  cold_delta: {
+    4: "Massive drop from yesterday — coat weather, full stop.",
+    3: "Sharply colder than yesterday — proper coat today.",
+    2: "Noticeably cooler than yesterday — add a layer.",
+    1: "A touch cooler than yesterday — fine with what you wore.",
+    0: "",
+  },
+  warm_delta: {
+    4: "Much warmer than yesterday — leave the coat at home.",
+    3: "Warmer than yesterday — lighter layer works.",
+    2: "A touch warmer than yesterday — you can lighten up.",
+    1: "Slightly warmer than yesterday — dress similarly.",
+    0: "",
+  },
+  hot: {
+    4: "Hot one — light fabric, shade, water.",
+    3: "Hot day — keep it light and stay hydrated.",
+    2: "Warm out — light clothing recommended.",
+    1: "Pleasantly warm.",
+    0: "",
+  },
+  cold: {
+    4: "Serious cold today — bundle properly.",
+    3: "Cold day — heavy coat, no skimping.",
+    2: "Chilly out — proper jacket weather.",
+    1: "Cool out — a layer's enough.",
+    0: "",
+  },
+  uv: {
+    4: "Extreme UV — sunglasses, SPF, shade when you can.",
+    3: "Strong sun — sunglasses and SPF today.",
+    2: "Sun's notable — sunglasses recommended.",
+    1: "Mild sun, nothing to plan around.",
+    0: "",
+  },
+  eve: {
+    4: "Mild now, sharp drop by evening — bring something for later.",
+    3: "Mild now, sharp drop by evening — bring something for later.",
+    2: "Cools off in the evening — a light layer for later helps.",
+    1: "Slight cool-down in the evening.",
+    0: "",
+  },
+  mild: {
+    0: "Easy one out there, dress how you did yesterday.",
+  },
+};
+
+export function buildSeed(dominant: Dominant): string {
+  const sevMap = SEEDS[dominant.factor];
+  if (!sevMap) return SEEDS.mild[0];
+  // mild는 severity 0만 있음
+  if (dominant.factor === 'mild') return sevMap[0];
+  // 다른 factor는 1-4
+  const sev = Math.max(1, Math.min(4, dominant.severity));
+  return sevMap[sev] || sevMap[2] || SEEDS.mild[0];
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// STAGE 4c: SECONDARY OVERLAY (선택적 보조절)
+// dominant 외 secondary 신호가 있을 때, 자연스러운 conjunctive clause.
+// ─────────────────────────────────────────────────────────────────────
+const OVERLAYS: Record<string, string> = {
+  'cold_delta+wind': 'the wind makes it feel sharper',
+  'cold+wind': 'the wind makes it feel sharper',
+  'cold_delta+eve': 'it gets colder after dark',
+  'cold+eve': 'it gets colder after dark',
+  'rain+wind': 'the wind is blowing it sideways',
+  'hot+uv': 'the sun is intense',
+  'warm_delta+uv': 'the sun is strong out',
+  'mild+eve': "you'll want a layer for tonight",
+  'mild+uv': 'just watch the sun',
+};
+
+export function buildOverlay(dominant: Dominant, plan: DocumentPlan): string {
+  const dominantFactors: DominantFactor[] = ['rain', 'wind', 'cold_delta', 'warm_delta',
+                                              'hot', 'cold', 'uv', 'eve', 'mild'];
+  if (!dominantFactors.includes(dominant.factor)) return '';
+
+  // dominant이 이미 점유한 raw factor를 secondary에서 제외
+  const dominantRawFactor =
+    dominant.factor === 'cold_delta' || dominant.factor === 'warm_delta' ? 'delta' :
+    dominant.factor === 'hot' || dominant.factor === 'cold' ? 'temp' :
+    dominant.factor === 'mild' ? null :
+    dominant.factor as keyof Severities;
+
+  const secondaries = plan.ranked
+    .filter(s => s.factor !== dominantRawFactor)
+    .map(s => s.factor);
+
+  for (const sec of secondaries) {
+    const key = `${dominant.factor}+${sec}`;
+    if (OVERLAYS[key]) return OVERLAYS[key];
+  }
+  return '';
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// STAGE 5: COMPOSE — seed + overlay → final English text
+// ─────────────────────────────────────────────────────────────────────
+export function composeEnglish(seed: string, overlay: string): string {
+  if (!overlay) return seed;
+  // seed 끝의 마침표를 없애고 overlay를 자연스럽게 붙임
+  const seedTrimmed = seed.replace(/\.\s*$/, '');
+  return `${seedTrimmed} — ${overlay}.`;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// STAGE 6: LLM POLISH (좁은 역할 — 다른 언어로 번역 + 자연스러움 보정)
+// ─────────────────────────────────────────────────────────────────────
+async function llmPolish(
+  englishText: string,
+  apiKey: string,
+  lang: string,
+  dominant: Dominant
+): Promise<string> {
+  // 영어면 그대로 반환 (polish 불필요)
+  if (lang === 'en') return englishText;
+
+  const langName = lang === 'ko' ? 'Korean (존댓말)' : lang;
+
+  const prompt = `You are translating a weather narrative for the brand "Warmer".
+Voice: caring, calm, practical, observant. "Warm, never cheesy. Smart, never clinical."
+
+CRITICAL RULES:
+1. Translate to ${langName}.
+2. Keep ONE sentence. Max ~30 characters in Korean / ~14 words in English.
+3. The DOMINANT EVENT must lead the sentence: ${dominant.factor} (severity ${dominant.severity}/4).
+4. Do NOT add numbers, percentages, or units. Pure prose.
+5. Do NOT add disclaimers like "(uncertain)" or "(maybe)".
+6. Return ONLY the translated sentence, no JSON, no quotes.
+
+English source: "${englishText}"
+
+Translated sentence:`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
+      }),
+    });
+
+    if (!r.ok) throw new Error(`Gemini ${r.status}`);
+    const data: any = await r.json();
+    let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // 따옴표, JSON 잔재 제거
+    text = text.trim().replace(/^["'`]|["'`]$/g, '').replace(/^\{.*?:\s*"?|"?\s*\}$/g, '');
+    return text || englishText;
+  } catch (e) {
+    console.error('LLM polish failed, returning English:', e);
+    return englishText; // graceful degradation
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // MAIN PIPELINE
 // ─────────────────────────────────────────────────────────────────────
-export async function generate(weatherInput: WeatherInput, apiKey: string, lang: string = 'ko') {
-  const severities = severity(weatherInput);
-  const scores     = salience(severities);
-  const plan       = planDocument(scores);
-  
-  // LLM Narrative Generation
-  const narrative = await generateNarrative(apiKey, weatherInput, plan, lang);
+export async function generate(
+  input: WeatherInput,
+  apiKey: string,
+  lang: string = 'en'
+): Promise<{ narrative: NarrativeV4; debug: any }> {
+  const severities = severity(input);
+  const scores = salience(severities);
+  const plan = planDocument(scores);
+  const dominant = selectDominant(plan, input);
+  const seed = buildSeed(dominant);
+  const overlay = buildOverlay(dominant, plan);
+  const englishText = composeEnglish(seed, overlay);
+  const finalText = await llmPolish(englishText, apiKey, lang, dominant);
 
   return {
-    narrative,
+    narrative: {
+      text: finalText,
+      dominantFactor: dominant.factor,
+      chip: chipForDominant(dominant),
+    },
     debug: {
-      severities,
-      scores,
-      plan,
-      itemCategories: deriveItemCategories(weatherInput, severities, plan),
+      severities, scores, plan, dominant,
+      seed, overlay, englishText,
+      itemCategories: deriveItemCategories(input, severities, plan),
     },
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// CHIP — dominant 기반 시각적 태그
+// ─────────────────────────────────────────────────────────────────────
+function chipForDominant(d: Dominant): string {
+  const chips: Record<DominantFactor, string> = {
+    rain: '🌂 Rain',
+    wind: '💨 Windy',
+    cold_delta: '🥶 Colder',
+    warm_delta: '🌤 Warmer',
+    hot: '🥵 Hot',
+    cold: '🧥 Cold',
+    uv: '🕶 UV',
+    eve: '🌙 Evening drop',
+    mild: '✨ Easy',
+  };
+  return chips[d.factor];
+}
 
 // ─────────────────────────────────────────────────────────────────────
-// B2B EXTENSION: Item category resolver
+// B2B EXTENSION (변경 없음)
 // ─────────────────────────────────────────────────────────────────────
-function deriveItemCategories(values: WeatherInput, severities: Severities, plan: DocumentPlan) {
+function deriveItemCategories(
+  values: WeatherInput,
+  severities: Severities,
+  plan: DocumentPlan
+) {
   const cats: Array<{ cat: string; clo?: number }> = [];
-
   const fl = values.feelsLike;
   if      (fl >= 25) cats.push({ cat: 'light_top',     clo: 0.3 });
   else if (fl >= 20) cats.push({ cat: 'long_sleeve',   clo: 0.6 });
@@ -314,6 +445,5 @@ function deriveItemCategories(values: WeatherInput, severities: Severities, plan
   if (factors.includes('wind') && severities.wind >= 2) cats.push({ cat: 'windbreaker' });
   if (factors.includes('uv')   && severities.uv   >= 2) cats.push({ cat: 'sunglasses' });
   if (factors.includes('eve')  && severities.eve  >= 2) cats.push({ cat: 'layering_piece' });
-
   return cats;
 }
