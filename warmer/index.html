@@ -1,17 +1,45 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Warmer</title>
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<!-- Gelasio for italic action line -->
+<link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<!-- Aspekta — self-host woff2 files in /fonts/ (download: aspekta.xyz)
+     @font-face below points to /fonts/Aspekta-*.woff2
+     DM Sans above is an instant fallback while Aspekta loads -->
 <style>
+@font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
+@font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-450.woff2') format('woff2');font-weight:450;font-display:swap}
+@font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
+
+:root{
+  --bg:#C9E0EF;
+  --text:#7B4B49;
+  --muted:rgba(123,75,73,0.30);
+  --dim:rgba(123,75,73,0.15);
+  --chip-bg:rgba(123,75,73,0.07);
+  --chip-bd:rgba(123,75,73,0.16);
+  --line:rgba(123,75,73,0.10);
+}
+body.evening{
+  --bg:#7B4B49;
+  --text:#C9E0EF;
+  --muted:rgba(201,224,239,0.30);
+  --dim:rgba(201,224,239,0.15);
+  --chip-bg:rgba(201,224,239,0.07);
+  --chip-bd:rgba(201,224,239,0.18);
+  --line:rgba(201,224,239,0.10);
+}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#EAECEA;--text:#111111;--muted:rgba(0,0,0,0.35);--dim:rgba(0,0,0,0.15);--chip:rgba(0,0,0,0.06);--line:rgba(0,0,0,0.08);--green:#3D6B35;--navy:#1C2D3A}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease}
 .app{max-width:390px;margin:0 auto;min-height:100vh;padding:56px 32px 48px;display:flex;flex-direction:column}
 .wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:48px}
 .meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:28px}
@@ -19,46 +47,46 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .temp-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:32px}
 .temp-today{display:flex;flex-direction:column;gap:2px}
 .temp-label{font-size:11px;color:var(--muted);letter-spacing:.5px}
-.temp-val{font-size:22px;font-weight:400;color:var(--text);display:flex;align-items:center;gap:8px}
+.temp-val{font-size:22px;font-weight:400;display:flex;align-items:center;gap:8px}
 .temp-yesterday{text-align:right}
-.temp-diff{font-size:11px;margin-top:2px}
-.diff-warm{color:#9B4A1F}.diff-cool{color:var(--navy)}.diff-same{color:var(--muted)}
-.prose{font-size:42px;font-weight:300;line-height:1.18;letter-spacing:-1px;margin-bottom:24px}
-.prose .g{color:var(--muted)}.prose .w{color:var(--text);font-weight:500}
-.prose .action{color:var(--green);font-style:italic;font-weight:300;font-size:38px}
-.brief{font-size:15px;font-weight:300;line-height:1.75;color:rgba(0,0,0,0.55);margin-bottom:24px;display:none}
+.temp-diff{font-size:11px;margin-top:2px;color:var(--text)}
+.diff-same{color:var(--muted)}
+.prose{font-size:42px;font-weight:300;line-height:1.22;letter-spacing:-0.5px;margin-bottom:24px}
+.prose .g{color:var(--muted)}
+.prose .w{color:var(--text);font-weight:500}
+.prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:38px;font-family:'Gelasio',serif;letter-spacing:-0.5px}
+.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.52em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 4px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-3px;transition:background-color 2s ease,border-color 2s ease}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px}
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid rgba(0,0,0,0.1);border-radius:100px;padding:7px 15px;font-size:13px;color:rgba(0,0,0,0.65)}
-.div{height:1px;background:var(--line);margin-bottom:24px}
-.feedback-section{margin-bottom:28px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text);transition:background-color 2s ease,border-color 2s ease}
+.div{height:1px;background:var(--line);margin-bottom:24px;transition:background-color 2s ease}
 .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
-.feedback-q{font-size:14px;color:rgba(0,0,0,0.6);margin-bottom:12px}
+.feedback-section{margin-bottom:28px}
+.feedback-q{font-size:14px;color:var(--muted);margin-bottom:12px}
 .fb-row{display:flex;gap:8px;flex-wrap:wrap}
-.fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip);border:1px solid rgba(0,0,0,0.1);border-radius:100px;padding:8px 16px;font-size:13px;color:rgba(0,0,0,0.65);font-family:inherit;cursor:pointer;transition:all .15s}
+.fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:8px 16px;font-size:13px;color:var(--text);font-family:inherit;cursor:pointer;transition:all .15s}
 .fb-btn:active{opacity:.6;transform:scale(.97)}
-.fb-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy)}
-.fb-btn.selected.warm{background:#9B4A1F;border-color:#9B4A1F}
+.fb-btn.selected{background:var(--text);color:var(--bg);border-color:var(--text)}
 .fb-thanks{font-size:13px;color:var(--muted);display:none;margin-top:10px}
 .community{margin-bottom:28px;display:none}
-.community-inner{background:rgba(0,0,0,0.04);border-radius:12px;padding:14px 16px}
-.community-text{font-size:13px;color:rgba(0,0,0,0.6);line-height:1.6}
+.community-inner{background:var(--chip-bg);border-radius:12px;padding:14px 16px}
+.community-text{font-size:13px;color:var(--muted);line-height:1.6}
 .community-count{font-size:11px;color:var(--muted);margin-top:4px}
 .tl{display:flex;flex-direction:column;gap:12px;margin-bottom:28px}
 .tl-row{display:flex;align-items:baseline;font-size:14px}
-.tl-t{width:40px;color:var(--muted);flex-shrink:0}
+.tl-t{width:58px;color:var(--muted);flex-shrink:0}
 .tl-i{width:26px;flex-shrink:0}
-.tl-d{flex:1;color:rgba(0,0,0,0.65)}
+.tl-d{flex:1;color:var(--text)}
 .tl-n{color:var(--muted);font-size:13px;margin-left:8px}
 .cmp{margin-bottom:12px}
 .cmp-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.cmp-l{font-size:12px;color:var(--muted);width:30px}
-.cmp-track{flex:1;height:2px;background:rgba(0,0,0,0.08);border-radius:1px;overflow:hidden}
+.cmp-l{font-size:12px;color:var(--muted);width:36px}
+.cmp-track{flex:1;height:2px;background:var(--dim);border-radius:1px;overflow:hidden}
 .cmp-fill{height:100%;border-radius:1px;transition:width 1.2s cubic-bezier(.25,1,.5,1)}
-.fill-y{background:rgba(0,0,0,0.2)}.fill-t{background:rgba(0,0,0,0.75)}
-.cmp-v{font-size:12px;color:rgba(0,0,0,0.5);width:30px;text-align:right}
-.uncertain{display:none;font-size:12px;color:#9B6B1F;align-items:center;gap:6px;margin-bottom:20px;background:rgba(155,107,31,0.08);padding:10px 14px;border-radius:10px}
+.fill-y{background:var(--muted)}.fill-t{background:var(--text)}
+.cmp-v{font-size:12px;color:var(--muted);width:30px;text-align:right}
+.uncertain{display:none;font-size:12px;color:var(--text);align-items:center;gap:6px;margin-bottom:20px;background:var(--chip-bg);padding:10px 14px;border-radius:10px}
 .uncertain.on{display:flex}
-.pivot{display:none;align-items:center;gap:10px;margin-bottom:20px;background:rgba(0,0,0,0.04);border-radius:12px;padding:12px 16px}
+.pivot{display:none;align-items:center;gap:10px;margin-bottom:20px;background:var(--chip-bg);border-radius:12px;padding:12px 16px}
 .pivot.on{display:flex}
 .pivot-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
 .pivot-text{font-size:14px;font-weight:500}
@@ -70,47 +98,43 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .fu{animation:fu .45s ease forwards}
 .refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px}
 .refresh:active{opacity:.4}
-.lang-toggle{position:absolute;top:56px;right:32px;font-size:11px;color:var(--muted);cursor:pointer;background:none;border:none;letter-spacing:1px;text-transform:uppercase;font-family:inherit;padding:4px}
-.lang-toggle:active{opacity:.5}
 </style>
 </head>
 <body>
 <div class="app">
-<button class="lang-toggle" onclick="toggleLang()" id="langBtn" style="display:none">EN</button>
-<div class="wordmark">Warmer</div>
-<div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
-<div class="temp-row">
-<div class="temp-today"><div class="temp-label">TODAY</div><div class="temp-val"><span id="tempIcon">⛅</span><span id="tempVal">—°</span></div></div>
-<div class="temp-yesterday"><div class="temp-label">YESTERDAY</div><div class="temp-val" id="yestVal">—°</div><div class="temp-diff" id="diffLabel">—</div></div>
-</div>
-<div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
-<div class="brief" id="brief"></div>
-<div class="chips" id="chips"></div>
-<div class="div"></div>
-<div class="community" id="community"><div class="sec-label" id="communityLabel">근처 사람들은</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
-<div class="feedback-section">
-<div class="sec-label" id="feedbackLabel">지금 밖은 어때?</div>
-<div class="feedback-q" id="feedbackQ">예보랑 달라?</div>
-<div class="fb-row" id="fbRow1">
-<button class="fb-btn" id="fbBtnMatch" onclick="onFeedback1('match')">👍 맞아</button>
-<button class="fb-btn" id="fbBtnDiff" onclick="onFeedback1('diff')">🌀 달라</button>
-</div>
-<div class="fb-row" id="fbRow2" style="display:none;margin-top:10px">
-<button class="fb-btn" id="fbBtnColder" onclick="onFeedback2('colder')">🥶 더 추워</button>
-<button class="fb-btn" id="fbBtnWarmer" onclick="onFeedback2('warmer')">🌤 더 따뜻해</button>
-<button class="fb-btn" id="fbBtnRainy" onclick="onFeedback2('rainy')">🌧 비 와</button>
-<button class="fb-btn" id="fbBtnWindy" onclick="onFeedback2('windy')">💨 바람 심해</button>
-</div>
-<div class="fb-thanks" id="fbThanks">고마워 👋 반영할게</div>
-</div>
-<div class="div"></div>
-<div class="uncertain" id="uncertain"><span>〰</span><span id="uncertainText">오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.</span></div>
-<div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label" id="pivotLabel">오늘 포인트</div><div class="pivot-text" id="pivotText">—</div></div></div>
-<div class="sec-label" id="flowLabel">오늘 흐름</div>
-<div class="tl" id="tl"></div>
-<div class="sec-label" id="compLabel" style="margin-top:4px">어제 vs 오늘</div>
-<div class="cmp" id="cmp"></div>
-<button class="refresh" id="refreshBtn" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>새로고침</span></button>
+  <div class="wordmark">Warmer</div>
+  <div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="temp-row">
+    <div class="temp-today"><div class="temp-label">TODAY</div><div class="temp-val"><span id="tempIcon">⛅</span><span id="tempVal">—°</span></div></div>
+    <div class="temp-yesterday"><div class="temp-label">YESTERDAY</div><div class="temp-val" id="yestVal">—°</div><div class="temp-diff" id="diffLabel">—</div></div>
+  </div>
+  <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+  <div class="chips" id="chips"></div>
+  <div class="div"></div>
+  <div class="community" id="community"><div class="sec-label">NEARBY</div><div class="community-inner"><div class="community-text" id="communityText">—</div><div class="community-count" id="communityCount"></div></div></div>
+  <div class="feedback-section">
+    <div class="sec-label">HOW IS IT OUTSIDE?</div>
+    <div class="feedback-q">Different from forecast?</div>
+    <div class="fb-row" id="fbRow1">
+      <button class="fb-btn" onclick="onFeedback1('match')">👍 Correct</button>
+      <button class="fb-btn" onclick="onFeedback1('diff')">🌀 No</button>
+    </div>
+    <div class="fb-row" id="fbRow2" style="display:none;margin-top:10px">
+      <button class="fb-btn" onclick="onFeedback2('colder')">🥶 Colder</button>
+      <button class="fb-btn" onclick="onFeedback2('warmer')">🌤 Warmer</button>
+      <button class="fb-btn" onclick="onFeedback2('rainy')">🌧 Rainy</button>
+      <button class="fb-btn" onclick="onFeedback2('windy')">💨 Windy</button>
+    </div>
+    <div class="fb-thanks" id="fbThanks">Thanks 👋 I'll note that.</div>
+  </div>
+  <div class="div"></div>
+  <div class="uncertain" id="uncertain"><span>〰</span><span>High variability — forecast may shift.</span></div>
+  <div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">TODAY'S POINT</div><div class="pivot-text" id="pivotText">—</div></div></div>
+  <div class="sec-label">TODAY'S FLOW</div>
+  <div class="tl" id="tl"></div>
+  <div class="sec-label" style="margin-top:4px">YESTERDAY VS TODAY</div>
+  <div class="cmp" id="cmp"></div>
+  <button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
 </div>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -119,115 +143,120 @@ const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomai
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 
-let lang=localStorage.getItem('lang')||'ko';
-const t={
-  ko:{
-    loc:'내 위치',
-    dsc:[[0,'맑음'],[2,'구름 조금'],[3,'흐림'],[48,'안개'],[57,'이슬비'],[67,'비'],[77,'눈'],[82,'소나기'],[86,'눈 소나기'],[99,'뇌우']],
-    slots:['아침','낮','저녁'],
-    pivot:{down:'저녁에 확 떨어져',up:'저녁에 많이 풀려',warm:'오후부터 따뜻해져',chill:'오후부터 쌀쌀해져'},
-    cw:['훨씬 따뜻해','꽤 따뜻해','좀 따뜻해','많이 추워','꽤 추워','좀 쌀쌀해','비슷해'],
-    ai:{
-      system_instruction: `너는 날씨를 엄마처럼 챙겨주는 도우미야.`,
-      fallback_brief: {
-        warm_much: '어제보다 꽤 따뜻해. 가볍게 입어.',
-        warm_some: '어제보다 좀 따뜻해. 저녁엔 챙겨.',
-        cold_much: '어제보다 많이 추워. 따뜻하게 입고 나가.',
-        cold_some: '어제보다 쌀쌀해. 겉에 뭐 하나 걸쳐.',
-        similar: '어제랑 비슷해. 크게 다르지 않아.'
-      }
-    },
-    action:['우산 꼭 챙겨.','우산 챙기는 게 나을 것 같아.','따뜻하게 입고 나가.','따뜻하게 껴입어.','겉에 뭐 하나 걸쳐.','가볍게 입어도 돼.','크게 다르진 않아.'],
-    fw:['매우 차갑게','꽤 차갑게','선선하게','적당하게','따뜻하게'],
-    proseSim:f=>`<span class="g">어제랑</span> <span class="w">비슷해</span><br><span class="g">체감은 </span><span class="w">${f}</span><span class="g">.</span>`,
-    proseDiff:(c,f)=>`<span class="g">어제보다</span> <span class="w">${c}</span><br><span class="g">체감은 </span><span class="w">${f}</span><span class="g">.</span>`,
-    ui:{
-      community:'근처 사람들은',match:'예보가 맞는 것 같아',people:(l,n)=>`근처에서 ${l.join(', ')}고 해`,count:n=>`${n}명 응답`,
-      feedback:'지금 밖은 어때?',q:'예보랑 달라?',m:'👍 맞아',d:'🌀 달라',
-      colder:'🥶 더 추워',warmer:'🌤 더 따뜻해',rainy:'🌧 비 와',windy:'💨 바람 심해',thanks:'고마워 👋 반영할게',
-      uncertain:'오늘 날씨 변동성이 높아. 예보가 빗나갈 수 있어.',pivot:'오늘 포인트',flow:'오늘 흐름',comp:'어제 vs 오늘',refresh:'새로고침',
-      c:'더 춥다',w:'더 따뜻하다',r:'비 온다',wd:'바람 심하다',y:'어제',t:'오늘',warmLabel:d=>`+${d}도 따뜻`,coolLabel:d=>`${d}도 추워`,sameLabel:'비슷'
-    }
-  },
-  en:{
-    loc:'My Location',
-    dsc:[[0,'Clear'],[2,'Partly Cloudy'],[3,'Overcast'],[48,'Fog'],[57,'Drizzle'],[67,'Rain'],[77,'Snow'],[82,'Showers'],[86,'Snow Showers'],[99,'Thunderstorm']],
-    slots:['Morning','Day','Evening'],
-    pivot:{down:'Drops sharply tonight',up:'Warmer this evening',warm:'Warmer this afternoon',chill:'Chilly this afternoon'},
-    cw:['much warmer','quite warm','a bit warmer','much colder','quite cold','a bit chilly','similar'],
-    ai:{
-      system_instruction: `You are a weather assistant who cares for the user like a mother.`,
-      fallback_brief: {
-        warm_much: 'It\'s quite warmer than yesterday. Dress lightly.',
-        warm_some: 'It\'s a bit warmer than yesterday. Bring something for the evening.',
-        cold_much: 'It\'s much colder than yesterday. Dress warmly.',
-        cold_some: 'It\'s a bit chilly than yesterday. Wear a jacket.',
-        similar: 'It\'s similar to yesterday. Not much different.'
-      }
-    },
-    action:['Take an umbrella.','Better take an umbrella.','Dress warmly.','Bundle up.','Take a jacket.','Dress light.','Not much different.'],
-    fw:['very cold','quite cold','chilly','pleasant','warm'],
-    proseSim:f=>`<span class="w">Similar</span> <span class="g">to yesterday</span><br><span class="g">Feels </span><span class="w">${f}</span><span class="g">.</span>`,
-    proseDiff:(c,f)=>`<span class="w">${c}</span> <span class="g">than yesterday</span><br><span class="g">Feels </span><span class="w">${f}</span><span class="g">.</span>`,
-    ui:{
-      community:'People nearby',match:'Forecast seems correct',people:(l,n)=>`Nearby: ${l.join(', ')}`,count:n=>`${n} responses`,
-      feedback:'HOW IS IT OUTSIDE?',q:'Different from forecast?',m:'👍 Correct',d:'🌀 No',
-      colder:'🥶 Colder',warmer:'🌤 Warmer',rainy:'🌧 Rainy',windy:'💨 Windy',thanks:"Thanks! I'll update it.",
-      uncertain:'High volatility. Forecast might be off.',pivot:"TODAY'S POINT",flow:"TODAY'S FLOW",comp:'YESTERDAY VS TODAY',refresh:'REFRESH',
-      c:'Colder',w:'Warmer',r:'Rainy',wd:'Windy',y:'Yest',t:'Today',warmLabel:d=>`${d}° warmer`,coolLabel:d=>`${d}° colder`,sameLabel:'Same'
-    }
-  }
-};
+// ── TIME MODE: 18:00–05:59 → evening (inverted palette)
+function applyTimeMode(){const h=new Date().getHours();document.body.classList.toggle('evening',h>=18||h<6)}
+applyTimeMode();
+setInterval(applyTimeMode,60_000);
 
+// ── HELPERS
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
-const dsc=c=>{const l=t[lang].dsc;for(const[cd,txt]of l)if(c<=cd)return txt;return l[l.length-1][1]};
+const dsc=c=>{const l=[[0,'Clear'],[2,'Partly cloudy'],[3,'Overcast'],[48,'Fog'],[57,'Drizzle'],[67,'Rain'],[77,'Snow'],[82,'Showers'],[86,'Snow showers'],[99,'Thunderstorm']];for(const[cd,t]of l)if(c<=cd)return t;return'—'};
 const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
-async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||t[lang].loc}catch{return t[lang].loc}}
-async function fetchW(lat,lon){const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(u)).json()}
-function parse(data){const now=new Date(),h=now.getHours(),S=24;const tMax=Math.round(data.daily.temperature_2m_max[1]),tMin=Math.round(data.daily.temperature_2m_min[1]),yMax=Math.round(data.daily.temperature_2m_max[0]),yMin=Math.round(data.daily.temperature_2m_min[0]),tCode=data.daily.weathercode[1],yCode=data.daily.weathercode[0],feels=Math.round(data.hourly.apparent_temperature[S+h]);
-const slots=[{label:t[lang].slots[0],h:8},{label:t[lang].slots[1],h:13},{label:t[lang].slots[2],h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));
-const diff=tMax-yMax,rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3,rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3,swing=Math.abs(slots[2].temp-slots[0].temp),cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st')),highU=rvar>400||swing>=8||cats.size>=3,mn=slots[1].temp-slots[0].temp,ne=slots[2].temp-slots[1].temp,wind=data.hourly.windspeed_10m[S+h];
-const pivot=Math.abs(ne)>=5?(ne<0?t[lang].pivot.down:t[lang].pivot.up):Math.abs(mn)>=5?(mn>0?t[lang].pivot.warm:t[lang].pivot.chill):'';return{tMax,tMin,yMax,yMin,tCode,yCode,feels,slots,diff,highU,pivot,now,wind,temp:Math.round(data.hourly.temperature_2m[S+h]),delta:diff}}
-function buildProse(p){const{diff,tCode,feels,slots}=p,cl=t[lang].cw,cw=diff>=8?cl[0]:diff>=4?cl[1]:diff>=2?cl[2]:diff<=-8?cl[3]:diff<=-4?cl[4]:diff<=-2?cl[5]:cl[6],rp=Math.max(...slots.map(s=>s.rain)),al=t[lang].action,action=rp>60?al[0]:rp>30?al[1]:tCode>=70?al[2]:diff<=-4?al[3]:diff<=-2?al[4]:diff>=4?al[5]:al[6],fl=t[lang].fw,fw=feels<=0?fl[0]:feels<=8?fl[1]:feels<=15?fl[2]:feels<=22?fl[3]:fl[4];
-return(Math.abs(diff)<=1?t[lang].proseSim(fw):t[lang].proseDiff(cw,fw))+`<br><span class="action">${action}</span>`}
+async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'My Location'}catch{return'My Location'}}
+async function fetchW(lat,lon){return(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&past_days=1&forecast_days=1&timezone=auto`)).json()}
 
-async function getAI(p) {
-  try {
-    const res = await fetch('/api/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weatherContext: {
-        ...p,
-        windSpeed: p.wind,
-        hourlySlots: p.slots,
-        volatility: p.highU,
-        keyPoint: p.pivot,
-        feels_like: p.feels,
-      }, lang: lang })
-    });
-    const d = await res.json();
-    if (!d.success) throw new Error(d.message || 'Translation failed');
-    return d.translation;
-  } catch (e) {
-    console.error("AI API Error:", e);
-    const fallbackBriefs = t[lang].ai.fallback_brief;
-    let brief = (p.diff >= 4) ? fallbackBriefs.warm_much : (p.diff >= 2) ? fallbackBriefs.warm_some : (p.diff <= -4) ? fallbackBriefs.cold_much : (p.diff <= -2) ? fallbackBriefs.cold_some : fallbackBriefs.similar;
-    return { layer1: null, layer2: brief, layer3: null };
-  }
+// ── PARSE
+function parse(data){
+  const now=new Date(),h=now.getHours(),S=24;
+  const tMax=Math.round(data.daily.temperature_2m_max[1]),yMax=Math.round(data.daily.temperature_2m_max[0]);
+  const tCode=data.daily.weathercode[1];
+  const feels=Math.round(data.hourly.apparent_temperature[S+h]);
+  const wind=Math.round(data.hourly.windspeed_10m[S+h]);
+  const slots=[{label:'Morning',h:8},{label:'Day',h:13},{label:'Evening',h:19}].map(s=>({label:s.label,temp:Math.round(data.hourly.temperature_2m[S+s.h]),code:data.hourly.weathercode[S+s.h],rain:data.hourly.precipitation_probability[S+s.h]??0}));
+  const diff=tMax-yMax,rv=slots.map(s=>s.rain),rm=rv.reduce((a,b)=>a+b,0)/3,rvar=rv.reduce((a,b)=>a+(b-rm)**2,0)/3,swing=Math.abs(slots[2].temp-slots[0].temp);
+  const cats=new Set(slots.map(s=>s.code<=2?'c':s.code===3?'cl':s.code<=67?'r':s.code<=77?'s':'st'));
+  const highU=rvar>400||swing>=8||cats.size>=3,ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
+  const pivot=Math.abs(ne)>=5?(ne<0?'Sharp drop tonight':'Warmer this evening'):Math.abs(mn)>=5?(mn>0?'Warming this afternoon':'Chilly this afternoon'):'';
+  return{tMax,yMax,tCode,feels,slots,diff,highU,pivot,now,wind};
 }
 
+// ── BUILD RICH PROSE (Figma pattern)
+const ic=txt=>`<span class="pcip">${txt}</span>`;
+function buildRichProse(p){
+  const{diff,tCode,feels,slots,tMax}=p;
+  const rp=Math.max(...slots.map(s=>s.rain));
+  const eTemp=slots[2]?.temp,eDrop=eTemp!=null?tMax-eTemp:0,abs=Math.abs(diff);
+  const sign=diff>0?'+':'',arr=diff>0?'↑':'↓';
+  const dChip=abs>=2?ic(`${tMax}°\u2009·\u2009${sign}${diff}${arr}`):'';
+  const eChip=eDrop>=5&&eTemp!=null?ic(`🌙\u2009${eTemp}°`):'';
+  const rChip=rp>=40?ic(`🌂\u2009${Math.round(rp)}%`):'';
+  // Action
+  let action=rp>60?'Bring an umbrella.':rp>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':'Dress how you did yesterday.';
+  // Prose
+  let prose='';
+  if(rp>40){
+    prose=`<span class="g">Rain </span><span class="w">${rp>70?'likely':'possible'}</span>${rChip?` ${rChip}`:''}`;
+    if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip?` ${dChip}`:''}`;
+  } else if(abs>=2){
+    const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';
+    prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip?` ${dChip}`:''}`;
+    if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span> ${eChip}`;
+  } else {
+    const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';
+    prose=`<span class="w">Similar</span><span class="g"> to yesterday</span>${dChip?` ${dChip}`:''}`;
+    prose+=`<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;
+  }
+  return`${prose}<br><span class="action">${action}</span>`;
+}
+function deriveChip(p){const rp=Math.max(...p.slots.map(s=>s.rain));return rp>60?'🌂 Rain':p.diff<=-4?'🥶 Colder':p.diff>=4?'🌤 Warmer':p.feels>=28?'🌡 Hot':p.feels<=0?'🧊 Freezing':'✨ Easy'}
+
+// ── AI (background — chip refinement only)
+async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:Math.max(...p.slots.map(s=>s.rain)),eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null}catch{return null}}
+
+// ── FEEDBACK
 let currentKey='';
-function getFbKey(lat,lon){const now=new Date(),d=now.toISOString().split('T')[0],h=Math.floor(now.getHours()/3)*3,gl=Math.round(lat*10)/10,glo=Math.round(lon*10)/10;return`fb_${gl}_${glo}_${d}_${h}`}
-async function loadCommunity(key){try{const snap=await getDoc(doc(db,'feedbacks',key));if(!snap.exists())return;const d=snap.data(),total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`${t[lang].ui.c}(${d.colder})`);if(d.warmer>0)diffs.push(`${t[lang].ui.w}(${d.warmer})`);if(d.rainy>0)diffs.push(`${t[lang].ui.r}(${d.rainy})`);if(d.windy>0)diffs.push(`${t[lang].ui.wd}(${d.windy})`);
-const ce=document.getElementById('community'),te=document.getElementById('communityText'),cnte=document.getElementById('communityCount');te.textContent=diffs.length===0?t[lang].ui.match:t[lang].ui.people(diffs,total);cnte.textContent=t[lang].ui.count(total);ce.style.display='block'}catch(e){}}
-async function saveFeedback(key,field){try{await setDoc(doc(db,'feedbacks',key),{[field]:increment(1)},{merge:true})}catch(e){}}
-window.onFeedback1=async(type)=>{document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='match'){await saveFeedback(currentKey,'match');document.getElementById('fbRow2').style.display='none';document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)}else{document.getElementById('fbRow2').style.display='flex'}};
-window.onFeedback2=async(type)=>{document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(type==='warmer')event.target.classList.add('warm');await saveFeedback(currentKey,type);document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)};
-function updateUI(){const u=t[lang].ui;document.getElementById('langBtn').textContent=lang==='ko'?'EN':'KO';document.getElementById('communityLabel').textContent=u.community;document.getElementById('feedbackLabel').textContent=u.feedback;document.getElementById('feedbackQ').textContent=u.q;document.getElementById('fbBtnMatch').textContent=u.m;document.getElementById('fbBtnDiff').textContent=u.d;document.getElementById('fbBtnColder').textContent=u.colder;document.getElementById('fbBtnWarmer').textContent=u.warmer;document.getElementById('fbBtnRainy').textContent=u.rainy;document.getElementById('fbBtnWindy').textContent=u.windy;document.getElementById('fbThanks').textContent=u.thanks;document.getElementById('uncertainText').textContent=u.uncertain;document.getElementById('pivotLabel').textContent=u.pivot;document.getElementById('flowLabel').textContent=u.flow;document.getElementById('compLabel').textContent=u.comp;document.getElementById('refreshBtn').querySelector('span').textContent=u.refresh}
-window.toggleLang=()=>{lang=lang==='ko'?'en':'ko';localStorage.setItem('lang',lang);updateUI();init()};
-function render(p,aiData){const{tMax,yMax,diff,tCode,slots,highU,pivot,now}=p;document.getElementById('dateEl').textContent=now.toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{month:'short',day:'numeric',weekday:'short'});document.getElementById('tempIcon').textContent=emo(tCode);document.getElementById('tempVal').textContent=`${tMax}°`;document.getElementById('yestVal').textContent=`${yMax}°`;const dl=document.getElementById('diffLabel');if(diff>=2){dl.textContent=t[lang].ui.warmLabel(diff);dl.className='temp-diff diff-warm'}else if(diff<=-2){dl.textContent=t[lang].ui.coolLabel(Math.abs(diff));dl.className='temp-diff diff-cool'}else{dl.textContent=t[lang].ui.sameLabel;dl.className='temp-diff diff-same'};
-const pe=document.getElementById('prose');if(aiData&&aiData.layer1){pe.innerHTML=aiData.layer1}else{pe.innerHTML=buildProse(p)};pe.classList.add('fu');if(aiData&&aiData.layer2){const be=document.getElementById('brief');be.textContent=aiData.layer2;be.style.display='block';be.classList.add('fu')}if(aiData&&aiData.layer3){document.getElementById('chips').innerHTML=`<div class="chip">${aiData.layer3}</div>`}document.getElementById('uncertain').classList.toggle('on',highU);const pv=document.getElementById('pivot');if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot};document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · ${lang==='ko'?'비':'Rain'} ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">${t[lang].ui.y}</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">${t[lang].ui.t}</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`}
-async function init(){updateUI();document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('brief').style.display='none';document.getElementById('chips').innerHTML='';document.getElementById('uncertain').classList.remove('on');document.getElementById('pivot').classList.remove('on');document.getElementById('community').style.display='none';document.getElementById('fbThanks').style.display='none';document.getElementById('fbRow2').style.display='none';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected','warm'));try{const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);const name=await geoName(loc.lat,loc.lon);document.getElementById('locEl').textContent=name;const raw=await fetchW(loc.lat,loc.lon);const p=parse(raw);const aiData=await getAI(p);render(p,aiData);loadCommunity(currentKey)}catch(e){document.getElementById('prose').innerHTML=`<span style="color:rgba(0,0,0,0.3);font-size:15px">${lang==='ko'?'날씨를 불러올 수 없어.':'Unable to load weather.'}</span>`}}
+function getFbKey(lat,lon){const n=new Date(),d=n.toISOString().split('T')[0],h=Math.floor(n.getHours()/3)*3;return`fb_${Math.round(lat*10)/10}_${Math.round(lon*10)/10}_${d}_${h}`}
+async function loadCommunity(key){try{const s=await getDoc(doc(db,'feedbacks',key));if(!s.exists())return;const d=s.data(),total=(d.match||0)+(d.colder||0)+(d.warmer||0)+(d.rainy||0)+(d.windy||0);if(total<2)return;const diffs=[];if(d.colder>0)diffs.push(`colder(${d.colder})`);if(d.warmer>0)diffs.push(`warmer(${d.warmer})`);if(d.rainy>0)diffs.push(`rainy(${d.rainy})`);if(d.windy>0)diffs.push(`windy(${d.windy})`);document.getElementById('communityText').textContent=diffs.length===0?'Forecast seems right':diffs.join(', ')+' nearby';document.getElementById('communityCount').textContent=`${total} responses`;document.getElementById('community').style.display='block'}catch{}}
+async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:increment(1)},{merge:true})}catch{}}
+window.onFeedback1=async t=>{document.querySelectorAll('#fbRow1 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');if(t==='match'){await saveFeedback(currentKey,'match');document.getElementById('fbRow2').style.display='none';document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)}else document.getElementById('fbRow2').style.display='flex'};
+window.onFeedback2=async t=>{document.querySelectorAll('#fbRow2 .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');await saveFeedback(currentKey,t);document.getElementById('fbThanks').style.display='block';setTimeout(()=>loadCommunity(currentKey),500)};
+
+// ── RENDER
+function render(p){
+  const{tMax,yMax,diff,slots,highU,pivot,now,tCode}=p;
+  document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+  document.getElementById('tempIcon').textContent=emo(tCode);
+  document.getElementById('tempVal').textContent=`${tMax}°`;
+  document.getElementById('yestVal').textContent=`${yMax}°`;
+  const dl=document.getElementById('diffLabel');
+  if(diff>=2){dl.textContent=`+${diff}° warmer`;dl.className='temp-diff'}
+  else if(diff<=-2){dl.textContent=`${diff}° colder`;dl.className='temp-diff'}
+  else{dl.textContent='Similar';dl.className='temp-diff diff-same'}
+  const pe=document.getElementById('prose');
+  pe.innerHTML=buildRichProse(p);pe.classList.add('fu');
+  document.getElementById('chips').innerHTML=`<div class="chip">${deriveChip(p)}</div>`;
+  document.getElementById('uncertain').classList.toggle('on',highU);
+  const pv=document.getElementById('pivot');
+  if(pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=pivot}
+  document.getElementById('tl').innerHTML=slots.map(s=>`<div class="tl-row fu"><div class="tl-t">${s.label}</div><div class="tl-i">${emo(s.code)}</div><div class="tl-d">${dsc(s.code)}${s.rain>20?` · Rain ${s.rain}%`:''}</div><div class="tl-n">${s.temp}°</div></div>`).join('');
+  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);
+  document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
+}
+
+// ── INIT
+async function init(){
+  applyTimeMode();
+  document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  document.getElementById('chips').innerHTML='';
+  document.getElementById('uncertain').classList.remove('on');
+  document.getElementById('pivot').classList.remove('on');
+  document.getElementById('community').style.display='none';
+  document.getElementById('fbThanks').style.display='none';
+  document.getElementById('fbRow2').style.display='none';
+  document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
+  try{
+    const loc=await geoLoc();
+    currentKey=getFbKey(loc.lat,loc.lon);
+    document.getElementById('locEl').textContent=await geoName(loc.lat,loc.lon);
+    const p=parse(await fetchW(loc.lat,loc.lon));
+    render(p);
+    const ai=await getAI(p);
+    if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
+    loadCommunity(currentKey);
+  }catch{
+    document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;
+  }
+}
 window.init=init;
 init();
 </script>
