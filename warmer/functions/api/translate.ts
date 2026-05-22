@@ -1,7 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import { generate } from '../../src/warmer-engine-v3';
-// 주의: 파일명은 v3 그대로 두고 안의 내용만 v4로 교체했다면 위 경로 유지.
-// 새 파일명(warmer-engine-v4)로 바꿨다면: from '../../src/warmer-engine-v4'
+import { generate } from './warmer-engine-v3';
 
 interface Env {
   GEMINI_API_KEY: string;
