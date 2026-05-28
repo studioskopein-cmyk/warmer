@@ -179,14 +179,14 @@ function parse(data){
 
 const ic=txt=>`<span class="pcip">${txt}</span>`;
 function buildProse(p){
-  const{diff,tCode,feels,slots,tMax,maxRain}=p;
+  const{diff,tCode,feels,slots,tMax,maxRain,wind}=p;
   const eTemp=slots[2]?.temp,eDrop=eTemp!=null?tMax-eTemp:0,abs=Math.abs(diff);
   const sign=diff>0?'+':'',arr=diff>0?'↑':'↓';
-  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):'';
+  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):ic(`${tMax}°`);
   const eChip=eDrop>=5&&eTemp!=null?ic(`🌙 ${eTemp}°`):'';
   const rChip=maxRain>=40?ic(`🌂 ${Math.round(maxRain)}%`):'';
 
-  let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':'Dress how you did yesterday.';
+  let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':wind>=25&&feels<=14?'A windproof layer makes a real difference.':feels<=10?'Layer up properly — it feels colder than it looks.':feels<=15?'A light jacket or mid-layer is about right.':feels<=20?'A long-sleeve or light knit should do it.':feels<=25?'Short sleeves are fine today.':'Dress light — it\'s genuinely warm out.';
 
   let prose='';
   if(maxRain>40){prose=`<span class="g">Rain </span><span class="w">${maxRain>70?'likely':'possible'}</span>${rChip?` ${rChip}`:''}`;if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip?` ${dChip}`:''}`;
@@ -199,7 +199,7 @@ function buildAddendum(p){
   if(p.consensus==='HIGH')return'';if(p.consensus==='MEDIUM')return'';if(p.consensus==='LOW'){return`— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;}if(p.consensus==='RAIN_SPLIT')return`— rain timing's uncertain. Bring it anyway.`;return'';
 }
 
-function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return'✨ Easy'}
+function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
 
 async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}}
 
