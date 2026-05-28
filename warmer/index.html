@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 <style>
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
@@ -31,7 +32,8 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
 .uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
 .uaddon.on{display:block}
-.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 4px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
+.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 3px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
+.pcip .ddot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 5px;vertical-align:middle;position:relative;top:-1px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:36px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
 .div{height:1px;background:var(--line);margin-bottom:28px}
@@ -77,6 +79,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fu{animation:fu .45s ease forwards}
 .refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px}
 .refresh:active{opacity:.4}
+.up{color:#7280FB}
+.dn{color:#F17666}
+.mi{font-family:'Material Icons Round';font-size:12px;font-style:normal;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:2px}
+.pcip-proof{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:10.5px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:nowrap;position:relative;top:-3px;margin-left:3px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -184,21 +190,51 @@ function parse(data){
   return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday};
 }
 
-const ic=txt=>`<span class="pcip">${txt}</span>`;
+const ic=(temp,delta)=>{
+  const sign=delta>0?'<span class="up">':delta<0?'<span class="dn">':'<span>';
+  const arr=delta>0?'↑':delta<0?'↓':'';
+  const abs=Math.abs(delta);
+  const deltaStr=delta===0?`±0°`:`${delta<0?'-':''}${abs}°${arr}`;
+  return `<span class="pcip">${temp}° <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
+};
+const proof=(icon,text)=>`<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
 function buildProse(p){
   const{diff,tCode,feels,slots,tMax,maxRain,wind}=p;
-  const eTemp=slots[2]?.temp,eDrop=eTemp!=null?tMax-eTemp:0,abs=Math.abs(diff);
-  const sign=diff>0?'+':'',arr=diff>0?'↑':'↓';
-  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):abs===0?ic(`${tMax}° · ±0°`):ic(`${tMax}° · ${arr}${abs}°`);
-  const eChip=eDrop>=5&&eTemp!=null?ic(`🌙 ${eTemp}°`):'';
-  const rChip=maxRain>=40?ic(`🌂 ${Math.round(maxRain)}%`):'';
+  const eTemp=slots[2]?.temp;
+  const eDrop=eTemp!=null?tMax-eTemp:0;
+  const abs=Math.abs(diff);
+  const dChip=ic(tMax,diff);
+  const eChip=eDrop>=5&&eTemp!=null?proof('nights_stay',`${eTemp}°`):'';
+  const rChip=maxRain>=40?proof('water_drop',`${Math.round(maxRain)}%`):'';
 
   let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':wind>=25&&feels<=14?'A windproof layer makes a real difference.':feels<=10?'Layer up properly — it feels colder than it looks.':feels<=15?'A light jacket or mid-layer is about right.':feels<=20?'A long-sleeve or light knit should do it.':feels<=25?'Short sleeves are fine today.':'Dress light — it\'s genuinely warm out.';
 
   let prose='';
-  if(maxRain>40){prose=`<span class="g">Rain </span><span class="w">${maxRain>70?'likely':'possible'}</span>${rChip?` ${rChip}`:''}`;if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip?` ${dChip}`:''}`;
-  } else if(abs>=2){const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip?` ${dChip}`:''}`;if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span> ${eChip}`;
-  } else {const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';prose=`<span class="w">Similar</span><span class="g"> to yesterday</span>${dChip?` ${dChip}`:''}`;prose+=`<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;}
+  if(maxRain>40){
+    prose=`<span class="g">Rain </span><span class="w">${maxRain>70?'likely':'possible'}</span>`;
+    const rainHour=p.slots.find(s=>s.rain>40);
+    const rainWindow=rainHour?proof('water_drop',`${rainHour.label} · ${Math.round(maxRain)}%`):'';
+    if(rainWindow)prose+=rainWindow;
+    if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip}`;
+  } else if(abs>=2){
+    const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';
+    prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
+    if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span>${eChip}`;
+  } else {
+    const sameLabel=diff===0?'Same':'Similar';
+    const samePrep=diff===0?'as':'to';
+    prose=`<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
+    const windProof=wind>=25?proof('air',`${wind}km/h`):'';
+    const eveProof=eDrop>=5&&eTemp!=null?proof('nights_stay',`${eTemp}°`):'';
+    const secondary=wind>=25
+      ?`<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
+      :eDrop>=5&&eTemp!=null
+      ?`<br><span class="g">but </span><span class="w">cools off</span><span class="g"> tonight</span>${eveProof}`
+      :feels<=tMax-4
+      ?`<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat',`${feels}°`)}`
+      :(()=>{const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';return `<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;})();
+    prose+=secondary;
+  }
   return`${prose}<br><span class="action">${action}</span>`;
 }
 
@@ -264,7 +300,7 @@ function render(p){
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
   const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');
   const add=buildAddendum(p);const uel=document.getElementById('uaddon');if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
-  document.getElementById('chips').innerHTML=`<div class="chip">${deriveChip(p)}</div>`;
+  document.getElementById('chips').innerHTML='';
   document.getElementById('pivotText').textContent=p.pivot||"Today's flow";document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';
   renderFlow(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
