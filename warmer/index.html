@@ -48,11 +48,14 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 14px;font-size:12px;color:var(--text);font-family:inherit;cursor:pointer;transition:all .15s}
 .fb-btn:active{opacity:.6;transform:scale(.97)}
 .fb-btn.selected{background:var(--text);color:var(--bg);border-color:var(--text)}
-.pivot{display:none;align-items:center;gap:10px;margin-bottom:24px;background:var(--chip-bg);border-radius:12px;padding:12px 16px}
-.pivot.on{display:flex}
-.pivot-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
-.pivot-text{font-size:14px;font-weight:500}
 .flow-section{margin-bottom:32px}
+.flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:12px;padding:12px 16px;user-select:none;-webkit-user-select:none}
+.flow-header:active{opacity:.65}
+.flow-pivot-text{font-size:14px;font-weight:500}
+.flow-toggle-icon{font-size:13px;color:var(--muted);transition:transform .2s ease}
+.flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
+.flow-body{display:none;padding-top:20px}
+.flow-section.open .flow-body{display:block}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 .flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
@@ -98,12 +101,16 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
     </div>
   </div>
   <div class="div"></div>
-  <div class="pivot" id="pivot"><span style="font-size:18px">⏱</span><div><div class="pivot-label">Today's point</div><div class="pivot-text" id="pivotText">—</div></div></div>
-  <div class="flow-section">
-    <div class="sec-label">Today's flow</div>
-    <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div class="flow-legend" id="flowLegend"></div>
-    <div class="flow-consensus" id="flowConsensus"></div>
+  <div class="flow-section" id="flowSection">
+    <div class="flow-header" onclick="toggleFlow()">
+      <span class="flow-pivot-text" id="pivotText">Today's flow</span>
+      <span class="flow-toggle-icon" id="flowToggleIcon">↓</span>
+    </div>
+    <div class="flow-body">
+      <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="flow-legend" id="flowLegend"></div>
+      <div class="flow-consensus" id="flowConsensus"></div>
+    </div>
   </div>
   <div class="sec-label">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
@@ -172,7 +179,7 @@ function parse(data){
   const diff=Math.round(meanTodayMax-meanYestMax);
 
   const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
-  const pivot=Math.abs(ne)>=5?(ne<0?'Sharp drop tonight':'Warmer this evening'):Math.abs(mn)>=5?(mn>0?'Warming this afternoon':'Chilly this afternoon'):'';
+  const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
 
   return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday};
 }
@@ -182,7 +189,7 @@ function buildProse(p){
   const{diff,tCode,feels,slots,tMax,maxRain,wind}=p;
   const eTemp=slots[2]?.temp,eDrop=eTemp!=null?tMax-eTemp:0,abs=Math.abs(diff);
   const sign=diff>0?'+':'',arr=diff>0?'↑':'↓';
-  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):ic(`${tMax}°`);
+  const dChip=abs>=2?ic(`${tMax}° · ${sign}${diff}${arr}`):abs===0?ic(`${tMax}° · ±0°`):ic(`${tMax}° · ${arr}${abs}°`);
   const eChip=eDrop>=5&&eTemp!=null?ic(`🌙 ${eTemp}°`):'';
   const rChip=maxRain>=40?ic(`🌂 ${Math.round(maxRain)}%`):'';
 
@@ -231,6 +238,8 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
+window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');s.classList.toggle('open');i.textContent=s.classList.contains('open')?'↑':'↓';};
+
 function renderFlow(p){
   const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerW=W-padX*2,innerH=H-padY*2-24;
   const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
@@ -256,7 +265,7 @@ function render(p){
   const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');
   const add=buildAddendum(p);const uel=document.getElementById('uaddon');if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
   document.getElementById('chips').innerHTML=`<div class="chip">${deriveChip(p)}</div>`;
-  const pv=document.getElementById('pivot');if(p.pivot){pv.classList.add('on');document.getElementById('pivotText').textContent=p.pivot}else pv.classList.remove('on');
+  document.getElementById('pivotText').textContent=p.pivot||"Today's flow";document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';
   renderFlow(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
 }
@@ -264,7 +273,7 @@ function render(p){
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('pivot').classList.remove('on');document.getElementById('flowSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
