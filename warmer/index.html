@@ -19,16 +19,17 @@
 :root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.30);--dim:rgba(123,75,73,0.15);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
 body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.30);--dim:rgba(201,224,239,0.15);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease}
+html{background:var(--bg);transition:background-color 2s ease}
+body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
 .app{max-width:390px;margin:0 auto;min-height:100vh;padding:56px 32px 48px;display:flex;flex-direction:column}
 .wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:48px}
 .meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
 .meta-sep{color:var(--dim)}
-.prose{font-size:40px;font-weight:300;line-height:1.24;letter-spacing:-0.5px;margin-bottom:24px;min-height:180px}
+.prose{font-size:40px;font-weight:450;line-height:1.24;letter-spacing:-0.5px;margin-bottom:24px;min-height:180px}
 .prose .g{color:var(--muted)}
-.prose .w{color:var(--text);font-weight:500}
-.prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.5px}
-.uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.5;margin-top:6px;opacity:0.85}
+.prose .w{color:var(--text);font-weight:450}
+.prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
+.uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
 .uaddon.on{display:block}
 .pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 4px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:36px}
@@ -36,10 +37,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekt
 .div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
 .nearby{margin-bottom:32px}
-.nearby-prose{font-size:19px;line-height:1.4;font-weight:300;margin-bottom:14px;color:var(--text);min-height:46px}
+.nearby-prose{font-size:19px;line-height:1.4;font-weight:450;margin-bottom:14px;color:var(--text);min-height:46px}
 .nearby-prose .g{color:var(--muted)}
 .nearby-prose .w{font-weight:500}
-.nearby-prose .em{font-style:italic;font-family:'Gelasio',serif}
+.nearby-prose .em{font-style:italic;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
 .nearby-counts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;min-height:24px}
 .nearby-count{background:var(--chip-bg);padding:4px 10px;border-radius:100px;font-size:11px;color:var(--muted)}
 .nearby-q{font-size:13px;color:var(--muted);margin-bottom:10px}
@@ -56,7 +57,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-bar{width:12px;height:1.5px;background:var(--text)}
-.flow-consensus{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:14px;color:var(--text);opacity:0.7;line-height:1.4;margin-top:8px}
+.flow-consensus{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:14px;color:var(--text);opacity:0.7;line-height:1.1;letter-spacing:-0.05em;margin-top:8px}
 .flow-consensus.on{display:block}
 .cmp{margin-bottom:20px}
 .cmp-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
@@ -128,13 +129,17 @@ const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon
 async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
 
 function parse(data){
-  const now=new Date(),h=now.getHours(),S=24;
+  if(!data || data.error) throw new Error(data?.reason || 'API Error');
+  const now=new Date(),h=now.getHours();
+  const startTime = data.hourly?.time?.[0] ? new Date(data.hourly.time[0]) : now;
+  const S = Math.round((now - startTime) / 3600000) - h;
+
   const modelMaxToday=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[1]):null}).filter(v=>v!=null);
   const modelMaxYest=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[0]):null}).filter(v=>v!=null);
   const primary=MODELS[0].id;
-  const tMaxArr=data.daily[`temperature_2m_max_${primary}`]||modelMaxToday;
-  const yMaxArr=data.daily[`temperature_2m_max_${primary}`]||modelMaxYest;
-  const tCodeArr=data.daily[`weathercode_${primary}`]||[];
+  const tMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxToday;
+  const yMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxYest;
+  const tCodeArr=data.daily?.[`weathercode_${primary}`]||[];
   const tMax=Math.round(tMaxArr[1]??modelMaxToday[0]??0);
   const yMax=Math.round(yMaxArr[0]??modelMaxYest[0]??0);
   const tCode=tCodeArr[1]??0;
@@ -238,7 +243,7 @@ function renderFlow(p){
   const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
   let html=`<defs></defs>`;if(bandPath)html+=`<path d="${bandPath}" fill="rgb(var(--text-rgb))" fill-opacity="0.07"/>`;
   p.hourlyByModel.slice().reverse().forEach(x=>{const path=buildPath(x.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;});
-  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="${a.bold?'500':'400'}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
+  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
   const labelY=H-8;html+=`<text x="${xScale(8).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(13).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(19).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
   svg.innerHTML=html;
   const legend=document.getElementById('flowLegend');legend.innerHTML=p.hourlyByModel.map(x=>`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:${x.model.opacity}"></span>${x.model.label}</span>`).join('');
