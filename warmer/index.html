@@ -83,6 +83,16 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .dn{color:#F17666}
 .mi{font-family:'Material Icons Round';font-size:12px;font-style:normal;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:2px}
 .pcip-proof{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:10.5px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:nowrap;position:relative;top:-3px;margin-left:3px;line-height:1.5}
+#onboarding{position:fixed;inset:0;z-index:100;background:#C9E0EF;max-width:390px;margin:0 auto;overflow:hidden;transition:opacity 0.4s ease}
+#ob-illus{position:absolute;inset:0;width:100%;height:100%;background-image:url('https://raw.githubusercontent.com/studioskopein-cmyk/warmer/main/warmer/day.png');background-size:cover;background-position:center top;pointer-events:none}
+#ob-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:56px 32px 48px}
+#ob-logo{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:rgba(123,75,73,0.30);font-family:'Aspekta',sans-serif}
+#ob-headline{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.ob-h1{font-family:'Aspekta',sans-serif;font-weight:450;font-size:40px;line-height:110%;letter-spacing:-0.03em;color:rgba(123,75,73,0.30)}
+.ob-h2{font-family:'Aspekta',sans-serif;font-weight:450;font-size:40px;line-height:110%;letter-spacing:-0.03em;color:#7B4B49}
+.ob-h3{font-family:'Gelasio',serif;font-style:italic;font-weight:400;font-size:40px;line-height:110%;letter-spacing:-0.05em;color:#7B4B49}
+#ob-cta-btn{display:flex;justify-content:space-between;align-items:flex-end;width:100%;padding:16px 17px;background:none;border:none;border-bottom:2px solid #7B4B49;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:450;letter-spacing:-0.01em;color:#7B4B49;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#ob-city-btn{display:block;width:100%;margin-top:16px;padding:10px 17px;background:none;border:none;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:350;letter-spacing:-0.01em;color:rgba(123,75,73,0.60);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
 </style>
 </head>
 <body>
@@ -120,9 +130,28 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   <div class="sec-label">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
   <button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
+  <div id="onboarding">
+    <div id="ob-illus"></div>
+    <div id="ob-content">
+      <div id="ob-logo">Warmer</div>
+      <div id="ob-headline">
+        <span class="ob-h1">Weather,</span>
+        <span class="ob-h2">translated</span>
+        <span class="ob-h3">with care.</span>
+      </div>
+      <div>
+        <button id="ob-cta-btn">
+          <span>Tell me about today</span>
+          <svg width="36" height="17" viewBox="0 0 36 17" fill="none"><line x1="0" y1="8.5" x2="30" y2="8.5" stroke="#7B4B49" stroke-width="3"/><path d="M22 1L35 8.5L22 16" stroke="#7B4B49" stroke-width="3" fill="none"/></svg>
+        </button>
+        <button id="ob-city-btn">Enter city manually →</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
+function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',dismiss);}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
@@ -317,7 +346,7 @@ async function init(){
     const ai=await getAI(p);if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
   }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;}
 }
-window.init=init;init();
+window.init=init;checkOnboarding();
 </script>
 </body>
 </html>
