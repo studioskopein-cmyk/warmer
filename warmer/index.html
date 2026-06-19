@@ -93,12 +93,27 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .ob-h3{font-family:'Gelasio',serif;font-style:italic;font-weight:400;font-size:40px;line-height:110%;letter-spacing:-0.05em;color:#7B4B49}
 #ob-cta-btn{display:flex;justify-content:space-between;align-items:flex-end;width:100%;padding:16px 17px;background:none;border:none;border-bottom:2px solid #7B4B49;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:450;letter-spacing:-0.01em;color:#7B4B49;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #ob-city-btn{display:block;width:100%;margin-top:16px;padding:10px 17px;background:none;border:none;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:350;letter-spacing:-0.01em;color:rgba(123,75,73,0.60);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.loc-tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.loc-tap:active{opacity:.5}
+#citySearch{position:fixed;inset:0;z-index:200;background:var(--bg,#EAECEA);max-width:390px;margin:0 auto;display:none;flex-direction:column;padding:20px 17px}
+#citySearch.on{display:flex}
+.cs-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.cs-back{background:none;border:none;font-family:'Aspekta',sans-serif;font-size:20px;color:rgb(var(--text-rgb));cursor:pointer;padding:4px 8px 4px 0;-webkit-tap-highlight-color:transparent}
+.cs-input{flex:1;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:400;color:rgb(var(--text-rgb));background:none;border:none;border-bottom:1.5px solid rgba(var(--text-rgb),0.25);padding:8px 2px;outline:none}
+.cs-input::placeholder{color:rgba(var(--text-rgb),0.4)}
+.cs-gps{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-bottom:1px solid rgba(var(--text-rgb),0.12);padding:14px 2px;font-family:'Aspekta',sans-serif;font-size:16px;font-weight:450;color:rgb(var(--text-rgb));cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.cs-results{flex:1;overflow-y:auto;margin-top:4px}
+.cs-row{display:block;width:100%;background:none;border:none;border-bottom:1px solid rgba(var(--text-rgb),0.10);padding:14px 2px;font-family:'Aspekta',sans-serif;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cs-row:active{opacity:.5}
+.cs-row-name{font-size:16px;font-weight:450;color:rgb(var(--text-rgb))}
+.cs-row-sub{font-size:13px;font-weight:350;color:rgba(var(--text-rgb),0.5);margin-top:2px}
+.cs-empty{padding:18px 2px;font-size:14px;color:rgba(var(--text-rgb),0.45)}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="wordmark">Warmer</div>
-  <div class="meta"><span id="locEl">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="meta"><span id="locEl" class="loc-tap">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
   <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
   <div class="chips" id="chips"></div>
@@ -927,8 +942,17 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   </div>
 </div>
 
+<div id="citySearch">
+  <div class="cs-header">
+    <button class="cs-back" id="csBack" aria-label="Back">←</button>
+    <input class="cs-input" id="csInput" type="text" placeholder="Search city" autocomplete="off" autocapitalize="words">
+  </div>
+  <button class="cs-gps" id="csGps">📍 Use my current location</button>
+  <div class="cs-results" id="csResults"></div>
+</div>
+
 <script type="module">
-function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',dismiss);}
+function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
@@ -940,8 +964,69 @@ applyTimeMode();
 setInterval(applyTimeMode,60_000);
 
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
-const geoLoc=()=>new Promise(res=>{if(!navigator.geolocation)return res({lat:52.52,lon:13.41});navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res({lat:52.52,lon:13.41}))});
+
+function getSavedLocation(){try{const raw=localStorage.getItem('warmer_location');return raw?JSON.parse(raw):null}catch{return null}}
+function saveLocation(loc){localStorage.setItem('warmer_location',JSON.stringify(loc))}
+function clearSavedLocation(){localStorage.removeItem('warmer_location')}
+
+const geoLoc=()=>new Promise(res=>{
+  const saved=getSavedLocation();
+  if(saved&&saved.source==='manual')return res(saved);
+  if(!navigator.geolocation)return res({lat:52.52,lon:13.41,label:null,source:'gps'});
+  navigator.geolocation.getCurrentPosition(
+    p=>res({lat:p.coords.latitude,lon:p.coords.longitude,label:null,source:'gps'}),
+    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps'})
+  );
+});
 async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'My Location'}catch{return'My Location'}}
+
+let csDebounce=null;
+function openCitySearch(){document.getElementById('citySearch').classList.add('on');document.getElementById('csInput').value='';document.getElementById('csResults').innerHTML='';document.getElementById('csInput').focus()}
+function closeCitySearch(){document.getElementById('citySearch').classList.remove('on')}
+
+async function searchCities(q){
+  if(!q||q.trim().length<2){document.getElementById('csResults').innerHTML='';return}
+  try{
+    const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=8&language=en&format=json`);
+    const d=await r.json();
+    renderCityResults(d.results||[]);
+  }catch{document.getElementById('csResults').innerHTML='<div class="cs-empty">Search failed. Check your connection.</div>'}
+}
+
+function renderCityResults(results){
+  const el=document.getElementById('csResults');
+  if(!results.length){el.innerHTML='<div class="cs-empty">No matches.</div>';return}
+  el.innerHTML=results.map((r,i)=>{
+    const sub=[r.admin1,r.country].filter(Boolean).join(', ');
+    return `<button class="cs-row" data-i="${i}"><div class="cs-row-name">${r.name}</div><div class="cs-row-sub">${sub}</div></button>`;
+  }).join('');
+  el.querySelectorAll('.cs-row').forEach((btn,i)=>btn.addEventListener('click',()=>selectCity(results[i])));
+}
+
+function selectCity(r){
+  const label=[r.name,r.admin1].filter(Boolean).join(', ');
+  saveLocation({lat:r.latitude,lon:r.longitude,label,source:'manual'});
+  closeCitySearch();
+  init();
+}
+
+function useGpsLocation(){
+  clearSavedLocation();
+  closeCitySearch();
+  init();
+}
+
+function wireCitySearch(){
+  document.getElementById('csBack').addEventListener('click',closeCitySearch);
+  document.getElementById('csGps').addEventListener('click',useGpsLocation);
+  document.getElementById('csInput').addEventListener('input',e=>{
+    clearTimeout(csDebounce);
+    const q=e.target.value;
+    csDebounce=setTimeout(()=>searchCities(q),350);
+  });
+  document.getElementById('locEl').addEventListener('click',openCitySearch);
+}
+wireCitySearch();
 
 const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
 async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
@@ -1118,7 +1203,7 @@ async function init(){
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
-    const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);document.getElementById('locEl').textContent=await geoName(loc.lat,loc.lon);
+    const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
     const data=await fetchMultiModel(loc.lat,loc.lon);const p=parse(data);render(p);loadNearby(currentKey);
     const ai=await getAI(p);if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
   }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;}
