@@ -79,10 +79,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fu{animation:fu .45s ease forwards}
 .refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px}
 .refresh:active{opacity:.4}
-.up{color:#7280FB}
-.dn{color:#F17666}
+.up{color:#F17666}
+.dn{color:#7280FB}
 .mi{font-family:'Material Icons Round';font-size:12px;font-style:normal;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:2px}
-.pcip-proof{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:10.5px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:nowrap;position:relative;top:-3px;margin-left:3px;line-height:1.5}
+.pcip-proof{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:16.8px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:nowrap;position:relative;top:-3px;margin-left:3px;line-height:1.5}
 #onboarding{position:fixed;inset:0;z-index:100;background:#C9E0EF;max-width:390px;margin:0 auto;overflow:hidden;transition:opacity 0.4s ease}
 #ob-illus{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #ob-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:56px 32px 48px}
@@ -1102,7 +1102,7 @@ function buildProse(p){
 
   let prose='';
   if(maxRain>40){
-    prose=`<span class="g">Rain </span><span class="w">${maxRain>70?'likely':'possible'}</span>`;
+    prose=`<span class="g">Rain </span><span class="w">${maxRain>85?'coming':maxRain>70?'likely':'possible'}</span>`;
     const rainHour=p.slots.find(s=>s.rain>40);
     const rainWindow=rainHour?proof('water_drop',`${rainHour.label} · ${Math.round(maxRain)}%`):'';
     if(rainWindow)prose+=rainWindow;
@@ -1179,8 +1179,9 @@ function renderFlow(p){
   const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
   let html=`<defs></defs>`;if(bandPath)html+=`<path d="${bandPath}" fill="rgb(var(--text-rgb))" fill-opacity="0.07"/>`;
   {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="2" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round"/>`;}
+  {const rainThresh=40;let rStart=-1,rEnd=-1;primary.hourly.forEach((h,i)=>{if((h.r||0)>=rainThresh){if(rStart===-1)rStart=i;rEnd=i;}});if(rStart!==-1){const rx1=xScale(rStart)-3,rx2=xScale(rEnd)+3,ry=H-24;html+=`<rect x="${rx1.toFixed(1)}" y="${(ry-9).toFixed(1)}" width="${(rx2-rx1).toFixed(1)}" height="5" rx="2.5" fill="#5B8DEF" fill-opacity="0.5"/>`;}}
   anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
-  const labelY=H-8;html+=`<text x="${xScale(8).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(13).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(19).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
+  const labelY=H-8;html+=`<text x="${xScale(4).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(12).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(20).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
   svg.innerHTML=html;
   const legend=document.getElementById('flowLegend');legend.innerHTML=`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:0.9"></span>${primary.model.label} · other models shown as range</span>`;
   const cn=document.getElementById('flowConsensus');if(p.consensus==='LOW'){cn.textContent=`Models split by ${p.maxSpread}° on today's peak.`;cn.classList.add('on');} else if(p.consensus==='RAIN_SPLIT'){cn.textContent=`Models disagree on rain timing today.`;cn.classList.add('on');} else {cn.classList.remove('on');cn.textContent=''}
