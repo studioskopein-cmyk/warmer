@@ -8,6 +8,7 @@
 .npm/
 .vscode/
 .rustup/
+.ssh/
 .bash_history
 .bash_logout
 .bashrc
