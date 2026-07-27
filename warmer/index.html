@@ -17,7 +17,7 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.72);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
 body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
@@ -38,6 +38,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
 .div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.sec-head{font-family:'Gelasio',serif;font-style:normal;font-weight:400;font-size:20px;letter-spacing:normal;text-transform:none;color:var(--text);margin-bottom:14px}
 .nearby{margin-bottom:32px}
 .nearby-prose{font-size:19px;line-height:1.4;font-weight:450;margin-bottom:14px;color:var(--text);min-height:46px}
 .nearby-prose .g{color:var(--muted)}
@@ -50,10 +51,20 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-btn{display:inline-flex;align-items:center;gap:5px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 14px;font-size:12px;color:var(--text);font-family:inherit;cursor:pointer;transition:all .15s}
 .fb-btn:active{opacity:.6;transform:scale(.97)}
 .fb-btn.selected{background:var(--text);color:var(--bg);border-color:var(--text)}
+.fb-trigger{display:block;width:100%;background:#7B4B49;color:#C9E0EF;border:none;border-radius:8px;padding:13px 16px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fb-trigger:active{opacity:.8}
+.fb-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);opacity:0;pointer-events:none;transition:opacity 0.3s ease;z-index:210}
+.fb-backdrop.open{opacity:1;pointer-events:auto}
+.fb-sheet{position:fixed;left:0;right:0;bottom:0;max-width:390px;margin:0 auto;background:var(--bg);border-radius:16px 16px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s ease;box-shadow:0 -4px 24px rgba(0,0,0,.18);z-index:211}
+.fb-sheet.open{transform:translateY(0)}
+.fb-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--chip-bd);margin:0 auto 14px}
+.fb-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fb-sheet-title{font-size:13px;color:var(--muted)}
+.fb-sheet-close{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent}
 .flow-section{margin-bottom:32px}
 .flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:12px;padding:12px 16px;user-select:none;-webkit-user-select:none}
 .flow-header:active{opacity:.65}
-.flow-pivot-text{font-size:14px;font-weight:500}
+.flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;color:var(--text)}
 .flow-toggle-icon{font-size:13px;color:var(--muted);transition:transform .2s ease}
 .flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
 .flow-body{display:none;padding-top:20px}
@@ -130,17 +141,11 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   </div>
   <div class="div"></div>
   <div class="nearby">
-    <div class="sec-label">Right now · nearby</div>
+    <div class="sec-head">Right now · nearby</div>
     <div class="nearby-prose" id="nearbyProse"><span class="g">Loading nearby reports…</span></div>
     <div class="nearby-counts" id="nearbyCounts"></div>
     <div class="nearby-q" id="nearbyQ">How is it where you are?</div>
-    <div class="fb-row" id="fbRow">
-      <button class="fb-btn" onclick="onFB('match')">👍 Matches</button>
-      <button class="fb-btn" onclick="onFB('colder')">🥶 Colder</button>
-      <button class="fb-btn" onclick="onFB('warmer')">🌤 Warmer</button>
-      <button class="fb-btn" onclick="onFB('rainy')">🌧 Raining</button>
-      <button class="fb-btn" onclick="onFB('windy')">💨 Windy</button>
-    </div>
+    <button class="fb-trigger" id="fbTrigger" onclick="openFbSheet()">Share my experience</button>
   </div>
   <div class="sec-label">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
@@ -951,6 +956,22 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   <div class="cs-results" id="csResults"></div>
 </div>
 
+<div class="fb-backdrop" id="fbBackdrop" onclick="closeFbSheet()"></div>
+<div class="fb-sheet" id="fbSheet" role="dialog" aria-modal="true" aria-label="Share your experience">
+  <div class="fb-sheet-handle"></div>
+  <div class="fb-sheet-header">
+    <span class="fb-sheet-title">How is it where you are?</span>
+    <button class="fb-sheet-close" id="fbSheetClose" aria-label="Close" onclick="closeFbSheet()">✕</button>
+  </div>
+  <div class="fb-row" id="fbRow">
+    <button class="fb-btn" onclick="onFB('match').then(closeFbSheet)">👍 Matches</button>
+    <button class="fb-btn" onclick="onFB('colder').then(closeFbSheet)">🥶 Colder</button>
+    <button class="fb-btn" onclick="onFB('warmer').then(closeFbSheet)">🌤 Warmer</button>
+    <button class="fb-btn" onclick="onFB('rainy').then(closeFbSheet)">🌧 Raining</button>
+    <button class="fb-btn" onclick="onFB('windy').then(closeFbSheet)">💨 Windy</button>
+  </div>
+</div>
+
 <script type="module">
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -1028,6 +1049,7 @@ function wireCitySearch(){
   document.getElementById('locEl').addEventListener('click',openCitySearch);
 }
 wireCitySearch();
+wireFlowTouch();
 
 const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
 async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
@@ -1089,13 +1111,14 @@ const ic=(temp,delta)=>{
   return `<span class="pcip">${temp}° <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
 };
 const proof=(icon,text)=>`<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
+const iconChip=(icon,text)=>`<span class="pcip"><span class="mi">${icon}</span> ${text}</span>`;
 function buildProse(p){
   const{diff,tCode,feels,slots,tMax,maxRain,wind}=p;
   const eTemp=slots[2]?.temp;
   const eDrop=eTemp!=null?tMax-eTemp:0;
   const abs=Math.abs(diff);
   const dChip=ic(tMax,diff);
-  const eChip=eDrop>=5&&eTemp!=null?proof('nights_stay',`${eTemp}°`):'';
+  const eChip=eDrop>=5&&eTemp!=null?iconChip('nights_stay',`${eTemp}°C`):'';
   const rChip=maxRain>=40?proof('water_drop',`${Math.round(maxRain)}%`):'';
 
   let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':wind>=25&&feels<=14?'A windproof layer makes a real difference.':feels<=10?'Layer up properly — it feels colder than it looks.':feels<=15?'A light jacket or mid-layer is about right.':feels<=20?'A long-sleeve or light knit should do it.':feels<=25?'Short sleeves are fine today.':'Dress light — it\'s genuinely warm out.';
@@ -1116,7 +1139,7 @@ function buildProse(p){
     const samePrep=diff===0?'as':'to';
     prose=`<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
     const windProof=wind>=25?proof('air',`${wind}km/h`):'';
-    const eveProof=eDrop>=5&&eTemp!=null?proof('nights_stay',`${eTemp}°`):'';
+    const eveProof=eDrop>=5&&eTemp!=null?iconChip('nights_stay',`${eTemp}°C`):'';
     const secondary=wind>=25
       ?`<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
       :eDrop>=5&&eTemp!=null
@@ -1167,6 +1190,22 @@ window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.c
 
 window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');s.classList.toggle('open');i.textContent=s.classList.contains('open')?'↑':'↓';};
 
+let fbLastFocus=null;
+function fbSheetKeydown(e){if(e.key==='Escape')closeFbSheet();}
+window.openFbSheet=()=>{
+  fbLastFocus=document.activeElement;
+  document.getElementById('fbBackdrop').classList.add('open');
+  document.getElementById('fbSheet').classList.add('open');
+  document.addEventListener('keydown',fbSheetKeydown);
+  document.getElementById('fbRow').querySelector('.fb-btn')?.focus();
+};
+window.closeFbSheet=()=>{
+  document.getElementById('fbBackdrop').classList.remove('open');
+  document.getElementById('fbSheet').classList.remove('open');
+  document.removeEventListener('keydown',fbSheetKeydown);
+  fbLastFocus?.focus();
+};
+
 function renderFlow(p){
   const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerW=W-padX*2,innerH=H-padY*2-24;
   const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
@@ -1182,9 +1221,50 @@ function renderFlow(p){
   {const rainThresh=40;let rStart=-1,rEnd=-1;primary.hourly.forEach((h,i)=>{if((h.r||0)>=rainThresh){if(rStart===-1)rStart=i;rEnd=i;}});if(rStart!==-1){const rx1=xScale(rStart)-3,rx2=xScale(rEnd)+3,ry=H-24;html+=`<rect x="${rx1.toFixed(1)}" y="${(ry-9).toFixed(1)}" width="${(rx2-rx1).toFixed(1)}" height="5" rx="2.5" fill="#5B8DEF" fill-opacity="0.5"/>`;}}
   anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
   const labelY=H-8;html+=`<text x="${xScale(4).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(12).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(20).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
+  html+=`<g id="flowMarker"></g>`;
   svg.innerHTML=html;
   const legend=document.getElementById('flowLegend');legend.innerHTML=`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:0.9"></span>${primary.model.label} · other models shown as range</span>`;
   const cn=document.getElementById('flowConsensus');if(p.consensus==='LOW'){cn.textContent=`Models split by ${p.maxSpread}° on today's peak.`;cn.classList.add('on');} else if(p.consensus==='RAIN_SPLIT'){cn.textContent=`Models disagree on rain timing today.`;cn.classList.add('on');} else {cn.classList.remove('on');cn.textContent=''}
+  const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
+  flowCtx={primary,xScale,yScale,padX,padY,innerW,W,H,defaultIdx};
+  drawFlowMarker(defaultIdx);
+}
+
+let flowCtx=null,flowDragging=false;
+function drawFlowMarker(idx){
+  if(!flowCtx)return;
+  idx=Math.max(0,Math.min(23,Math.round(idx)));
+  const{primary,xScale,yScale,padX,padY,innerW,W,H}=flowCtx;
+  const pt=primary.hourly[idx];
+  const g=document.getElementById('flowMarker');
+  if(!pt||pt.t==null||!g){if(g)g.innerHTML='';return}
+  const x=xScale(idx),y=yScale(pt.t);
+  const rain=Math.round(pt.r||0);
+  const hourLabel=idx===0?'12am':idx<12?`${idx}am`:idx===12?'12pm':`${idx-12}pm`;
+  const valueLabel=`${Math.round(pt.t)}°${rain>=15?` · ${rain}%`:''}`;
+  const text=`${hourLabel} · ${valueLabel}`;
+  const tw=text.length*5.6+16;
+  const tx=Math.max(padX,Math.min(W-padX-tw,x-tw/2));
+  const ty=Math.max(padY-2,y-30);
+  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(H-24).toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--chip-bg)" stroke="var(--chip-bd)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+}
+function flowIndexFromEvent(e){
+  if(!flowCtx)return null;
+  const svg=document.getElementById('flowSvg');
+  const rect=svg.getBoundingClientRect();
+  if(rect.width===0)return null;
+  const svgX=(e.clientX-rect.left)/rect.width*flowCtx.W;
+  return Math.max(0,Math.min(23,Math.round((svgX-flowCtx.padX)/flowCtx.innerW*23)));
+}
+function wireFlowTouch(){
+  const svg=document.getElementById('flowSvg');
+  svg.style.touchAction='none';
+  const release=()=>{flowDragging=false;if(flowCtx)drawFlowMarker(flowCtx.defaultIdx)};
+  svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)drawFlowMarker(idx);});
+  svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)drawFlowMarker(idx);});
+  svg.addEventListener('pointerup',release);
+  svg.addEventListener('pointercancel',release);
+  svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
 }
 
 function render(p){
