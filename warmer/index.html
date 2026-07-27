@@ -17,8 +17,8 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.30);--dim:rgba(123,75,73,0.15);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
-body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.30);--dim:rgba(201,224,239,0.15);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.72);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
+body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
@@ -27,7 +27,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
 .meta-sep{color:var(--dim)}
 .prose{font-size:40px;font-weight:450;line-height:1.24;letter-spacing:-0.5px;margin-bottom:24px;min-height:180px}
-.prose .g{color:var(--muted)}
+.prose .g{color:var(--muted-lg)}
 .prose .w{color:var(--text);font-weight:450}
 .prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
 .uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
@@ -952,7 +952,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 </div>
 
 <script type="module">
-function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
+function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
@@ -975,7 +975,8 @@ const geoLoc=()=>new Promise(res=>{
   if(!navigator.geolocation)return res({lat:52.52,lon:13.41,label:null,source:'gps'});
   navigator.geolocation.getCurrentPosition(
     p=>res({lat:p.coords.latitude,lon:p.coords.longitude,label:null,source:'gps'}),
-    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps'})
+    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps'}),
+    {timeout:8000,maximumAge:600000}
   );
 });
 async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'My Location'}catch{return'My Location'}}
@@ -1158,7 +1159,7 @@ function buildNearbyProse(counts,userVote){
 let currentKey='',userVote=null;
 function getFbKey(lat,lon){const n=new Date(),d=n.toISOString().split('T')[0],h=Math.floor(n.getHours()/3)*3;return`fb_${Math.round(lat*10)/10}_${Math.round(lon*10)/10}_${d}_${h}`}
 
-async function loadNearby(key){try{const s=await getDoc(doc(db,'feedbacks',key));const counts=s.exists()?{match:s.data().match||0,colder:s.data().colder||0,warmer:s.data().warmer||0,rainy:s.data().rainy||0,windy:s.data().windy||0}:{match:0,colder:0,warmer:0,rainy:0,windy:0};const{prose,countsHTML}=buildNearbyProse(counts,userVote);document.getElementById('nearbyProse').innerHTML=prose;document.getElementById('nearbyCounts').innerHTML=countsHTML;}catch{}}
+async function loadNearby(key){try{const s=await getDoc(doc(db,'feedbacks',key));const counts=s.exists()?{match:s.data().match||0,colder:s.data().colder||0,warmer:s.data().warmer||0,rainy:s.data().rainy||0,windy:s.data().windy||0}:{match:0,colder:0,warmer:0,rainy:0,windy:0};const{prose,countsHTML}=buildNearbyProse(counts,userVote);document.getElementById('nearbyProse').innerHTML=prose;document.getElementById('nearbyCounts').innerHTML=countsHTML;}catch(e){console.error('loadNearby failed',e);document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.5">Nearby reports aren\'t available right now.</span>';}}
 
 async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:increment(1)},{merge:true})}catch{}}
 
