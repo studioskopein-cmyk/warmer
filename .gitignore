@@ -21,3 +21,7 @@ node_modules/
 .inspect-canvas.json
 .lesshst
 lib/
+.wrangler/
+repro.ts
+repro_multi.ts
+grep_out.txt
