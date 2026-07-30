@@ -15,7 +15,14 @@ export const TEMP_BANDS = [
     name: 'hot', min: 30,
     adjective: 'hot',
     eveningPhrase: 'still hot, just a touch easier',
-    garment: null, // >=30°C: self-evident, say nothing rather than "wear short sleeves"
+    garment: null, // >=30°C: garment talk is self-evident — say nothing rather than "wear short sleeves"
+    // Heat guidance instead of clothing. Temperature-only (no UV — uvIndex has no real
+    // data source yet; UV wording lands in a later PR). Tiers ordered highest min first.
+    heatAdvice: [
+      { min: 38, text: "It's serious heat — stay out of the sun through midday and afternoon, and drink water often." },
+      { min: 34, text: 'Avoid direct sun around midday and into the afternoon, and keep drinking water.' },
+      { min: 30, text: "It's warm enough to take it easy — pace yourself, nothing dramatic." },
+    ],
     bannedWords: ['chilly', 'cold', 'coat', 'jacket', 'short sleeves'],
   },
   {
@@ -83,13 +90,21 @@ const ic = (temp, delta) => {
 const proof = (icon, text) => `<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
 const iconChip = (icon, text) => `<span class="pcip"><span class="mi">${icon}</span> ${text}</span>`;
 
+// Heat guidance for the hot band's tiers. Temperature-only, never clothing.
+export function heatAdviceForTemp(temp) {
+  const band = bandForTemp(temp);
+  if (!band.heatAdvice) return '';
+  const tier = band.heatAdvice.find(h => temp >= h.min);
+  return tier ? tier.text : '';
+}
+
 // Advice sentence: absolute temperature only. No `diff`/`deltaYesterday` parameter exists.
 function adviceForTemp(temp, { maxRain = 0, wind = 0, tCode = 0 } = {}) {
   if (maxRain > 60) return 'Bring an umbrella.';
   if (maxRain > 30) return 'An umbrella might be worth it.';
   if (tCode >= 70) return 'Dress warm.';
   if (wind >= 25 && temp <= 14) return 'A windproof layer makes a real difference.';
-  return bandForTemp(temp).garment || '';
+  return bandForTemp(temp).garment || heatAdviceForTemp(temp) || '';
 }
 
 /**
