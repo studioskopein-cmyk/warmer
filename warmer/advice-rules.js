@@ -6,9 +6,17 @@
 //   - trend sentence   ("It's much warmer than yesterday") — reads `diff`
 //     (delta vs. yesterday) only. Lives inline in buildProse().
 //   - advice sentence  (garment/action line) and the evening line — read
-//     absolute temperature only, via TEMP_BANDS below. Neither has a code
-//     path that reads `diff`.
+//     absolute temperature, uv index, and humidity only, via TEMP_BANDS and
+//     the priority chain in adviceForTemp(). Neither has a code path that
+//     reads `diff`.
 // ============================================================================
+
+// Hot-band heat guidance tiers, shared between TEMP_BANDS.heatAdvice (temp-only
+// lookup) and sunAndHydrationAdvice() below (temp-or-UV lookup), so the wording
+// only lives in one place.
+const HEAT_LIGHT_TEXT = "It's warm enough to take it easy — pace yourself, nothing dramatic.";
+const HEAT_MID_TEXT = 'Avoid direct sun around midday and into the afternoon, and keep drinking water.';
+const HEAT_STRONG_TEXT = "It's serious heat — stay out of the sun through midday and afternoon, and drink water often.";
 
 export const TEMP_BANDS = [
   {
@@ -16,12 +24,11 @@ export const TEMP_BANDS = [
     adjective: 'hot',
     eveningPhrase: 'still hot, just a touch easier',
     garment: null, // >=30°C: garment talk is self-evident — say nothing rather than "wear short sleeves"
-    // Heat guidance instead of clothing. Temperature-only (no UV — uvIndex has no real
-    // data source yet; UV wording lands in a later PR). Tiers ordered highest min first.
+    // Heat guidance instead of clothing. Tiers ordered highest min first.
     heatAdvice: [
-      { min: 38, text: "It's serious heat — stay out of the sun through midday and afternoon, and drink water often." },
-      { min: 34, text: 'Avoid direct sun around midday and into the afternoon, and keep drinking water.' },
-      { min: 30, text: "It's warm enough to take it easy — pace yourself, nothing dramatic." },
+      { min: 38, text: HEAT_STRONG_TEXT },
+      { min: 34, text: HEAT_MID_TEXT },
+      { min: 30, text: HEAT_LIGHT_TEXT },
     ],
     bannedWords: ['chilly', 'cold', 'coat', 'jacket', 'short sleeves'],
   },
@@ -98,29 +105,63 @@ export function heatAdviceForTemp(temp) {
   return tier ? tier.text : '';
 }
 
-// Advice sentence: absolute temperature only. No `diff`/`deltaYesterday` parameter exists.
-function adviceForTemp(temp, { maxRain = 0, wind = 0, tCode = 0 } = {}) {
+// Humidity and moderate-UV guidance sit below heat but above plain garment advice —
+// see the priority chain in adviceForTemp() below for where these fire.
+const HUMIDITY_TEXT = "Humid enough to feel warmer than it reads — breathable fabric helps.";
+const UV_MODERATE_TEXT = "UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt.";
+
+// Direct-sun + hydration guidance: fires on temp>=34 OR uv>=8. Heat and UV content
+// overlap here on purpose — this returns ONE sentence, never a heat line plus a
+// separate UV line, even when both conditions are true. uv may be null (no data);
+// a null uv never triggers this on its own.
+function sunAndHydrationAdvice(temp, uv) {
+  if (temp >= 38) return HEAT_STRONG_TEXT;
+  if (temp >= 34 || (uv != null && uv >= 8)) return HEAT_MID_TEXT;
+  return '';
+}
+
+/**
+ * Advice sentence: absolute temperature, uv, and humidity only. No `diff`/
+ * `deltaYesterday` parameter exists. uv/humidity are real API readings or
+ * null — never defaulted — so absent data simply skips that tier rather
+ * than fabricating a claim.
+ *
+ * Priority (first match wins, one line only):
+ *   1. rain
+ *   2. temp>=34 or uv>=8      → sun + hydration (one sentence, see above)
+ *   3. humidity>=70           → breathable fabric / feels-warmer note
+ *   4. uv 6-7                 → shade/sunscreen
+ *   5. fallback: band garment, or the hot band's own temp-tiered heatAdvice
+ */
+function adviceForTemp(temp, { maxRain = 0, wind = 0, tCode = 0, uv = null, humidity = null } = {}) {
   if (maxRain > 60) return 'Bring an umbrella.';
   if (maxRain > 30) return 'An umbrella might be worth it.';
   if (tCode >= 70) return 'Dress warm.';
   if (wind >= 25 && temp <= 14) return 'A windproof layer makes a real difference.';
+
+  const sunAdvice = sunAndHydrationAdvice(temp, uv);
+  if (sunAdvice) return sunAdvice;
+  if (humidity != null && humidity >= 70) return HUMIDITY_TEXT;
+  if (uv != null && uv >= 6 && uv <= 7) return UV_MODERATE_TEXT;
+
   return bandForTemp(temp).garment || heatAdviceForTemp(temp) || '';
 }
 
 /**
- * p: { diff, tCode, feels, slots, tMax, maxRain, wind }
+ * p: { diff, tCode, feels, slots, tMax, maxRain, wind, uvIndex, humidity }
+ * uvIndex/humidity are real readings or null (never a default) — see adviceForTemp().
  * Returns the headline HTML. Trend line is delta-based; evening line and
- * advice/action line are absolute-temperature-based only.
+ * advice/action line are absolute-temperature/uv/humidity-based only.
  */
 export function buildProse(p) {
-  const { diff, tCode, feels, slots, tMax, maxRain, wind } = p;
+  const { diff, tCode, feels, slots, tMax, maxRain, wind, uvIndex = null, humidity = null } = p;
   const eTemp = slots[2]?.temp;
   const eDrop = eTemp != null ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
   const dChip = ic(tMax, diff);
   const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${eTemp}°C`) : '';
 
-  const action = adviceForTemp(feels, { maxRain, wind, tCode });
+  const action = adviceForTemp(feels, { maxRain, wind, tCode, uv: uvIndex, humidity });
 
   let prose = '';
   if (maxRain > 40) {

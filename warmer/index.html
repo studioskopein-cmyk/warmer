@@ -1053,7 +1053,7 @@ wireCitySearch();
 wireFlowTouch();
 
 const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,uv_index,relative_humidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
 
 function parse(data){
   if(!data || data.error) throw new Error(data?.reason || 'API Error');
@@ -1082,6 +1082,13 @@ function parse(data){
   const slots=[{label:'morning',h:8},{label:'midday',h:13},{label:'evening',h:19}].map(s=>({label:s.label,h:s.h,temp:Math.round(primaryHourly[s.h]?.t??0),rain:Math.round(primaryHourly[s.h]?.r??0)}));
   const feels=Math.round(data.hourly?.[`apparent_temperature_${primary}`]?.[S+h]??slots[1].temp);
   const wind=Math.round(data.hourly?.[`windspeed_10m_${primary}`]?.[S+h]??0);
+  // ECMWF/ICON don't expose uv_index in this API (confirmed null in practice) — GFS does, so UV
+  // is read from that model specifically rather than the primary temperature model. No constant
+  // fallback: if the value isn't there, uvIndex stays null and UV-based copy is simply not shown.
+  const uvRaw=data.hourly?.[`uv_index_gfs_seamless`]?.[S+h];
+  const uvIndex=uvRaw!=null?Math.round(uvRaw*10)/10:null;
+  const humidityRaw=data.hourly?.[`relative_humidity_2m_${primary}`]?.[S+h];
+  const humidity=humidityRaw!=null?Math.round(humidityRaw):null;
 
   const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;
   let rainSpread=0,maxRain=0;
@@ -1101,7 +1108,7 @@ function parse(data){
   const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
   const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
 
-  return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday};
+  return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday,uvIndex,humidity};
 }
 
 function buildAddendum(p){

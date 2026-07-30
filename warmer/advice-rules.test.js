@@ -6,8 +6,8 @@ function slotsFor(eveningTemp) {
   return [{ temp: 0, rain: 0 }, { temp: 0, rain: 0 }, { temp: eveningTemp, rain: 0 }];
 }
 
-function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0 }) {
-  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening) };
+function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0, uvIndex = null, humidity = null }) {
+  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening), uvIndex, humidity };
 }
 
 test('bandForTemp matches the spec boundaries', () => {
@@ -82,4 +82,34 @@ test('{ high: 22 } (mild band) has no heat guidance at all', () => {
   for (const tier of TEMP_BANDS.find(b => b.name === 'hot').heatAdvice) {
     assert.ok(!html.includes(tier.text), `did not expect hot-band heat guidance in: ${html}`);
   }
+});
+
+test('uv: null never generates UV-based copy, even when temp/humidity would otherwise be silent', () => {
+  const html = buildProse(baseP({ feels: 26, tMax: 26, diff: 0, evening: 26, uvIndex: null, humidity: null }));
+  const lower = html.toLowerCase();
+  assert.ok(!lower.includes('uv'), `did not expect any UV wording in: ${html}`);
+  assert.ok(!lower.includes('sun'), `did not expect sun-avoidance wording in: ${html}`);
+  // falls all the way back to the warm band's plain garment line
+  assert.ok(html.includes('Keep it light and stay hydrated.'), `expected the warm band fallback in: ${html}`);
+});
+
+test('{ uv: 9, high: 22 } (mild band): strong UV alone triggers sun+hydration guidance', () => {
+  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, uvIndex: 9 }));
+  assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
+  const lower = html.toLowerCase();
+  assert.ok(!lower.includes('long-sleeve'), `did not expect the mild-band garment line in: ${html}`);
+});
+
+test('{ uv: 9, high: 37 }: heat and UV overlap collapses to a single line, not two', () => {
+  const html = buildProse(baseP({ feels: 37, tMax: 37, diff: 0, evening: 37, uvIndex: 9 }));
+  const actionMatches = html.match(/class="action"/g) || [];
+  assert.equal(actionMatches.length, 1, `expected exactly one action line in: ${html}`);
+  assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
+});
+
+test('{ humidity: 80, uv: 3, high: 26 }: humidity guidance, not UV (UV too low to qualify)', () => {
+  const html = buildProse(baseP({ feels: 26, tMax: 26, diff: 0, evening: 26, uvIndex: 3, humidity: 80 }));
+  assert.ok(html.includes("Humid enough to feel warmer than it reads — breathable fabric helps."), `expected humidity guidance in: ${html}`);
+  const lower = html.toLowerCase();
+  assert.ok(!lower.includes('sunscreen'), `did not expect UV wording in: ${html}`);
 });
