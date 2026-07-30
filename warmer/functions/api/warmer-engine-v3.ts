@@ -56,6 +56,11 @@ export interface Dominant {
   factor: DominantFactor;
   severity: number;
   direction: 'up' | 'down' | 'neutral';
+  // true only when selectDominant() bumped temp ahead of a higher-ranked delta
+  // signal (extreme feelsLike + temp severity>=3). Lets buildSeed() know the
+  // resulting hot/cold factor is standing in for what would otherwise have
+  // been a warm_delta/cold_delta seed, so it can pick delta-flavored wording.
+  overriddenFromDelta?: boolean;
 }
 
 export interface NarrativeV4 {
@@ -166,9 +171,23 @@ export function selectDominant(plan: DocumentPlan, input: WeatherInput): Dominan
     return { factor: 'mild', severity: 0, direction: 'neutral' };
   }
 
-  const top = plan.ranked[0];
   const dv = input.yesterdayDelta;
   const fl = input.feelsLike;
+
+  // 1. 우선순위 조정: 매우 덥거나 추울 때는 delta보다 temp 자체를 우선시함 (행동 지침 중심)
+  const tempSignal = plan.ranked.find(s => s.factor === 'temp');
+  const deltaSignal = plan.ranked.find(s => s.factor === 'delta');
+  
+  let top = plan.ranked[0];
+  let overriddenFromDelta = false;
+
+  if (tempSignal && deltaSignal && top.factor === 'delta') {
+    // 27도 이상이거나 6도 미만인 경우, delta보다 temp를 우선 순위로 올림
+    if ((fl >= 27 || fl < 6) && tempSignal.severity >= 3) {
+      top = tempSignal;
+      overriddenFromDelta = true;
+    }
+  }
 
   switch (top.factor) {
     case 'rain':
@@ -190,6 +209,7 @@ export function selectDominant(plan: DocumentPlan, input: WeatherInput): Dominan
         factor: fl >= 27 ? 'hot' : fl < 6 ? 'cold' : 'mild',
         severity: top.severity,
         direction: 'neutral',
+        overriddenFromDelta,
       };
     default:
       return { factor: 'mild', severity: 0, direction: 'neutral' };
@@ -262,14 +282,26 @@ const SEEDS: Record<DominantFactor, Record<number, string>> = {
   },
 };
 
-export function buildSeed(dominant: Dominant): string {
+export function buildSeed(dominant: Dominant, input: WeatherInput): string {
   const sevMap = SEEDS[dominant.factor];
   if (!sevMap) return SEEDS.mild[0];
   // mild는 severity 0만 있음
   if (dominant.factor === 'mild') return sevMap[0];
   // 다른 factor는 1-4
   const sev = Math.max(1, Math.min(4, dominant.severity));
-  return sevMap[sev] || sevMap[2] || SEEDS.mild[0];
+  let seed = sevMap[sev] || sevMap[2] || SEEDS.mild[0];
+
+  // Refinement: selectDominant() bumped temp ahead of a higher-ranked delta
+  // signal (see overriddenFromDelta) — the resulting hot/cold seed should
+  // still read as a day-over-day change, not a generic hot/cold line.
+  // No cold-side text exists yet (SEEDS.cold_delta's "coat" wording already
+  // reads naturally at low feelsLike, so there's no awkward-mention problem
+  // to fix there) — only the hot case is handled for now.
+  if (dominant.factor === 'hot' && dominant.overriddenFromDelta && sev >= 3) {
+    seed = "Much warmer than yesterday — keep it light and stay cool.";
+  }
+
+  return seed;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -283,6 +315,7 @@ const OVERLAYS: Record<string, string> = {
   'cold+eve': 'it gets colder after dark',
   'rain+wind': 'the wind is blowing it sideways',
   'hot+uv': 'the sun is intense',
+  'hot+delta': 'it\'s much warmer than yesterday',
   'warm_delta+uv': 'the sun is strong out',
   'mild+eve': "you'll want a layer for tonight",
   'mild+uv': 'just watch the sun',
@@ -302,6 +335,9 @@ export function buildOverlay(dominant: Dominant, plan: DocumentPlan): string {
 
   const secondaries = plan.ranked
     .filter(s => s.factor !== dominantRawFactor)
+    // delta is already voiced in the seed itself when overriddenFromDelta —
+    // an overlay repeating "than yesterday" would duplicate it.
+    .filter(s => !(dominant.overriddenFromDelta && s.factor === 'delta'))
     .map(s => s.factor);
 
   for (const sec of secondaries) {
@@ -385,7 +421,7 @@ export async function generate(
   const scores = salience(severities);
   const plan = planDocument(scores);
   const dominant = selectDominant(plan, input);
-  const seed = buildSeed(dominant);
+  const seed = buildSeed(dominant, input);
   const overlay = buildOverlay(dominant, plan);
   const englishText = composeEnglish(seed, overlay);
   const finalText = await llmPolish(englishText, apiKey, lang, dominant);
