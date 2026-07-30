@@ -976,6 +976,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{buildProse}from'./advice-rules.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
@@ -1101,55 +1102,6 @@ function parse(data){
   const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
 
   return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday};
-}
-
-const ic=(temp,delta)=>{
-  const sign=delta>0?'<span class="up">':delta<0?'<span class="dn">':'<span>';
-  const arr=delta>0?'↑':delta<0?'↓':'';
-  const abs=Math.abs(delta);
-  const deltaStr=delta===0?`±0°`:`${delta<0?'-':''}${abs}°${arr}`;
-  return `<span class="pcip">${temp}° <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
-};
-const proof=(icon,text)=>`<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
-const iconChip=(icon,text)=>`<span class="pcip"><span class="mi">${icon}</span> ${text}</span>`;
-function buildProse(p){
-  const{diff,tCode,feels,slots,tMax,maxRain,wind}=p;
-  const eTemp=slots[2]?.temp;
-  const eDrop=eTemp!=null?tMax-eTemp:0;
-  const abs=Math.abs(diff);
-  const dChip=ic(tMax,diff);
-  const eChip=eDrop>=5&&eTemp!=null?iconChip('nights_stay',`${eTemp}°C`):'';
-  const rChip=maxRain>=40?proof('water_drop',`${Math.round(maxRain)}%`):'';
-
-  let action=maxRain>60?'Bring an umbrella.':maxRain>30?'An umbrella might be worth it.':tCode>=70?'Dress warm.':diff<=-6?'Coat weather today.':diff<=-3?'Pack your jacket.':diff<=-2?'Layer up.':diff>=6?'Leave the coat at home.':diff>=3?'Dress light.':feels>=28?'Keep it light and stay hydrated.':feels<=0?'Bundle up properly.':wind>=25&&feels<=14?'A windproof layer makes a real difference.':feels<=10?'Layer up properly — it feels colder than it looks.':feels<=15?'A light jacket or mid-layer is about right.':feels<=20?'A long-sleeve or light knit should do it.':feels<=25?'Short sleeves are fine today.':'Dress light — it\'s genuinely warm out.';
-
-  let prose='';
-  if(maxRain>40){
-    prose=`<span class="g">Rain </span><span class="w">${maxRain>85?'coming':maxRain>70?'likely':'possible'}</span>`;
-    const rainHour=p.slots.find(s=>s.rain>40);
-    const rainWindow=rainHour?proof('water_drop',`${rainHour.label} · ${Math.round(maxRain)}%`):'';
-    if(rainWindow)prose+=rainWindow;
-    if(abs>=3)prose+=`<br><span class="g">and ${diff>0?'warmer':'cooler'} than yesterday</span>${dChip}`;
-  } else if(abs>=2){
-    const cw=diff>=6?'much warmer':diff>=3?'warmer':diff>=2?'a bit warmer':diff<=-6?'much colder':diff<=-3?'colder':'a bit chilly';
-    prose=`<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
-    if(eChip)prose+=`<br><span class="g">but gets </span><span class="w">chilly</span><span class="g"> in the evening</span>${eChip}`;
-  } else {
-    const sameLabel=diff===0?'Same':'Similar';
-    const samePrep=diff===0?'as':'to';
-    prose=`<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
-    const windProof=wind>=25?proof('air',`${wind}km/h`):'';
-    const eveProof=eDrop>=5&&eTemp!=null?iconChip('nights_stay',`${eTemp}°C`):'';
-    const secondary=wind>=25
-      ?`<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
-      :eDrop>=5&&eTemp!=null
-      ?`<br><span class="g">but </span><span class="w">cools off</span><span class="g"> tonight</span>${eveProof}`
-      :feels<=tMax-4
-      ?`<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat',`${feels}°`)}`
-      :(()=>{const fw=feels<=0?'freezing':feels<=8?'quite cold':feels<=14?'chilly':feels<=20?'comfortable':'warm';return `<br><span class="g">feels </span><span class="w">${fw}</span><span class="g"> out.</span>`;})();
-    prose+=secondary;
-  }
-  return`${prose}<br><span class="action">${action}</span>`;
 }
 
 function buildAddendum(p){
