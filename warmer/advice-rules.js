@@ -147,6 +147,51 @@ function adviceForTemp(temp, { maxRain = 0, wind = 0, tCode = 0, uv = null, humi
   return bandForTemp(temp).garment || heatAdviceForTemp(temp) || '';
 }
 
+// ---- P1: safety alerts — a hard top-level branch above everything else. ----
+// Independent of adviceForTemp()/the trend-and-advice logic in buildProse(): reads
+// its own fields (feels, wind/gust, diff) and never calls into that chain, so it
+// can't perturb any of the existing band/priority behavior. First match wins.
+// gust isn't in the current data pipeline (see parse() in index.html — the
+// Open-Meteo request only asks for windspeed_10m) so wind is the de facto signal;
+// the optional p.gust read here is forward-compatible if that ever changes.
+const HEAT_ALERT_ACTION = 'Keep out of the midday sun, and drink more water than usual.';
+const COLD_ALERT_ACTION = 'Cover hands and face, and keep outdoor trips short.';
+// Wind alert deliberately never mentions umbrellas, even when maxRain is high —
+// this is the conflict-suppression the wind branch owns; it doesn't read maxRain at all.
+const WIND_ALERT_ACTION = 'Stay in if you can, and avoid loose objects, trees, and coastal areas outside.';
+
+export function alertForConditions(p) {
+  const { feels, wind, gust = null, diff = 0 } = p;
+  const windValue = gust != null ? gust : wind;
+  const trendSuffix = Math.abs(diff) >= 3 ? ` · ${Math.abs(diff)}° ${diff > 0 ? 'warmer' : 'cooler'} than yesterday` : '';
+
+  if (feels >= 36) {
+    return {
+      headline: 'Dangerous heat today — plan around it',
+      action: HEAT_ALERT_ACTION,
+      proof: `${feels}° feels-like${trendSuffix}`,
+      icon: 'thermostat',
+    };
+  }
+  if (feels <= -10) {
+    return {
+      headline: 'A hard freeze — dress for far colder',
+      action: COLD_ALERT_ACTION,
+      proof: `Feels like ${feels}°${trendSuffix}`,
+      icon: 'thermostat',
+    };
+  }
+  if (windValue >= 60) {
+    return {
+      headline: 'Strong winds today — stay in if you can',
+      action: WIND_ALERT_ACTION,
+      proof: `${windValue}km/h`,
+      icon: 'air',
+    };
+  }
+  return null;
+}
+
 /**
  * p: { diff, tCode, feels, slots, tMax, maxRain, wind, uvIndex, humidity }
  * uvIndex/humidity are real readings or null (never a default) — see adviceForTemp().
@@ -154,6 +199,11 @@ function adviceForTemp(temp, { maxRain = 0, wind = 0, tCode = 0, uv = null, humi
  * advice/action line are absolute-temperature/uv/humidity-based only.
  */
 export function buildProse(p) {
+  const alert = alertForConditions(p);
+  if (alert) {
+    return `<span class="w">${alert.headline}</span>${proof(alert.icon, alert.proof)}<br><span class="action">${alert.action}</span>`;
+  }
+
   const { diff, tCode, feels, slots, tMax, maxRain, wind, uvIndex = null, humidity = null } = p;
   const eTemp = slots[2]?.temp;
   const eDrop = eTemp != null ? tMax - eTemp : 0;
