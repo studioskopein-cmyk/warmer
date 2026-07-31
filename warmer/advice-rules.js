@@ -169,7 +169,7 @@ export function buildProse(p) {
     const rainHour = slots.find(s => s.rain > 40);
     const rainWindow = rainHour ? proof('water_drop', `${rainHour.label} · ${Math.round(maxRain)}%`) : '';
     if (rainWindow) prose += rainWindow;
-    if (abs >= 3) prose += `<br><span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
+    if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
   } else if (abs >= 2) {
     const cw = diff >= 6 ? 'much warmer' : diff >= 3 ? 'warmer' : diff >= 2 ? 'a bit warmer'
       : diff <= -6 ? 'much colder' : diff <= -3 ? 'colder' : 'a bit chilly';
