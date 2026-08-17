@@ -3,14 +3,20 @@ import assert from 'node:assert/strict';
 import {
   alertForConditions, bandForTemp, bandViolations, buildProse, TEMP_BANDS,
   COEFFICIENTS, scoreCandidates, selectCandidate, collectAdviceSignals, computeAdvice,
+  assertNotSelfEvident, ADVICE_COPY,
 } from './advice-rules.js';
 
 function slotsFor(eveningTemp) {
   return [{ temp: 0, rain: 0 }, { temp: 0, rain: 0 }, { temp: eveningTemp, rain: 0 }];
 }
 
-function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0, uvIndex = null, humidity = null, ...rest }) {
-  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening), uvIndex, humidity, ...rest };
+// nowHour anchors precipitation-timing tests to a specific "current hour"
+// (findRainTiming searches forward from it) without depending on the real
+// wall clock; it defaults to midnight so every test that doesn't care about
+// rain timing keeps searching the whole day, same as before.
+function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0, uvIndex = null, humidity = null, nowHour = 0, ...rest }) {
+  const now = rest.now ?? new Date(2026, 0, 1, nowHour, 0, 0);
+  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening), uvIndex, humidity, now, ...rest };
 }
 
 test('bandForTemp matches the spec boundaries', () => {
@@ -85,13 +91,13 @@ test('{ feels: 35, uv: 7.55 }: moderate UV produces UV copy, not the old temp-tr
   // 35, not 37: stays below the P1 heat-alert threshold (feels>=36) so this
   // isolates the score pipeline. UV=7.55 mirrors the exact reported case.
   const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35, uvIndex: 7.55 }));
-  assert.ok(html.includes("UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt."), `expected moderate-UV copy in: ${html}`);
-  assert.ok(!html.includes('Avoid direct sun around midday'), `did not expect the old temp-triggered high-UV line at this UV tier: ${html}`);
+  assert.ok(html.includes("UV's at 7.55 — some shade around midday helps"), `expected moderate-UV copy in: ${html}`);
+  assert.ok(!html.includes('skin burns fast'), `did not expect the high-tier UV line at this (moderate) UV tier: ${html}`);
 });
 
 test('{ feels: 22, uv: 9, cloud: 90 }: high UV wins even on a cloudy day — the app\'s killer case', () => {
   const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, uvIndex: 9, cloud: 90 }));
-  assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
+  assert.ok(html.includes("UV's at 9 — skin burns fast at midday"), `expected high-UV guidance in: ${html}`);
   const lower = html.toLowerCase();
   assert.ok(!lower.includes('long-sleeve'), `did not expect the mild-band garment line in: ${html}`);
 });
@@ -128,14 +134,17 @@ test('{ uv: 9, feels: 35 }: high UV alone still produces exactly one action line
   const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35, uvIndex: 9 }));
   const actionMatches = html.match(/class="action"/g) || [];
   assert.equal(actionMatches.length, 1, `expected exactly one action line in: ${html}`);
-  assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
+  assert.ok(html.includes("UV's at 9 — skin burns fast at midday"), `expected high-UV guidance in: ${html}`);
 });
 
-test('{ humidity: 65, uv: 3, feels: 26 }: dew point (derived from temp+humidity, muggy tier) outscores low UV — muggy guidance, not UV', () => {
-  // humidity:65 at feels:26 derives a dew point around 19°C — the muggy
-  // band (18-21°C), distinct from the oppressive band (>=21°C) tested below.
-  const html = buildProse(baseP({ feels: 26, tMax: 26, diff: 0, evening: 26, uvIndex: 3, humidity: 65 }));
-  assert.ok(html.includes('Humid enough to feel warmer than it reads — breathable fabric helps.'), `expected dew-point/muggy guidance in: ${html}`);
+test('{ humidity: 65, uv: 3, tMax: 26, feels: 29 }: dew point (derived from tMax+humidity, muggy tier) outscores low UV — numeric feels-like gap, not UV', () => {
+  // humidity:65 at tMax:26 derives a dew point around 19°C — the muggy band
+  // (18-21°C), distinct from the oppressive band (>=21°C) tested below.
+  // feels:29 (a 3° gap, below apparentTempGap's own "mild" band) keeps that
+  // variable from outscoring dewPoint, while still giving muggy's copy a
+  // real feels-like number to quote.
+  const html = buildProse(baseP({ feels: 29, tMax: 26, diff: 0, evening: 26, uvIndex: 3, humidity: 65 }));
+  assert.ok(html.includes('Feels closer to 29° with the humidity.'), `expected the numeric feels-like-gap guidance in: ${html}`);
   const lower = html.toLowerCase();
   assert.ok(!lower.includes('sunscreen'), `did not expect UV wording in: ${html}`);
 });
@@ -143,15 +152,20 @@ test('{ humidity: 65, uv: 3, feels: 26 }: dew point (derived from temp+humidity,
 // ---- New real-data candidates (PR4): dew point, diurnal range, wind gusts,
 // precipitation start time, air quality, pollen ----
 
-test('dew point: dry tier (derived from a low-humidity reading) produces dry-air copy', () => {
+test('dew point: dry tier (derived from tMax+low-humidity) states the actual dew point as a number, not an adjective list', () => {
   const html = buildProse(baseP({ feels: 15, tMax: 15, diff: 0, evening: 15, humidity: 20 }));
-  assert.ok(html.includes("Air's quite dry today"), `expected dry-air copy in: ${html}`);
+  assert.ok(html.includes("Dew point's down near -8°"), `expected the numeric dew-point reading in: ${html}`);
 });
 
-test('dew point: oppressive tier (derived, >=21°C) is distinct from the muggy tier', () => {
-  const html = buildProse(baseP({ feels: 28, tMax: 28, diff: 0, evening: 28, humidity: 85 }));
-  assert.ok(html.includes('oppressive'), `expected oppressive-tier copy in: ${html}`);
-  assert.ok(!html.includes('Humid enough to feel warmer than it reads'), `did not expect the muggy-tier line at oppressive severity: ${html}`);
+test('dew point: oppressive tier (derived, >=21°C) quotes the numeric feels-like gap, not vague adjectives, and never contradicts a "feels X out" trend line', () => {
+  // feels:32 vs tMax:28 (a 4° gap) — big enough for the oppressive line to
+  // have a distinct feels-like number to quote, small enough (below
+  // apparentTempGap's own "big" band) that apparentTempGap doesn't outscore
+  // dewPoint's oppressive tier (priority .3) for the win.
+  const html = buildProse(baseP({ feels: 32, tMax: 28, diff: 0, evening: 28, humidity: 85 }));
+  assert.ok(html.includes('Feels closer to 32° with the humidity'), `expected the numeric oppressive-tier line in: ${html}`);
+  assert.ok(!html.includes("doesn't feel that hot"), `did not expect the old self-contradicting phrasing in: ${html}`);
+  assert.ok(!html.includes('Feels closer to 29°'), `did not expect the muggy-tier line at oppressive severity: ${html}`);
 });
 
 test('diurnal range now reads daily temperature_2m_max/min (일교차), not the evening-slot proxy, and names the actual drop', () => {
@@ -183,8 +197,99 @@ test('precipitation timing: a rain-probability timeseries translates to a clock 
 });
 
 test('precipitation timing: without a rainSeries, falls back to generic umbrella copy rather than fabricating a time', () => {
-  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 65 }));
-  assert.ok(html.includes('Bring an umbrella.'), `expected the generic strong-rain line in: ${html}`);
+  // maxRain:35 (the "possible" tier, 30-60) deliberately stays at/below the
+  // buildProse headline's own maxRain>40 threshold, so this test observes
+  // precipitationTiming's own fallback copy in isolation, undisturbed by the
+  // item-5 headline-dedup behavior covered separately below.
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35 }));
+  assert.ok(html.includes('An umbrella might be worth it today.'), `expected the generic possible-rain line in: ${html}`);
+});
+
+// ---- Rain timing bug: New York and London both said "12am" (item 1) ----
+// Root cause: the old search always started at hour 0, so a day with high
+// rain probability all day long matched hour 0 first regardless of when it
+// actually started (or whether it already had). Fixed by searching forward
+// from the current hour, and by branching on whether it's already raining.
+
+test('precipitation timing searches forward from the current hour, not from midnight — an all-day-high-probability series never wrongly reports "12am"', () => {
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: 80 }));
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 }));
+  assert.ok(!html.includes('12am'), `did not expect a midnight start time when it's already raining at the current hour: ${html}`);
+});
+
+test('precipitation timing: already-raining-with-no-clear-time has nothing to add beyond the headline, so it correctly stays silent rather than repeating "rain" a second time', () => {
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: 80 }));
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 }));
+  assert.ok(!html.includes('class="action"'), `expected no action line — the headline already covers "raining all day" and there's no time to add: ${html}`);
+});
+
+test('precipitation timing: the "ongoing, no clear time" copy itself (isolated from headline-dedup via a sub-40 maxRain)', () => {
+  // maxRain:35 stays under the headline's >40 threshold so this observes
+  // the ongoing-phase copy on its own, decoupled from item 5's dedup.
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: 80 }));
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35, rainSeries, nowHour: 10 }));
+  assert.ok(html.includes('On-and-off rain for a while'), `expected the ongoing-phase copy in: ${html}`);
+  assert.ok(!html.includes('12am'), `did not expect a fabricated start time in: ${html}`);
+});
+
+test('precipitation timing: rain already falling now states when it clears, not a (wrong) start time', () => {
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour < 15 ? 80 : 10 }));
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 }));
+  assert.ok(html.includes('clears up around 3pm'), `expected a clearing time, not a start time, in: ${html}`);
+  assert.ok(!html.includes('moves in'), `did not expect "moves in" phrasing for rain that's already falling: ${html}`);
+});
+
+// ---- Self-evident phrasing: checked once on the final rendered string,
+// not per variable (item 2). "drink water" came back via dewPoint even
+// after PR3 removed it from the temperature path — a per-variable check
+// gets re-opened by every new variable; assertNotSelfEvident() is the one
+// gate every candidate's translated text must clear, applied by computeAdvice. ----
+
+test('assertNotSelfEvident: throws on each banned phrase, passes on clean or numeric text', () => {
+  for (const phrase of [
+    'please drink water often', 'stay hydrated out there', 'avoid direct sun today',
+    'seek shade at noon', 'stay cool today', 'take it easy this afternoon', 'dress warmly tonight',
+  ]) {
+    assert.throws(() => assertNotSelfEvident(phrase), `expected "${phrase}" to be flagged as self-evident`);
+  }
+  assert.throws(() => assertNotSelfEvident('remember to wear sunscreen'), 'a bare imperative with no number should still be flagged');
+  assert.doesNotThrow(() => assertNotSelfEvident('wear SPF 30 sunscreen'), 'a concrete number should exempt the sunscreen phrase');
+  assert.doesNotThrow(() => assertNotSelfEvident("UV's at 9 today — worth a hat."));
+});
+
+test('every advice-copy variant (all variables × all tiers, representative meta) passes the self-evident gate', () => {
+  const representativeMeta = { value: 9, species: 'grass', feelsLike: 34, timing: { phase: 'starting', label: '4pm' } };
+  for (const [key, tiers] of Object.entries(ADVICE_COPY)) {
+    for (const [tier, fn] of Object.entries(tiers)) {
+      const text = fn(representativeMeta);
+      assert.doesNotThrow(() => assertNotSelfEvident(text), `${key}.${tier} produced self-evident text: "${text}"`);
+    }
+  }
+});
+
+// ---- Cross-layer dedup: the headline shouldn't be restated by the advice
+// line (item 5) ----
+
+test('headline dedup: rain is already in the headline, and there\'s no clock time to add, so the advice line falls through to the next-ranked candidate', () => {
+  // maxRain=86 triggers the "Rain coming" headline; with no rainSeries,
+  // precipitationTiming has nothing new to add, so it's disqualified as a
+  // duplicate and the line should fall through to UV instead.
+  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, maxRain: 86, uvIndex: 9 }));
+  assert.ok(html.includes('Rain'), `expected the rain headline in: ${html}`);
+  assert.ok(!html.includes('Bring an umbrella'), `expected the duplicate rain advice line to be suppressed in: ${html}`);
+  assert.ok(html.includes("UV's at 9"), `expected the advice line to fall through to UV in: ${html}`);
+});
+
+test('headline dedup exception: a concrete rain start/clear time is information the headline never states, so it survives even though the headline already says "rain" (Taiwan case)', () => {
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour === 12 ? 86 : 20 }));
+  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, maxRain: 86, rainSeries, nowHour: 8 }));
+  assert.ok(html.includes('Rain moves in around 12pm'), `expected the advice line to keep the concrete time despite the headline already covering rain: ${html}`);
+});
+
+test('headline dedup: a big evening temperature drop already stated in the trend line is not repeated as diurnal-range advice', () => {
+  const html = buildProse(baseP({ feels: 24, tMax: 24, diff: 3, evening: 10, tMin: 8 }));
+  assert.ok(html.includes('in the evening'), `expected the trend line to cover the evening drop in: ${html}`);
+  assert.ok(!html.includes('after sunset'), `expected diurnal-range advice to be suppressed as a headline duplicate in: ${html}`);
 });
 
 test('air quality (European AQI): poor tier frames the advice around exercise, not a raw index number', () => {

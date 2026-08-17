@@ -146,7 +146,11 @@ export function collectAdviceSignals(p) {
     // alertForConditions() uses).
     windGusts: gust ?? (wind || null),
     airQuality: europeanAqi,
-    dewPoint: dewPoint ?? deriveDewPoint(temperature, humidity),
+    // Derived from tMax (actual air temperature), not feels — dew point is a
+    // physical property of actual temp + humidity; using the apparent
+    // (feels-like) temperature here would double-count the humidity effect
+    // dew point is already meant to capture.
+    dewPoint: dewPoint ?? deriveDewPoint(tMax ?? temperature, humidity),
     apparentTempGap: (feels != null && tMax != null) ? +Math.abs(feels - tMax).toFixed(1) : null,
     temperature,
   };
@@ -277,11 +281,24 @@ function scorePollenSalience(speciesReadings) {
   return best; // null when every species is null/unremarkable — no candidate
 }
 
-function findRainStartLabel(context) {
+// Searches forward from *now*, never from midnight — searching from hour 0
+// meant an all-day-high-probability rain series always matched hour 0 first,
+// so two cities with completely different actual timing both got "12am."
+// If it's already raining now, a start time would be wrong (it already
+// started) — this looks for when it *clears* instead; if it doesn't clear
+// within the rest of the day, there's no honest hour to name at all.
+function findRainTiming(context) {
   const series = context?.rainSeries;
-  if (!Array.isArray(series)) return null;
-  const hit = series.find(pt => pt.rain >= 40);
-  return hit ? formatHourLabel(hit.hour) : null;
+  const nowHour = context?.now instanceof Date ? context.now.getHours() : null;
+  if (!Array.isArray(series) || nowHour == null) return null;
+  const upcoming = series.filter(pt => pt.hour >= nowHour);
+  if (upcoming.length === 0) return null;
+  if (upcoming[0].rain >= 40) {
+    const clears = upcoming.find(pt => pt.rain < 40);
+    return clears ? { phase: 'clearing', label: formatHourLabel(clears.hour) } : { phase: 'ongoing', label: null };
+  }
+  const starts = upcoming.find(pt => pt.rain >= 40);
+  return starts ? { phase: 'starting', label: formatHourLabel(starts.hour) } : null;
 }
 function formatHourLabel(hour) {
   if (hour === 0) return '12am';
@@ -305,7 +322,10 @@ export function scoreSalience(variable, value, context = {}) {
   const bands = SALIENCE_BANDS[variable] || [];
   const hit = bands.find(b => value >= b.min && value < b.max);
   const meta = { value };
-  if (variable === 'precipitationTiming') meta.startLabel = findRainStartLabel(context);
+  if (variable === 'precipitationTiming') meta.timing = findRainTiming(context);
+  // dewPoint's copy states the feels-like gap as a number (see ADVICE_COPY)
+  // instead of adjectives — apparent_temperature is the only source for that.
+  if (variable === 'dewPoint') meta.feelsLike = context?.feels ?? null;
   return hit ? { salience: hit.salience, tier: hit.tier, meta } : { salience: 0, tier: null, meta };
 }
 
@@ -337,24 +357,40 @@ export function selectCandidate(scored) {
 
 const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1);
 
+function describeRainTiming(meta, strong) {
+  const t = meta.timing;
+  if (t?.phase === 'starting') {
+    return strong ? `Rain moves in around ${t.label} — bring an umbrella.` : `Rain's possible from around ${t.label}.`;
+  }
+  if (t?.phase === 'clearing') {
+    return strong ? `Rain clears up around ${t.label} — bring an umbrella until then.` : `Rain should ease up around ${t.label}.`;
+  }
+  if (t?.phase === 'ongoing') {
+    return strong ? "Rain's set in for a while — bring an umbrella." : 'On-and-off rain for a while — an umbrella might be worth it.';
+  }
+  return strong ? 'Bring an umbrella.' : 'An umbrella might be worth it today.';
+}
+
 // Stage 4: translate. Copy is keyed by variable + salience tier, as a
 // function of that candidate's meta (the actual number/species/time) —
-// never by temperature.
-const ADVICE_COPY = {
+// never by temperature. Every string here is re-checked by
+// assertNotSelfEvident() before it can reach the screen (see computeAdvice
+// below); SELF_EVIDENT_PHRASES lists what it rejects.
+export const ADVICE_COPY = {
   uvIndex: {
-    mild: () => "UV's creeping up — sunscreen's worth it if you'll be out a while.",
-    moderate: () => "UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt.",
-    high: () => 'Avoid direct sun around midday and into the afternoon, and keep drinking water.',
-    extreme: () => "UV's at extreme levels — minimize midday sun and reapply sunscreen if you're out.",
+    mild: meta => `UV's at ${meta.value} — SPF 30+ is worth it if you'll be out a while.`,
+    moderate: meta => `UV's at ${meta.value} — some shade around midday helps if you're out long.`,
+    high: meta => `UV's at ${meta.value} — skin burns fast at midday; SPF 30+ and a hat earn their keep.`,
+    extreme: meta => `UV's at ${meta.value}, the extreme end — worth planning errands outside midday hours.`,
   },
   precipitationTiming: {
-    possible: meta => meta.startLabel ? `Rain's possible from around ${meta.startLabel}.` : 'An umbrella might be worth it today.',
-    strong: meta => meta.startLabel ? `Rain moves in around ${meta.startLabel} — bring an umbrella.` : 'Bring an umbrella.',
+    possible: meta => describeRainTiming(meta, false),
+    strong: meta => describeRainTiming(meta, true),
   },
   pollen: {
     moderate: meta => `${pollenLabel(meta.species)} pollen is creeping up — could irritate allergies today.`,
-    high: meta => `${pollenLabel(meta.species)} pollen is high today — worth taking allergy precautions before heading out.`,
-    veryHigh: meta => `${pollenLabel(meta.species)} pollen is very high today — allergy meds are worth it if you're sensitive.`,
+    high: meta => `${pollenLabel(meta.species)} pollen is high today — worth an antihistamine before heading out.`,
+    veryHigh: meta => `${pollenLabel(meta.species)} pollen is very high today — an antihistamine earns its keep if you're sensitive.`,
   },
   diurnalRange: {
     mild: meta => `Drops ${Math.round(meta.value)}° after sunset — worth having a layer on hand.`,
@@ -369,12 +405,12 @@ const ADVICE_COPY = {
     moderate: () => "Air quality's fair today — fine for a walk, maybe ease off a hard outdoor workout.",
     poor: () => "Air quality's poor — worth moving an intense workout indoors today.",
     veryPoor: () => 'Air quality is very poor — skip strenuous exercise outside today.',
-    extremelyPoor: () => "Air quality's extremely poor — stay indoors if you can, and skip outdoor exercise entirely.",
+    extremelyPoor: () => "Air quality's extremely poor — best to skip outdoor exercise entirely today.",
   },
   dewPoint: {
-    dry: () => "Air's quite dry today — worth some lip balm or lotion if you're out a while.",
-    muggy: () => 'Humid enough to feel warmer than it reads — breathable fabric helps.',
-    oppressive: () => "Air feels heavy and oppressive — take it easy and drink water even if it doesn't feel that hot.",
+    dry: meta => `Dew point's down near ${Math.round(meta.value)}° — air's dry; lip balm or lotion helps.`,
+    muggy: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° with the humidity.` : 'Feels a few degrees warmer than the reading, thanks to the humidity.',
+    oppressive: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° with the humidity — that gap is doing real work today.` : 'Feels well above the actual reading today, thanks to the humidity.',
   },
   apparentTempGap: {
     mild: () => 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
@@ -389,19 +425,93 @@ export function translateCandidate(selected) {
   return fn ? fn(selected.meta || {}) : '';
 }
 
+// Final gate, applied once to the rendered string — not per variable. A
+// per-variable check gets re-opened every time a new variable is added (this
+// is exactly how "drink water" came back via dewPoint after PR3 had already
+// removed it from the temperature path); checking the actual output text
+// closes that loophole regardless of which variable produced it.
+// "wear sunscreen" only counts as self-evident when it's not attached to a
+// concrete number (an SPF value, a UV reading) — a bare imperative is
+// boilerplate, a number is information.
+export const SELF_EVIDENT_PHRASES = [
+  'drink water', 'stay hydrated', 'avoid direct sun', 'seek shade',
+  'stay cool', 'take it easy', 'dress warmly',
+];
+export function assertNotSelfEvident(text) {
+  const lower = text.toLowerCase();
+  const hit = SELF_EVIDENT_PHRASES.find(p => lower.includes(p));
+  if (hit) throw new Error(`self-evident phrase "${hit}" in advice text: "${text}"`);
+  if (lower.includes('wear sunscreen') && !/\d/.test(text)) {
+    throw new Error(`self-evident phrase "wear sunscreen" (no concrete number) in advice text: "${text}"`);
+  }
+}
+
+// Cross-layer dedup: buildProse's own headline/trend copy already states
+// some of these signals in plain language (rain in the "Rain coming"
+// headline, the day's temperature swing in the evening-drop trend line) —
+// mirrors buildProse()'s exact branch conditions below so the advice line
+// never restates what the headline already said.
+export function coveredHeadlineTopics(p) {
+  const { diff = 0, tMax, maxRain = 0, slots = [], wind = 0 } = p;
+  const eTemp = slots?.[2]?.temp ?? null;
+  const eDrop = (tMax != null && eTemp != null) ? tMax - eTemp : 0;
+  const abs = Math.abs(diff);
+  const covered = new Set();
+  if (maxRain > 40) {
+    covered.add('precipitationTiming');
+  } else if (abs >= 2) {
+    if (eDrop >= 5 && eTemp != null) covered.add('diurnalRange');
+  } else if (wind < 25 && eDrop >= 5 && eTemp != null) {
+    covered.add('diurnalRange');
+  }
+  return covered;
+}
+
+// precipitationTiming keeps an exception: the headline never states a clock
+// time, so if this candidate has one to add (a real "starting"/"clearing"
+// hour, not the no-op "ongoing" case), it's still new information even
+// though the headline already said "rain."
+function isDuplicateOfHeadline(candidate, covered) {
+  if (!covered.has(candidate.key)) return false;
+  if (candidate.key === 'precipitationTiming' && candidate.meta?.timing?.label) return false;
+  return true;
+}
+
 /**
- * Runs the full collect → score → select → translate pipeline and logs which
- * variable (if any) won, so real-world distributions can inform threshold
- * tuning later (see SALIENCE_BANDS above).
+ * Runs the full collect → score → select → translate pipeline: picks the
+ * highest-priority candidate, and if it either duplicates the headline or
+ * fails assertNotSelfEvident, disqualifies it and retries with the
+ * next-highest instead — never falls back to a disqualified candidate's
+ * text. Logs which variable (if any) won, so real-world distributions can
+ * inform threshold tuning later (see SALIENCE_BANDS above).
  */
 export function computeAdvice(p) {
   const signals = collectAdviceSignals(p);
-  const scored = scoreCandidates(signals, p);
-  const selected = selectCandidate(scored);
+  const covered = coveredHeadlineTopics(p);
+  let pool = scoreCandidates(signals, p);
+  let selected = null;
+  let text = '';
+  while (pool.length > 0) {
+    const candidate = selectCandidate(pool);
+    if (!candidate) break;
+    if (isDuplicateOfHeadline(candidate, covered)) {
+      pool = pool.filter(c => c.key !== candidate.key);
+      continue;
+    }
+    const candidateText = translateCandidate(candidate);
+    try {
+      assertNotSelfEvident(candidateText);
+      selected = candidate;
+      text = candidateText;
+      break;
+    } catch {
+      pool = pool.filter(c => c.key !== candidate.key);
+    }
+  }
   console.debug(selected
     ? `[advice] selected "${selected.key}" (tier=${selected.tier}, priority=${selected.priority})`
-    : '[advice] no candidate scored above 0 — action line omitted');
-  return translateCandidate(selected);
+    : '[advice] no candidate scored above 0, or all disqualified (headline duplicate / self-evident) — action line omitted');
+  return text;
 }
 
 // ---- P1: safety alerts — a hard top-level branch above everything else. ----
