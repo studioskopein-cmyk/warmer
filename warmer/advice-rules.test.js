@@ -137,13 +137,14 @@ test('{ uv: 9, feels: 35 }: high UV alone still produces exactly one action line
   assert.ok(html.includes("UV's at 9 — skin burns fast at midday"), `expected high-UV guidance in: ${html}`);
 });
 
-test('{ humidity: 65, uv: 3, tMax: 26, feels: 29 }: dew point (derived from tMax+humidity, muggy tier) outscores low UV — numeric feels-like gap, not UV', () => {
+test('{ humidity: 65, uv: 2, tMax: 26, feels: 29 }: dew point (derived from tMax+humidity, muggy tier) outscores low UV — numeric feels-like gap, not UV', () => {
   // humidity:65 at tMax:26 derives a dew point around 19°C — the muggy band
   // (18-21°C), distinct from the oppressive band (>=21°C) tested below.
   // feels:29 (a 3° gap, below apparentTempGap's own "mild" band) keeps that
   // variable from outscoring dewPoint, while still giving muggy's copy a
-  // real feels-like number to quote.
-  const html = buildProse(baseP({ feels: 29, tMax: 26, diff: 0, evening: 26, uvIndex: 3, humidity: 65 }));
+  // real feels-like number to quote. uv:2 stays below the WHO "moderate"
+  // band (3+) so it contributes nothing, regardless of that band's salience.
+  const html = buildProse(baseP({ feels: 29, tMax: 26, diff: 0, evening: 26, uvIndex: 2, humidity: 65 }));
   assert.ok(html.includes('Feels closer to 29° with the humidity.'), `expected the numeric feels-like-gap guidance in: ${html}`);
   const lower = html.toLowerCase();
   assert.ok(!lower.includes('sunscreen'), `did not expect UV wording in: ${html}`);
@@ -314,6 +315,66 @@ test('pollen: outside its coverage (all species null) is excluded silently, not 
   const p = baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, pollenSpecies: { grass: null, birch: null, alder: null, mugwort: null, olive: null, ragweed: null } });
   assert.doesNotThrow(() => buildProse(p));
   assert.ok(!buildProse(p).includes('class="action"'), 'did not expect an action line with no pollen coverage');
+});
+
+// ---- UV salience re-tune (WHO bands) — pass criterion: UV beats
+// diurnalRange for Madrid and Cairo, both with live-fetched data and with
+// the harder hypothetical the retune was scoped against ----
+
+test('Madrid (live CAMS peak UV 7.95, daily range 14.6°): UV wins under the WHO-band curve', () => {
+  // feels:35, not 36 (tMax's real value) — stays below the P1 heat-alert
+  // threshold so this isolates the score pipeline, consistent with the rest
+  // of this suite's convention.
+  const html = buildProse(baseP({ feels: 35, tMax: 36, diff: 0, evening: 21.4, tMin: 21.4, uvIndex: 7.95 }));
+  assert.ok(html.includes("UV's at 7.95"), `expected UV to win over diurnalRange in: ${html}`);
+});
+
+test('Cairo (live CAMS peak UV 9.85, daily range 9.6°): UV wins under the WHO-band curve', () => {
+  const html = buildProse(baseP({ feels: 33.5, tMax: 33.5, diff: 0, evening: 23.9, tMin: 23.9, uvIndex: 9.85 }));
+  assert.ok(html.includes("UV's at 9.85"), `expected UV to win over diurnalRange in: ${html}`);
+});
+
+test('Madrid/Cairo hypothetical (UV~9/16° range, UV~8/11° range — the harder case the retune was scoped against): UV still wins', () => {
+  const madrid = buildProse(baseP({ feels: 35, tMax: 36, diff: 0, evening: 20, tMin: 20, uvIndex: 9 }));
+  assert.ok(madrid.includes("UV's at 9"), `expected UV to win in the Madrid hypothetical: ${madrid}`);
+  const cairo = buildProse(baseP({ feels: 33.5, tMax: 33.5, diff: 0, evening: 22.5, tMin: 22.5, uvIndex: 8 }));
+  assert.ok(cairo.includes("UV's at 8"), `expected UV to win in the Cairo hypothetical: ${cairo}`);
+});
+
+test('UV salience follows WHO Index categories: 3-5 moderate (0.3), 6-7 high (0.7), 8-10 very high (0.95), 11+ extreme (1.0)', () => {
+  assert.equal(scoreCandidates({ uvIndex: 4 }).find(c => c.key === 'uvIndex').salience, 0.3);
+  assert.equal(scoreCandidates({ uvIndex: 7 }).find(c => c.key === 'uvIndex').salience, 0.7);
+  assert.equal(scoreCandidates({ uvIndex: 9 }).find(c => c.key === 'uvIndex').salience, 0.95);
+  assert.equal(scoreCandidates({ uvIndex: 12 }).find(c => c.key === 'uvIndex').salience, 1.0);
+});
+
+// ---- Trend headline: cold-side wording used to come from delta alone, with
+// no gate on the actual temperature (Cairo: "It's a bit chilly than
+// yesterday · 36° · -2°"). Same bug class as the evening-phrase fix from a
+// few weeks ago, but that was gated via bandForTemp() — this top-line
+// wording lived in a separate, ungated branch in buildProse() itself. ----
+
+test('trend headline: a 36° day that cooled 2° says "cooler," never "chilly" — chilly/cold/freezing wording is gated to tMax<15°', () => {
+  // feels:35, not 36 (tMax's real value) — stays below the P1 heat-alert
+  // threshold, same convention as the rest of this suite.
+  const html = buildProse(baseP({ feels: 35, tMax: 36, diff: -2, evening: 36 }));
+  assert.ok(html.includes('a touch cooler'), `expected neutral "cooler" wording in: ${html}`);
+  const lower = html.toLowerCase();
+  for (const word of ['chilly', 'colder', 'cold']) {
+    assert.ok(!lower.includes(word), `unexpected "${word}" in a 36° day's trend line: ${html}`);
+  }
+});
+
+test('trend headline: the same -2° drop at 36° never says "colder" at the bigger-delta tiers either (diff<=-3 and diff<=-6)', () => {
+  const midDrop = buildProse(baseP({ feels: 34, tMax: 34, diff: -4, evening: 34 }));
+  assert.ok(midDrop.includes('cooler') && !midDrop.toLowerCase().includes('colder'), `expected "cooler" not "colder" at 34°/-4°: ${midDrop}`);
+  const bigDrop = buildProse(baseP({ feels: 32, tMax: 32, diff: -7, evening: 32 }));
+  assert.ok(bigDrop.includes('much cooler') && !bigDrop.toLowerCase().includes('colder'), `expected "much cooler" not "much colder" at 32°/-7°: ${bigDrop}`);
+});
+
+test('trend headline: chilly/colder wording is still correct at genuinely cool temperatures (tMax<15°)', () => {
+  const html = buildProse(baseP({ feels: 12, tMax: 12, diff: -2, evening: 12 }));
+  assert.ok(html.includes('a bit chilly'), `expected "chilly" to remain accurate at 12°: ${html}`);
 });
 
 // ---- Seasonal coverage: winter Berlin (item 5) ----

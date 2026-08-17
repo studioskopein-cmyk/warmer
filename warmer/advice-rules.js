@@ -180,12 +180,21 @@ export function collectAdviceSignals(p) {
 //   - dewPoint: standard meteorological comfort bands (NWS/AccuWeather-style
 //     dew-point comfort scale) — both a "too dry" and a "too muggy" tail are
 //     notable; the 10-18°C middle is unremarkable on purpose.
+//   - uvIndex: WHO's official UV Index categories (0-2 low, 3-5 moderate,
+//     6-7 high, 8-10 very high, 11+ extreme). Re-tuned after Madrid/Cairo
+//     live testing: the old curve (0.2/0.5/0.75/1.0) put UV in a near-tie
+//     with diurnalRange even on genuinely high-UV days (Madrid's actual
+//     CAMS peak of 7.95 scored only 0.45 priority vs. diurnalRange's 0.43 —
+//     a coin-flip that real day-to-day forecast noise could tip either
+//     way), so UV rarely won even when it should. Raised so a "high" WHO
+//     day (6-7) already scores meaningfully, and "very high"/"extreme"
+//     (8+) score close to the ceiling.
 // ============================================================================
 const SALIENCE_BANDS = {
   uvIndex: [
-    { min: 3, max: 6, salience: 0.2, tier: 'mild' },
-    { min: 6, max: 8, salience: 0.5, tier: 'moderate' },
-    { min: 8, max: 11, salience: 0.75, tier: 'high' },
+    { min: 3, max: 6, salience: 0.3, tier: 'mild' },
+    { min: 6, max: 8, salience: 0.7, tier: 'moderate' },
+    { min: 8, max: 11, salience: 0.95, tier: 'high' },
     { min: 11, max: Infinity, salience: 1.0, tier: 'extreme' },
   ],
   precipitationTiming: [
@@ -613,8 +622,18 @@ export function buildProse(p) {
     if (rainWindow) prose += rainWindow;
     if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
   } else if (abs >= 2) {
+    // The cold-side words here used to come from `diff` alone, with no gate
+    // on the actual temperature — so a 36° day that's 2° cooler than
+    // yesterday got called "a bit chilly" (Cairo). The evening phrase below
+    // was already gated by absolute temp via bandForTemp(); this line
+    // wasn't. "chilly/colder" only describe genuinely cool conditions now
+    // (tMax<15°) — above that, the same-size drop is "cooler," a comparison
+    // to yesterday, not a claim about how the day itself feels.
+    const warmBand = tMax >= 15;
     const cw = diff >= 6 ? 'much warmer' : diff >= 3 ? 'warmer' : diff >= 2 ? 'a bit warmer'
-      : diff <= -6 ? 'much colder' : diff <= -3 ? 'colder' : 'a bit chilly';
+      : diff <= -6 ? (warmBand ? 'much cooler' : 'much colder')
+      : diff <= -3 ? (warmBand ? 'cooler' : 'colder')
+      : (warmBand ? 'a touch cooler' : 'a bit chilly');
     prose = `<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
     if (eChip) {
       const phrase = bandForTemp(eTemp).eveningPhrase;
