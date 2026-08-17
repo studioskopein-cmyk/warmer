@@ -1,13 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alertForConditions, bandForTemp, bandViolations, buildProse, heatAdviceForTemp, TEMP_BANDS } from './advice-rules.js';
+import {
+  alertForConditions, bandForTemp, bandViolations, buildProse, TEMP_BANDS,
+  COEFFICIENTS, scoreCandidates, selectCandidate,
+} from './advice-rules.js';
 
 function slotsFor(eveningTemp) {
   return [{ temp: 0, rain: 0 }, { temp: 0, rain: 0 }, { temp: eveningTemp, rain: 0 }];
 }
 
-function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0, uvIndex = null, humidity = null }) {
-  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening), uvIndex, humidity };
+function baseP({ feels, tMax, diff, evening, maxRain = 0, wind = 0, tCode = 0, uvIndex = null, humidity = null, ...rest }) {
+  return { diff, tCode, feels, tMax, maxRain, wind, slots: slotsFor(evening), uvIndex, humidity, ...rest };
 }
 
 test('bandForTemp matches the spec boundaries', () => {
@@ -32,18 +35,6 @@ test('hot day + hot evening: no chilly/cold/coat/jacket, even with a big positiv
   }
 });
 
-test('cold day stays coat weather even when warmer than yesterday', () => {
-  const p = baseP({ feels: 8, tMax: 8, diff: 5, evening: 3 });
-  const html = buildProse(p);
-  assert.ok(html.toLowerCase().includes('coat'), `expected coat guidance in: ${html}`);
-});
-
-test('mild evening cooldown gets a light layer, not a coat', () => {
-  const p = baseP({ feels: 26, tMax: 26, diff: -4, evening: 19 });
-  const html = buildProse(p);
-  assert.ok(!html.toLowerCase().includes('coat'), `did not expect coat in: ${html}`);
-});
-
 test('30C+ never says "short sleeves" (self-evident advice is omitted)', () => {
   for (const feels of [30, 32, 35, 40]) {
     for (const diff of [-5, 0, 5]) {
@@ -53,71 +44,98 @@ test('30C+ never says "short sleeves" (self-evident advice is omitted)', () => {
   }
 });
 
-test('hot band always fills the action line with heat guidance (no empty layout gap)', () => {
-  const html = buildProse(baseP({ feels: 33, tMax: 33, diff: 0, evening: 33 }));
-  assert.ok(html.includes('class="action"'), `expected a heat-guidance action line in: ${html}`);
-  assert.ok(html.includes(heatAdviceForTemp(33)), `expected heatAdvice text in: ${html}`);
-});
+// ---- Score pipeline: temperature is structurally excluded, not filtered ----
 
-test('{ high: 35 } includes heat guidance, never "short sleeves" or "coat"', () => {
-  // 35, not 37: stays below the P1 heat-alert threshold (feels>=36) added later, while
-  // still landing in the 34°C heatAdvice tier this test targets.
-  const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35 }));
-  assert.equal(heatAdviceForTemp(35), 'Avoid direct sun around midday and into the afternoon, and keep drinking water.');
-  assert.ok(html.includes(heatAdviceForTemp(35)), `expected heatAdvice text in: ${html}`);
-  const lower = html.toLowerCase();
-  assert.ok(!lower.includes('short sleeves'), `unexpected "short sleeves" in: ${html}`);
-  assert.ok(!lower.includes('coat'), `unexpected "coat" in: ${html}`);
-});
-
-test('{ high: 31 } gets the light 30-33 tier, not a warning tone', () => {
-  const html = buildProse(baseP({ feels: 31, tMax: 31, diff: 0, evening: 31 }));
-  assert.equal(heatAdviceForTemp(31), "It's warm enough to take it easy — pace yourself, nothing dramatic.");
-  assert.ok(html.includes(heatAdviceForTemp(31)), `expected the light-tier text in: ${html}`);
-  const lower = html.toLowerCase();
-  assert.ok(!lower.includes('serious'), `did not expect a warning tone in: ${html}`);
-  assert.ok(!lower.includes('avoid direct sun'), `did not expect the 34+ tier wording in: ${html}`);
-});
-
-test('{ high: 22 } (mild band) has no heat guidance at all', () => {
-  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22 }));
-  for (const tier of TEMP_BANDS.find(b => b.name === 'hot').heatAdvice) {
-    assert.ok(!html.includes(tier.text), `did not expect hot-band heat guidance in: ${html}`);
+test('temperature alone never produces an action line, at any temperature (coefficient verification)', () => {
+  // Stays clear of the P1 alert band (feels>=36 / <=-10) so this exercises
+  // the score pipeline itself, not the separate safety-override path.
+  for (const feels of [-9, -5, 0, 5, 10, 15, 20, 25, 28, 30, 33, 35]) {
+    const html = buildProse(baseP({ feels, tMax: feels, diff: 0, evening: feels }));
+    assert.ok(!html.includes('class="action"'), `did not expect an action line from temperature alone at ${feels}°: ${html}`);
   }
 });
 
-test('uv: null never generates UV-based copy, even when temp/humidity would otherwise be silent', () => {
-  const html = buildProse(baseP({ feels: 26, tMax: 26, diff: 0, evening: 26, uvIndex: null, humidity: null }));
-  const lower = html.toLowerCase();
-  assert.ok(!lower.includes('uv'), `did not expect any UV wording in: ${html}`);
-  assert.ok(!lower.includes('sun'), `did not expect sun-avoidance wording in: ${html}`);
-  // falls all the way back to the warm band's plain garment line
-  assert.ok(html.includes('Keep it light and stay hydrated.'), `expected the warm band fallback in: ${html}`);
+test('cold day alone (no wind/precip/diurnal/other signal) no longer gets an automatic "coat" line — self-evident temperature advice is excluded structurally, not by a banned-word list', () => {
+  // evening equals feels (no evening drop) to isolate temperature exclusion
+  // from the separate, legitimate diurnalRange signal tested elsewhere.
+  const html = buildProse(baseP({ feels: 8, tMax: 8, diff: 5, evening: 8 }));
+  assert.ok(!html.includes('class="action"'), `did not expect an action line for cold temperature alone: ${html}`);
 });
 
-test('{ uv: 9, high: 22 } (mild band): strong UV alone triggers sun+hydration guidance', () => {
-  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, uvIndex: 9 }));
+test('priority formula: temperature always scores zero regardless of salience, because selfSensible=1.0 zeroes (1-selfSensible)', () => {
+  assert.equal(COEFFICIENTS.temperature.selfSensible, 1.0);
+  const scored = scoreCandidates({
+    temperature: 42, uvIndex: null, precipitationTiming: null, pollen: null,
+    diurnalRange: null, windGusts: null, airQuality: null, dewPoint: null, apparentTempGap: null,
+  });
+  assert.equal(scored.find(c => c.key === 'temperature').priority, 0);
+});
+
+test('select() ties break toward higher actionability', () => {
+  const tie = [
+    { key: 'a', priority: 0.5, actionability: 0.6 },
+    { key: 'b', priority: 0.5, actionability: 0.9 },
+  ];
+  assert.equal(selectCandidate(tie).key, 'b');
+});
+
+// ---- The reported bug: moderate UV at high temp used to lose to temp ----
+
+test('{ feels: 35, uv: 7.55 }: moderate UV produces UV copy, not the old temp-triggered sun+hydration line (reported bug)', () => {
+  // 35, not 37: stays below the P1 heat-alert threshold (feels>=36) so this
+  // isolates the score pipeline. UV=7.55 mirrors the exact reported case.
+  const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35, uvIndex: 7.55 }));
+  assert.ok(html.includes("UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt."), `expected moderate-UV copy in: ${html}`);
+  assert.ok(!html.includes('Avoid direct sun around midday'), `did not expect the old temp-triggered high-UV line at this UV tier: ${html}`);
+});
+
+test('{ feels: 22, uv: 9, cloud: 90 }: high UV wins even on a cloudy day — the app\'s killer case', () => {
+  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, uvIndex: 9, cloud: 90 }));
   assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
   const lower = html.toLowerCase();
   assert.ok(!lower.includes('long-sleeve'), `did not expect the mild-band garment line in: ${html}`);
 });
 
-test('{ uv: 9, high: 35 }: heat and UV overlap collapses to a single line, not two', () => {
-  // 35, not 37: same P1-threshold reasoning as the test above.
+test('{ feels: 35, uv: null }: no UV data means no UV copy, and no temperature fallback either — the line is omitted entirely', () => {
+  const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35, uvIndex: null, humidity: null }));
+  const lower = html.toLowerCase();
+  assert.ok(!lower.includes('uv'), `did not expect any UV wording in: ${html}`);
+  assert.ok(!lower.includes('sun'), `did not expect sun-avoidance wording in: ${html}`);
+  assert.ok(!html.includes('class="action"'), `did not expect an action line when no signal scores above zero: ${html}`);
+});
+
+test('ordinary day across every variable at once produces no action line', () => {
+  const p = baseP({ feels: 20, tMax: 20, diff: 1, evening: 19, maxRain: 10, wind: 10, uvIndex: 2, humidity: 50 });
+  const html = buildProse(p);
+  assert.ok(!html.includes('class="action"'), `did not expect an action line on an unremarkable day: ${html}`);
+});
+
+test('action line renders only when a candidate scores above zero — no dangling <br> either way (layout-gap regression guard)', () => {
+  const withSignal = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, uvIndex: 9 }));
+  assert.ok(withSignal.includes('class="action"'), `expected an action line when UV scores above zero: ${withSignal}`);
+  assert.ok(!withSignal.trimEnd().endsWith('<br>'), `did not expect a dangling <br> in: ${withSignal}`);
+
+  const withoutSignal = buildProse(baseP({ feels: 20, tMax: 20, diff: 0, evening: 20 }));
+  assert.ok(!withoutSignal.includes('class="action"'), `did not expect an action line with no scoring candidates: ${withoutSignal}`);
+  assert.ok(!withoutSignal.trimEnd().endsWith('<br>'), `did not expect a dangling <br> when the action line is omitted: ${withoutSignal}`);
+});
+
+test('{ uv: 9, feels: 35 }: high UV alone still produces exactly one action line at high temp (no overlap collapsing needed — temp never contributes)', () => {
+  // 35, not 37: same P1-threshold reasoning as above.
   const html = buildProse(baseP({ feels: 35, tMax: 35, diff: 0, evening: 35, uvIndex: 9 }));
   const actionMatches = html.match(/class="action"/g) || [];
   assert.equal(actionMatches.length, 1, `expected exactly one action line in: ${html}`);
   assert.ok(html.includes('Avoid direct sun around midday and into the afternoon, and keep drinking water.'), `expected sun+hydration guidance in: ${html}`);
 });
 
-test('{ humidity: 80, uv: 3, high: 26 }: humidity guidance, not UV (UV too low to qualify)', () => {
+test('{ humidity: 80, uv: 3, feels: 26 }: dew point (derived from temp+humidity) outscores low UV — muggy guidance, not UV', () => {
   const html = buildProse(baseP({ feels: 26, tMax: 26, diff: 0, evening: 26, uvIndex: 3, humidity: 80 }));
-  assert.ok(html.includes("Humid enough to feel warmer than it reads — breathable fabric helps."), `expected humidity guidance in: ${html}`);
+  assert.ok(html.includes('Humid enough to feel warmer than it reads — breathable fabric helps.'), `expected dew-point/muggy guidance in: ${html}`);
   const lower = html.toLowerCase();
   assert.ok(!lower.includes('sunscreen'), `did not expect UV wording in: ${html}`);
 });
 
-// ---- P1 safety alerts (alertForConditions) ----
+// ---- P1 safety alerts (alertForConditions) — outside the score pipeline ----
 
 test('P1 heat alert: feels=37 produces the dangerous-heat headline with 2+ protective behaviors', () => {
   const p = baseP({ feels: 37, tMax: 37, diff: 0, evening: 37 });
@@ -178,4 +196,30 @@ test('P1 boundary — cold: feels=-10 fires (<=), feels=-9 does not', () => {
 test('P1 boundary — wind: wind=60 fires (>=), wind=59 does not', () => {
   assert.notEqual(alertForConditions(baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, wind: 60 })), null);
   assert.equal(alertForConditions(baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, wind: 59 })), null);
+});
+
+test('P1 ice alert: near-freezing temp with precipitation overrides the score pipeline entirely, and avoids self-evident "it\'s cold" phrasing', () => {
+  const p = baseP({ feels: 2, tMax: 2, diff: 0, evening: 2, precip: true });
+  const alert = alertForConditions(p);
+  assert.ok(alert, 'expected an ice alert');
+  assert.match(alert.headline, /icy/i);
+  const lower = alert.action.toLowerCase();
+  assert.ok(!lower.includes('cold') && !lower.includes("it's"), `expected concrete surface-hazard wording, not "it's cold": ${alert.action}`);
+  assert.ok(lower.includes('road') || lower.includes('step') || lower.includes('bridge'), `expected a surface-specific hazard in: ${alert.action}`);
+  const html = buildProse(p);
+  assert.ok(html.includes(alert.headline), `expected buildProse to surface the ice headline in: ${html}`);
+});
+
+test('P1 boundary — ice: feels=3 with precip fires, feels=4 does not, and no precip signal never fires', () => {
+  assert.notEqual(alertForConditions(baseP({ feels: 3, tMax: 3, diff: 0, evening: 3, precip: true })), null);
+  assert.equal(alertForConditions(baseP({ feels: 4, tMax: 4, diff: 0, evening: 4, precip: true })), null);
+  assert.equal(alertForConditions(baseP({ feels: 2, tMax: 2, diff: 0, evening: 2 })), null);
+});
+
+test('P1 storm alert: WMO thunderstorm weathercodes (95-99) override the score pipeline', () => {
+  const p = baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, tCode: 95 });
+  const alert = alertForConditions(p);
+  assert.ok(alert, 'expected a storm alert');
+  assert.match(alert.headline, /thunderstorm/i);
+  assert.equal(alertForConditions(baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, tCode: 80 })), null, 'rain-shower code (80) should not fire the storm alert');
 });

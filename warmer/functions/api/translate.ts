@@ -34,7 +34,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const feelsLike      = p.feels_like ?? p.feels ?? p.tMax ?? p.temp;
     const yesterdayDelta = p.delta;
     const windSpeed      = p.windSpeed ?? p.wind ?? 0;
-    const uvIndex        = p.uvIndex ?? (p.highU ? 6 : 1);
+    // No fallback: a missing UV reading stays null and is excluded from
+    // scoring in severity() below, rather than being silently treated as
+    // UV=1 (the old p.highU ? 6 : 1 fallback — highU is never set in the
+    // live index.html data flow, so that ternary's `6` branch was dead code
+    // and the `?? 1` half was masking "no data" as "definitely low UV",
+    // which suppressed the UV chip whenever the reading was actually missing).
+    const uvIndex        = p.uvIndex ?? null;
     const precipProb     = p.precipProb ?? (p.slots?.length
                               ? Math.max(...p.slots.map((s: any) => s.rain ?? 0))
                               : 0);

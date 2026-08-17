@@ -20,7 +20,7 @@
 export interface WeatherInput {
   feelsLike: number;
   yesterdayDelta: number;
-  uvIndex: number;
+  uvIndex: number | null;
   windSpeed: number;
   precipProb: number;
   eveningDelta: number;
@@ -105,6 +105,10 @@ export function severity(v: WeatherInput): Severities {
   })();
 
   const sevUV = (() => {
+    // No fallback: a missing reading scores 0, which THRESHOLDS.include
+    // (below) already filters out of ranked signals — so "no data" is
+    // excluded rather than silently treated as "definitely low UV".
+    if (uv == null) return 0;
     if (uv < 3) return 0; if (uv < 6) return 1;
     if (uv < 8) return 2; if (uv < 11) return 3;
     return 4;
