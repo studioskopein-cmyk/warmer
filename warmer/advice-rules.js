@@ -110,10 +110,11 @@ export const COEFFICIENTS = {
   temperature:          { selfSensible: 1.0, actionability: 0 }, // actionability is moot — see comment above
 };
 
-// Approximate dew point from temp + relative humidity (Magnus-Tetens). This
-// is a physical derivation from two real readings, not a fabricated default —
-// it only produces a value when both inputs are real; otherwise it stays null
-// like everything else in collectAdviceSignals().
+// Approximate dew point from temp + relative humidity (Magnus-Tetens). Used
+// only when a real dew_point_2m reading isn't available — a physical
+// derivation from two real readings, not a fabricated default; it only
+// produces a value when both inputs are real, otherwise it stays null like
+// everything else in collectAdviceSignals().
 function deriveDewPoint(tempC, relHumidityPct) {
   if (tempC == null || relHumidityPct == null) return null;
   const a = 17.27, b = 237.7;
@@ -127,94 +128,185 @@ function deriveDewPoint(tempC, relHumidityPct) {
  * a variable with no real reading comes out null and is excluded downstream.
  */
 export function collectAdviceSignals(p) {
-  const { feels = null, tMax = null, uvIndex = null, humidity = null,
-          maxRain = null, wind = 0, gust = null, slots = [],
-          pollen = null, airQuality = null, dewPoint = null } = p;
+  const { feels = null, tMax = null, tMin = null, uvIndex = null, humidity = null,
+          maxRain = null, wind = 0, gust = null,
+          pollenSpecies = null, europeanAqi = null, dewPoint = null } = p;
 
   const temperature = feels ?? tMax ?? null;
-  const eTemp = slots[2]?.temp ?? null;
 
   return {
     uvIndex,
     precipitationTiming: maxRain,
-    pollen,
-    diurnalRange: (tMax != null && eTemp != null) ? +(tMax - eTemp).toFixed(1) : null,
-    // gust is the real signal; sustained wind is the best available stand-in
-    // when no gust reading exists (same pattern alertForConditions() uses).
+    pollen: pollenSpecies,
+    // Daily max−min (일교차), not just the evening-slot drop — a real
+    // temperature_2m_min reading, not derived.
+    diurnalRange: (tMax != null && tMin != null) ? +(tMax - tMin).toFixed(1) : null,
+    // gust is the real signal (wind_gusts_10m); sustained wind is the best
+    // available stand-in only when no gust reading exists (same pattern
+    // alertForConditions() uses).
     windGusts: gust ?? (wind || null),
-    airQuality,
+    airQuality: europeanAqi,
     dewPoint: dewPoint ?? deriveDewPoint(temperature, humidity),
     apparentTempGap: (feels != null && tMax != null) ? +Math.abs(feels - tMax).toFixed(1) : null,
     temperature,
   };
 }
 
-// v1 salience: threshold bands. Isolated behind this one function so it can
-// be swapped for a region/season percentile lookup later without touching
-// collect/select/translate.
+// ============================================================================
+// SALIENCE THRESHOLDS — single source of truth. Everything that decides
+// "is today's reading unusual" lives in this block (SALIENCE_BANDS +
+// POLLEN_SPECIES_BANDS below), so tuning after a month of real distributions
+// means editing here only, nothing scattered across index.html/translate.ts.
+// v1 is threshold bands; scoreSalience() is the one function to swap for a
+// region/season percentile lookup later — collect/select/translate don't change.
+//
+// Ranges are [min, max) unless noted. Sourcing notes per variable:
+//   - windGusts: Beaufort scale, Force 6 (39-49km/h) = "umbrellas used with
+//     difficulty" (Royal Meteorological Society / National Geographic Beaufort
+//     descriptions); Force 8 (62-74km/h) = "twigs break off trees" — the point
+//     real structural umbrella damage becomes likely, not just awkward.
+//   - airQuality: European Environment Agency's official European AQI (EAQI)
+//     bands — 0-20 good, 20-40 fair, 40-60 moderate, 60-80 poor, 80-100 very
+//     poor, 100+ extremely poor.
+//   - pollen (POLLEN_SPECIES_BANDS below): grass/birch cutoffs are UK Met
+//     Office published high-range thresholds; alder/mugwort/olive/ragweed are
+//     reasonable approximations from general aeroallergen literature, not
+//     independently verified per-species EAN cutoffs — revisit with real
+//     regional data if this matters more than "roughly right."
+//   - dewPoint: standard meteorological comfort bands (NWS/AccuWeather-style
+//     dew-point comfort scale) — both a "too dry" and a "too muggy" tail are
+//     notable; the 10-18°C middle is unremarkable on purpose.
+// ============================================================================
 const SALIENCE_BANDS = {
   uvIndex: [
-    { min: 11, salience: 1.0, tier: 'extreme' },
-    { min: 8, salience: 0.75, tier: 'high' },
-    { min: 6, salience: 0.5, tier: 'moderate' },
-    { min: 3, salience: 0.2, tier: 'mild' },
+    { min: 3, max: 6, salience: 0.2, tier: 'mild' },
+    { min: 6, max: 8, salience: 0.5, tier: 'moderate' },
+    { min: 8, max: 11, salience: 0.75, tier: 'high' },
+    { min: 11, max: Infinity, salience: 1.0, tier: 'extreme' },
   ],
   precipitationTiming: [
-    { min: 60, salience: 1.0, tier: 'strong' },
-    { min: 30, salience: 0.5, tier: 'possible' },
+    { min: 30, max: 60, salience: 0.5, tier: 'possible' },
+    { min: 60, max: Infinity, salience: 1.0, tier: 'strong' },
   ],
-  // Placeholder bands — no pollen API is wired into the data pipeline yet,
-  // so this variable is always null/excluded in production today.
-  pollen: [
-    { min: 4, salience: 1.0, tier: 'high' },
-    { min: 3, salience: 0.6, tier: 'moderate' },
-    { min: 2, salience: 0.3, tier: 'mild' },
-  ],
+  // Daily max−min, °C.
   diurnalRange: [
-    { min: 10, salience: 1.0, tier: 'big' },
-    { min: 7, salience: 0.7, tier: 'notable' },
-    { min: 5, salience: 0.4, tier: 'mild' },
+    { min: 8, max: 12, salience: 0.3, tier: 'mild' },
+    { min: 12, max: 16, salience: 0.6, tier: 'notable' },
+    { min: 16, max: Infinity, salience: 1.0, tier: 'big' },
   ],
+  // km/h, gust — see Beaufort sourcing note above. Capped at 60: anything at
+  // or above that is already claimed by the P1 wind safety alert in
+  // alertForConditions() (windValue >= 60), so a tier above 60 here would be
+  // dead code — the pipeline never sees a reading that high.
   windGusts: [
-    { min: 45, salience: 0.8, tier: 'strong' },
-    { min: 35, salience: 0.6, tier: 'notable' },
-    { min: 25, salience: 0.35, tier: 'mild' },
+    { min: 39, max: 50, salience: 0.4, tier: 'notable' },
+    { min: 50, max: 60, salience: 0.75, tier: 'strong' },
   ],
-  // Placeholder bands (US AQI cut points) — no air-quality API wired in yet,
-  // so this variable is always null/excluded in production today.
+  // European AQI (0-100+) — see EAQI sourcing note above.
   airQuality: [
-    { min: 151, salience: 1.0, tier: 'unhealthy' },
-    { min: 101, salience: 0.6, tier: 'sensitive' },
-    { min: 51, salience: 0.3, tier: 'moderate' },
+    { min: 40, max: 60, salience: 0.25, tier: 'moderate' },
+    { min: 60, max: 80, salience: 0.5, tier: 'poor' },
+    { min: 80, max: 100, salience: 0.75, tier: 'veryPoor' },
+    { min: 100, max: Infinity, salience: 1.0, tier: 'extremelyPoor' },
   ],
+  // °C — two-sided: both very dry and very muggy air are notable; 10-18°C is
+  // the unremarkable comfortable middle (no band = salience 0).
   dewPoint: [
-    { min: 24, salience: 1.0, tier: 'oppressive' },
-    { min: 21, salience: 0.7, tier: 'muggy' },
-    { min: 18, salience: 0.4, tier: 'sticky' },
+    { min: -Infinity, max: 10, salience: 0.4, tier: 'dry' },
+    { min: 18, max: 21, salience: 0.7, tier: 'muggy' },
+    { min: 21, max: Infinity, salience: 1.0, tier: 'oppressive' },
   ],
   apparentTempGap: [
-    { min: 6, salience: 1.0, tier: 'big' },
-    { min: 4, salience: 0.6, tier: 'notable' },
-    { min: 2, salience: 0.3, tier: 'mild' },
+    { min: 2, max: 4, salience: 0.3, tier: 'mild' },
+    { min: 4, max: 6, salience: 0.6, tier: 'notable' },
+    { min: 6, max: Infinity, salience: 1.0, tier: 'big' },
   ],
   // No bands: temperature's priority is zeroed by (1 − selfSensible) = 0
   // regardless of salience, so it never needs a tier.
   temperature: [],
 };
 
+// Pollen needs its own table per species (grains/m³) — raw counts aren't
+// comparable across species (see sourcing note above), so each species is
+// scored against its own bands and the pipeline picks the single most
+// salient species as "the" pollen candidate.
+const POLLEN_SPECIES_BANDS = {
+  grass: [
+    { min: 5, max: 50, salience: 0.35, tier: 'moderate' },
+    { min: 50, max: 150, salience: 0.7, tier: 'high' },
+    { min: 150, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+  birch: [
+    { min: 20, max: 81, salience: 0.35, tier: 'moderate' },
+    { min: 81, max: 200, salience: 0.7, tier: 'high' },
+    { min: 200, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+  alder: [
+    { min: 10, max: 100, salience: 0.35, tier: 'moderate' },
+    { min: 100, max: 200, salience: 0.7, tier: 'high' },
+    { min: 200, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+  mugwort: [
+    { min: 5, max: 10, salience: 0.35, tier: 'moderate' },
+    { min: 10, max: 50, salience: 0.7, tier: 'high' },
+    { min: 50, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+  olive: [
+    { min: 10, max: 100, salience: 0.35, tier: 'moderate' },
+    { min: 100, max: 200, salience: 0.7, tier: 'high' },
+    { min: 200, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+  ragweed: [
+    { min: 10, max: 20, salience: 0.35, tier: 'moderate' },
+    { min: 20, max: 50, salience: 0.7, tier: 'high' },
+    { min: 50, max: Infinity, salience: 1.0, tier: 'veryHigh' },
+  ],
+};
+
+function scorePollenSalience(speciesReadings) {
+  let best = null;
+  for (const [species, reading] of Object.entries(speciesReadings || {})) {
+    if (reading == null) continue;
+    const bands = POLLEN_SPECIES_BANDS[species];
+    if (!bands) continue;
+    const hit = bands.find(b => reading >= b.min && reading < b.max);
+    if (hit && (!best || hit.salience > best.salience)) {
+      best = { salience: hit.salience, tier: hit.tier, meta: { species, value: reading } };
+    }
+  }
+  return best; // null when every species is null/unremarkable — no candidate
+}
+
+function findRainStartLabel(context) {
+  const series = context?.rainSeries;
+  if (!Array.isArray(series)) return null;
+  const hit = series.find(pt => pt.rain >= 40);
+  return hit ? formatHourLabel(hit.hour) : null;
+}
+function formatHourLabel(hour) {
+  if (hour === 0) return '12am';
+  if (hour < 12) return `${hour}am`;
+  if (hour === 12) return '12pm';
+  return `${hour - 12}pm`;
+}
+
 /**
  * Stage 2a: how unusual is this one reading, today? v1 implementation is
  * threshold bands; a null value (no data) returns null rather than a fake 0,
- * so it reads as "no candidate," not "known to be unremarkable."
+ * so it reads as "no candidate," not "known to be unremarkable." `meta`
+ * carries whatever raw context translate() needs (the actual number, a
+ * pollen species, a rain start time) — scoreSalience is the only place that
+ * computes it, so a future percentile-based version just needs to keep
+ * returning the same {salience, tier, meta} shape.
  */
 export function scoreSalience(variable, value, context = {}) {
+  if (variable === 'pollen') return value ? scorePollenSalience(value) : null;
   if (value == null) return null;
-  const bands = SALIENCE_BANDS[variable];
-  if (!bands || bands.length === 0) return { salience: 0, tier: null };
-  for (const band of bands) {
-    if (value >= band.min) return { salience: band.salience, tier: band.tier };
-  }
-  return { salience: 0, tier: null };
+  const bands = SALIENCE_BANDS[variable] || [];
+  const hit = bands.find(b => value >= b.min && value < b.max);
+  const meta = { value };
+  if (variable === 'precipitationTiming') meta.startLabel = findRainStartLabel(context);
+  return hit ? { salience: hit.salience, tier: hit.tier, meta } : { salience: 0, tier: null, meta };
 }
 
 /**
@@ -227,7 +319,7 @@ export function scoreCandidates(signals, context = {}) {
       if (!s) return null;
       const coeff = COEFFICIENTS[key];
       const priority = +(s.salience * coeff.actionability * (1 - coeff.selfSensible)).toFixed(4);
-      return { key, value, salience: s.salience, tier: s.tier, actionability: coeff.actionability, priority };
+      return { key, value, salience: s.salience, tier: s.tier, meta: s.meta, actionability: coeff.actionability, priority };
     })
     .filter(Boolean);
 }
@@ -243,54 +335,58 @@ export function selectCandidate(scored) {
   return positive[0];
 }
 
-// Stage 4: translate. Copy is keyed by variable + salience tier only —
+const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1);
+
+// Stage 4: translate. Copy is keyed by variable + salience tier, as a
+// function of that candidate's meta (the actual number/species/time) —
 // never by temperature.
 const ADVICE_COPY = {
   uvIndex: {
-    mild: "UV's creeping up — sunscreen's worth it if you'll be out a while.",
-    moderate: "UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt.",
-    high: 'Avoid direct sun around midday and into the afternoon, and keep drinking water.',
-    extreme: "UV's at extreme levels — minimize midday sun and reapply sunscreen if you're out.",
+    mild: () => "UV's creeping up — sunscreen's worth it if you'll be out a while.",
+    moderate: () => "UV's fairly strong out — a bit of shade or sunscreen wouldn't hurt.",
+    high: () => 'Avoid direct sun around midday and into the afternoon, and keep drinking water.',
+    extreme: () => "UV's at extreme levels — minimize midday sun and reapply sunscreen if you're out.",
   },
   precipitationTiming: {
-    possible: 'An umbrella might be worth it.',
-    strong: 'Bring an umbrella.',
+    possible: meta => meta.startLabel ? `Rain's possible from around ${meta.startLabel}.` : 'An umbrella might be worth it today.',
+    strong: meta => meta.startLabel ? `Rain moves in around ${meta.startLabel} — bring an umbrella.` : 'Bring an umbrella.',
   },
   pollen: {
-    mild: 'Pollen count is creeping up — could irritate allergies today.',
-    moderate: "Pollen's moderate to high — allergy meds might help if you're sensitive.",
-    high: "Pollen's high today — worth taking allergy precautions before heading out.",
+    moderate: meta => `${pollenLabel(meta.species)} pollen is creeping up — could irritate allergies today.`,
+    high: meta => `${pollenLabel(meta.species)} pollen is high today — worth taking allergy precautions before heading out.`,
+    veryHigh: meta => `${pollenLabel(meta.species)} pollen is very high today — allergy meds are worth it if you're sensitive.`,
   },
   diurnalRange: {
-    mild: 'Cools off a fair bit tonight — worth having a layer on hand.',
-    notable: 'Big drop by evening — bring a layer before you head out later.',
-    big: 'Big swing to a much colder evening — dress in layers you can add as it drops.',
+    mild: meta => `Drops ${Math.round(meta.value)}° after sunset — worth having a layer on hand.`,
+    notable: meta => `Drops ${Math.round(meta.value)}° after sunset — bring a layer before you head out later.`,
+    big: meta => `Drops ${Math.round(meta.value)}° after sunset — dress in layers you can add as it falls.`,
   },
   windGusts: {
-    mild: "Breezy today — a windproof layer's worth it if you'll be out a while.",
-    notable: 'Gusty out there — a windproof layer makes a real difference.',
-    strong: 'Strong gusts today — secure loose items and dress for the wind.',
+    notable: meta => `Gusts to ${Math.round(meta.value)}km/h — umbrellas won't hold up well; a windproof layer's worth it.`,
+    strong: meta => `Gusts to ${Math.round(meta.value)}km/h — secure loose items and dress for the wind.`,
   },
   airQuality: {
-    moderate: "Air quality's a bit off today — sensitive groups may want to take it easy outside.",
-    sensitive: 'Air quality is unhealthy for sensitive groups — consider limiting time outside.',
-    unhealthy: "Air quality's poor today — worth limiting time outdoors if you can.",
+    moderate: () => "Air quality's fair today — fine for a walk, maybe ease off a hard outdoor workout.",
+    poor: () => "Air quality's poor — worth moving an intense workout indoors today.",
+    veryPoor: () => 'Air quality is very poor — skip strenuous exercise outside today.',
+    extremelyPoor: () => "Air quality's extremely poor — stay indoors if you can, and skip outdoor exercise entirely.",
   },
   dewPoint: {
-    sticky: 'A bit sticky out — breathable fabric helps.',
-    muggy: 'Humid enough to feel warmer than it reads — breathable fabric helps.',
-    oppressive: "Air feels heavy and oppressive — take it easy and drink water even if it doesn't feel that hot.",
+    dry: () => "Air's quite dry today — worth some lip balm or lotion if you're out a while.",
+    muggy: () => 'Humid enough to feel warmer than it reads — breathable fabric helps.',
+    oppressive: () => "Air feels heavy and oppressive — take it easy and drink water even if it doesn't feel that hot.",
   },
   apparentTempGap: {
-    mild: 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
-    notable: 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
-    big: 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
+    mild: () => 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
+    notable: () => 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
+    big: () => 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
   },
 };
 
 export function translateCandidate(selected) {
   if (!selected) return '';
-  return ADVICE_COPY[selected.key]?.[selected.tier] || '';
+  const fn = ADVICE_COPY[selected.key]?.[selected.tier];
+  return fn ? fn(selected.meta || {}) : '';
 }
 
 /**

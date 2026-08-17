@@ -73,6 +73,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-bar{width:12px;height:1.5px;background:var(--text)}
+.credits{text-align:center;font-size:10px;color:var(--muted);letter-spacing:0.3px;padding:16px 20px 24px;opacity:0.6}
 .flow-consensus{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:14px;color:var(--text);opacity:0.7;line-height:1.1;letter-spacing:-0.05em;margin-top:8px}
 .flow-consensus.on{display:block}
 .cmp{margin-bottom:20px}
@@ -972,6 +973,8 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   </div>
 </div>
 
+<div class="credits">Weather: Open-Meteo (ECMWF · ICON · GFS) · Air quality, UV &amp; pollen: Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo</div>
+
 <script type="module">
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -1053,9 +1056,41 @@ wireCitySearch();
 wireFlowTouch();
 
 const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,uv_index,relative_humidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
+// uv_index stays in this request too (GFS) as a live fallback if the CAMS
+// air-quality call below fails — not a fabricated value, just a second real
+// reading, same pattern as the gust-or-wind fallback in advice-rules.js.
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
 
-function parse(data){
+// CAMS via Open-Meteo's Air Quality API — ECMWF's recommended UV source
+// (global CAMS coverage, better accuracy than the GFS-only reading above),
+// plus european_aqi and the 6 pollen species (Europe/season only — absent
+// elsewhere, which parseAirQuality() below treats as "no data", not an error).
+// Free/non-commercial; requires CAMS + Open-Meteo attribution (see credits
+// line near the end of <body>).
+async function fetchAirQuality(lat,lon){
+  try{
+    const url=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=uv_index,european_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto`;
+    const r=await fetch(url);
+    if(!r.ok)return null;
+    return await r.json();
+  }catch{return null}
+}
+
+function parseAirQuality(data,now){
+  const empty={uvIndex:null,europeanAqi:null,pollenSpecies:{grass:null,birch:null,alder:null,mugwort:null,olive:null,ragweed:null}};
+  if(!data||data.error||!data.hourly)return empty;
+  const startTime=data.hourly.time?.[0]?new Date(data.hourly.time[0]):now;
+  const idx=Math.round((now-startTime)/3600000);
+  const at=key=>{const v=data.hourly[key]?.[idx];return v!=null?v:null};
+  const uv=at('uv_index');
+  return{
+    uvIndex:uv!=null?Math.round(uv*10)/10:null,
+    europeanAqi:at('european_aqi')!=null?Math.round(at('european_aqi')):null,
+    pollenSpecies:{grass:at('grass_pollen'),birch:at('birch_pollen'),alder:at('alder_pollen'),mugwort:at('mugwort_pollen'),olive:at('olive_pollen'),ragweed:at('ragweed_pollen')},
+  };
+}
+
+function parse(data,airData){
   if(!data || data.error) throw new Error(data?.reason || 'API Error');
   const now=new Date(),h=now.getHours();
   const startTime = data.hourly?.time?.[0] ? new Date(data.hourly.time[0]) : now;
@@ -1070,6 +1105,8 @@ function parse(data){
   const tMax=Math.round(tMaxArr[1]??modelMaxToday[0]??0);
   const yMax=Math.round(yMaxArr[0]??modelMaxYest[0]??0);
   const tCode=tCodeArr[1]??0;
+  const tMinArr=data.daily?.[`temperature_2m_min_${primary}`];
+  const tMin=tMinArr?.[1]!=null?Math.round(tMinArr[1]):null;
 
   const hourlyByModel=MODELS.map(m=>{
     const tArr=data.hourly?.[`temperature_2m_${m.id}`];
@@ -1082,13 +1119,21 @@ function parse(data){
   const slots=[{label:'morning',h:8},{label:'midday',h:13},{label:'evening',h:19}].map(s=>({label:s.label,h:s.h,temp:Math.round(primaryHourly[s.h]?.t??0),rain:Math.round(primaryHourly[s.h]?.r??0)}));
   const feels=Math.round(data.hourly?.[`apparent_temperature_${primary}`]?.[S+h]??slots[1].temp);
   const wind=Math.round(data.hourly?.[`windspeed_10m_${primary}`]?.[S+h]??0);
-  // ECMWF/ICON don't expose uv_index in this API (confirmed null in practice) — GFS does, so UV
-  // is read from that model specifically rather than the primary temperature model. No constant
-  // fallback: if the value isn't there, uvIndex stays null and UV-based copy is simply not shown.
-  const uvRaw=data.hourly?.[`uv_index_gfs_seamless`]?.[S+h];
-  const uvIndex=uvRaw!=null?Math.round(uvRaw*10)/10:null;
+  const gustRaw=data.hourly?.[`wind_gusts_10m_${primary}`]?.[S+h];
+  const gust=gustRaw!=null?Math.round(gustRaw):null;
+  const dewRaw=data.hourly?.[`dew_point_2m_${primary}`]?.[S+h];
+  const dewPoint=dewRaw!=null?Math.round(dewRaw*10)/10:null;
+  // CAMS (via parseAirQuality below) is the preferred UV source — ECMWF's
+  // recommended source, global coverage. GFS is read here purely as a live
+  // fallback if the CAMS call failed; no constant fallback either way — if
+  // both are missing, uvIndex stays null and UV-based copy is simply not shown.
+  const gfsUvRaw=data.hourly?.[`uv_index_gfs_seamless`]?.[S+h];
+  const gfsUvIndex=gfsUvRaw!=null?Math.round(gfsUvRaw*10)/10:null;
   const humidityRaw=data.hourly?.[`relative_humidity_2m_${primary}`]?.[S+h];
   const humidity=humidityRaw!=null?Math.round(humidityRaw):null;
+  const airQuality=parseAirQuality(airData,now);
+  const uvIndex=airQuality.uvIndex??gfsUvIndex;
+  const rainSeries=primaryHourly.map((pt,i)=>({hour:i,rain:pt.r}));
 
   const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;
   let rainSpread=0,maxRain=0;
@@ -1108,7 +1153,7 @@ function parse(data){
   const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
   const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
 
-  return{tMax,yMax,tCode,feels,wind,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,consensus,modelMaxToday,uvIndex,humidity};
+  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
 
 function buildAddendum(p){
@@ -1245,7 +1290,7 @@ async function init(){
 
   try{
     const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
-    const data=await fetchMultiModel(loc.lat,loc.lon);const p=parse(data);render(p);loadNearby(currentKey);
+    const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);const p=parse(data,airData);render(p);loadNearby(currentKey);
     const ai=await getAI(p);if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
   }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;}
 }
