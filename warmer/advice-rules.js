@@ -72,6 +72,18 @@ export function bandViolations(temp, text) {
   return bandForTemp(temp).bannedWords.filter(w => lower.includes(w));
 }
 
+// The one place "is chilly/cold/freezing wording (or garment advice)
+// accurate at this temperature" gets decided. This bug kept reappearing in
+// a new code path each time — the evening phrase, the old action-line
+// temperature fallback, the trend headline, now diurnalRange — because each
+// one re-derived its own threshold instead of asking bandForTemp(). Every
+// consumer that needs this gate reads this function; none of them re-judge
+// temperature on their own.
+const COLD_WORDING_BANDS = new Set(['chilly', 'cold', 'freezing']);
+export function coldWordingAccurate(temp) {
+  return COLD_WORDING_BANDS.has(bandForTemp(temp).name);
+}
+
 // ---- HTML fragment helpers (presentation only, no weather logic) ----
 const ic = (temp, delta) => {
   const sign = delta > 0 ? '<span class="up">' : delta < 0 ? '<span class="dn">' : '<span>';
@@ -335,6 +347,12 @@ export function scoreSalience(variable, value, context = {}) {
   // dewPoint's copy states the feels-like gap as a number (see ADVICE_COPY)
   // instead of adjectives — apparent_temperature is the only source for that.
   if (variable === 'dewPoint') meta.feelsLike = context?.feels ?? null;
+  // diurnalRange's copy needs the actual overnight low (tMin), not just the
+  // size of the drop — a 16° drop from 36° still lands at a shirt-sleeve
+  // 20°, and garment wording is only accurate below coldWordingAccurate()'s
+  // threshold. Without this, translate can only see the delta, which is
+  // exactly how a 34° evening got "dress in layers."
+  if (variable === 'diurnalRange') meta.eveningTemp = context?.tMin ?? null;
   return hit ? { salience: hit.salience, tier: hit.tier, meta } : { salience: 0, tier: null, meta };
 }
 
@@ -401,10 +419,24 @@ export const ADVICE_COPY = {
     high: meta => `${pollenLabel(meta.species)} pollen is high today — worth an antihistamine before heading out.`,
     veryHigh: meta => `${pollenLabel(meta.species)} pollen is very high today — an antihistamine earns its keep if you're sensitive.`,
   },
+  // Garment wording ("grab a layer") is only accurate if the overnight low
+  // itself is cool — a 16° drop from 36° still lands at a shirt-sleeve 20°.
+  // Gated by coldWordingAccurate(meta.eveningTemp), same shared bandForTemp()
+  // table as the trend headline and evening phrase — never a fresh
+  // threshold. Below that gate, still worth naming the swing as information,
+  // just without garment advice. "overnight," not "after sunset": the daily
+  // low consistently lands within an hour of sunrise, not shortly after
+  // sunset — see the timing note on findRainTiming's neighbors above.
   diurnalRange: {
-    mild: meta => `Drops ${Math.round(meta.value)}° after sunset — worth having a layer on hand.`,
-    notable: meta => `Drops ${Math.round(meta.value)}° after sunset — bring a layer before you head out later.`,
-    big: meta => `Drops ${Math.round(meta.value)}° after sunset — dress in layers you can add as it falls.`,
+    mild: meta => coldWordingAccurate(meta.eveningTemp)
+      ? `Drops ${Math.round(meta.value)}° overnight — worth having a layer on hand.`
+      : `Cools to about ${Math.round(meta.eveningTemp)}° overnight — a comfortable night, nothing dramatic.`,
+    notable: meta => coldWordingAccurate(meta.eveningTemp)
+      ? `Drops ${Math.round(meta.value)}° overnight — bring a layer before you head out later.`
+      : `Nights ease down to about ${Math.round(meta.eveningTemp)}° — well below the daytime high, but still warm.`,
+    big: meta => coldWordingAccurate(meta.eveningTemp)
+      ? `Drops ${Math.round(meta.value)}° overnight — dress in layers you can add as it falls.`
+      : `Big swing to about ${Math.round(meta.eveningTemp)}° overnight — a lot cooler than the day, though still mild out.`,
   },
   windGusts: {
     notable: meta => `Gusts to ${Math.round(meta.value)}km/h — umbrellas won't hold up well; a windproof layer's worth it.`,
@@ -626,14 +658,16 @@ export function buildProse(p) {
     // on the actual temperature — so a 36° day that's 2° cooler than
     // yesterday got called "a bit chilly" (Cairo). The evening phrase below
     // was already gated by absolute temp via bandForTemp(); this line
-    // wasn't. "chilly/colder" only describe genuinely cool conditions now
-    // (tMax<15°) — above that, the same-size drop is "cooler," a comparison
-    // to yesterday, not a claim about how the day itself feels.
-    const warmBand = tMax >= 15;
+    // wasn't. "chilly/colder" only describe genuinely cool conditions now —
+    // above that, the same-size drop is "cooler," a comparison to
+    // yesterday, not a claim about how the day itself feels. Reads
+    // coldWordingAccurate() (same bandForTemp() table as everywhere else)
+    // rather than its own threshold.
+    const cold = coldWordingAccurate(tMax);
     const cw = diff >= 6 ? 'much warmer' : diff >= 3 ? 'warmer' : diff >= 2 ? 'a bit warmer'
-      : diff <= -6 ? (warmBand ? 'much cooler' : 'much colder')
-      : diff <= -3 ? (warmBand ? 'cooler' : 'colder')
-      : (warmBand ? 'a touch cooler' : 'a bit chilly');
+      : diff <= -6 ? (cold ? 'much colder' : 'much cooler')
+      : diff <= -3 ? (cold ? 'colder' : 'cooler')
+      : (cold ? 'a bit chilly' : 'a touch cooler');
     prose = `<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
     if (eChip) {
       const phrase = bandForTemp(eTemp).eveningPhrase;

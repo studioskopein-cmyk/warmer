@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   alertForConditions, bandForTemp, bandViolations, buildProse, TEMP_BANDS,
   COEFFICIENTS, scoreCandidates, selectCandidate, collectAdviceSignals, computeAdvice,
-  assertNotSelfEvident, ADVICE_COPY,
+  assertNotSelfEvident, ADVICE_COPY, coldWordingAccurate,
 } from './advice-rules.js';
 
 function slotsFor(eveningTemp) {
@@ -170,13 +170,61 @@ test('dew point: oppressive tier (derived, >=21°C) quotes the numeric feels-lik
 });
 
 test('diurnal range now reads daily temperature_2m_max/min (일교차), not the evening-slot proxy, and names the actual drop', () => {
+  // eveningTemp (tMin) of 8° is genuinely cold (bandForTemp -> 'cold'), so
+  // garment wording is accurate here — see the item-6 tests below for the
+  // 34°-evening case where the same 14-16° drop must NOT trigger it.
   const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, tMin: 8 }));
-  assert.ok(html.includes('Drops 14° after sunset'), `expected the real 14° daily range in: ${html}`);
+  assert.ok(html.includes('Drops 14° overnight'), `expected the real 14° daily range in: ${html}`);
 });
 
 test('diurnal range stays excluded (null, not zero) when tMin is never supplied', () => {
   const signals = collectAdviceSignals(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22 }));
   assert.equal(signals.diurnalRange, null);
+});
+
+// ---- Diurnal-range garment bug — 4th recurrence of the same bug class
+// (evening phrase, the old action-line temp fallback, the trend headline,
+// now this): translate() judged the size of the drop but never checked the
+// actual overnight temperature, so a 36°/34°-evening Madrid day got "dress
+// in layers you can add as it falls." Fixed by routing through the same
+// coldWordingAccurate()/bandForTemp() gate every other consumer uses,
+// instead of diurnalRange inventing its own threshold. ----
+
+test('coldWordingAccurate() is the single shared gate: same predicate the trend headline and diurnalRange both read, no re-derived thresholds', () => {
+  assert.equal(coldWordingAccurate(36), false);
+  assert.equal(coldWordingAccurate(20), false); // 'mild' band — not cold-side
+  assert.equal(coldWordingAccurate(14.9), true); // 'chilly' band
+  assert.equal(coldWordingAccurate(5), true); // 'cold' band
+  assert.equal(coldWordingAccurate(-2), true); // 'freezing' band
+});
+
+test('{ tMax:36, tMin:20, evening:34 }: a 16° drop that still lands at a warm 20° evening gets no garment phrasing — informational text only', () => {
+  // feels:35, not 36 — stays below the P1 heat-alert threshold, same
+  // convention as the rest of this suite.
+  const html = buildProse(baseP({ feels: 35, tMax: 36, diff: 0, evening: 34, tMin: 20 }));
+  const lower = html.toLowerCase();
+  for (const word of ['layer', 'jacket', 'coat']) {
+    assert.ok(!lower.includes(word), `did not expect garment wording ("${word}") at a 20° evening: ${html}`);
+  }
+  assert.ok(html.includes('20°'), `expected the actual overnight low stated as a number in: ${html}`);
+});
+
+test('{ tMax:15, tMin:2, evening:8 }: a genuinely cold overnight low still gets normal garment advice', () => {
+  // evening (the ~7pm slot) stays close to tMax at 13° — the real overnight
+  // low of 2° doesn't happen until closer to dawn (see the timing test
+  // below), so the evening slot shouldn't itself trip a >=5° drop and get
+  // covered by the trend line's own evening-chip (item 5's headline dedup).
+  const html = buildProse(baseP({ feels: 15, tMax: 15, diff: 0, evening: 13, tMin: 2 }));
+  assert.ok(html.toLowerCase().includes('layer'), `expected garment advice at a 2° overnight low in: ${html}`);
+});
+
+test('diurnal-range timing: "overnight," never "after sunset" — the daily low lands near sunrise, not shortly after sunset (verified against live hourly data: Madrid/Cairo/Beijing daily minimums all fell within an hour of sunrise, 10+ hours after sunset)', () => {
+  const cold = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, tMin: 8 }));
+  const warm = buildProse(baseP({ feels: 35, tMax: 36, diff: 0, evening: 34, tMin: 20 }));
+  for (const html of [cold, warm]) {
+    assert.ok(!html.toLowerCase().includes('sunset'), `did not expect "sunset" phrasing in: ${html}`);
+  }
+  assert.ok(cold.includes('overnight'), `expected "overnight" phrasing in: ${cold}`);
 });
 
 test('wind gusts: a real gust reading (not sustained wind) drives the tier', () => {
@@ -259,7 +307,7 @@ test('assertNotSelfEvident: throws on each banned phrase, passes on clean or num
 });
 
 test('every advice-copy variant (all variables × all tiers, representative meta) passes the self-evident gate', () => {
-  const representativeMeta = { value: 9, species: 'grass', feelsLike: 34, timing: { phase: 'starting', label: '4pm' } };
+  const representativeMeta = { value: 9, species: 'grass', feelsLike: 34, eveningTemp: 22, timing: { phase: 'starting', label: '4pm' } };
   for (const [key, tiers] of Object.entries(ADVICE_COPY)) {
     for (const [tier, fn] of Object.entries(tiers)) {
       const text = fn(representativeMeta);
@@ -290,7 +338,7 @@ test('headline dedup exception: a concrete rain start/clear time is information 
 test('headline dedup: a big evening temperature drop already stated in the trend line is not repeated as diurnal-range advice', () => {
   const html = buildProse(baseP({ feels: 24, tMax: 24, diff: 3, evening: 10, tMin: 8 }));
   assert.ok(html.includes('in the evening'), `expected the trend line to cover the evening drop in: ${html}`);
-  assert.ok(!html.includes('after sunset'), `expected diurnal-range advice to be suppressed as a headline duplicate in: ${html}`);
+  assert.ok(!html.includes('overnight'), `expected diurnal-range advice to be suppressed as a headline duplicate in: ${html}`);
 });
 
 test('air quality (European AQI): poor tier frames the advice around exercise, not a raw index number', () => {
