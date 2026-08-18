@@ -17,8 +17,8 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73}
-body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:#ffffff}
+body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:#8B615F}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
@@ -61,14 +61,22 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .fb-sheet-title{font-size:13px;color:var(--muted)}
 .fb-sheet-close{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent}
-.flow-section{margin-bottom:32px}
-.flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:12px;padding:12px 16px;user-select:none;-webkit-user-select:none}
+.flow-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
+.flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;user-select:none;-webkit-user-select:none}
 .flow-header:active{opacity:.65}
 .flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;color:var(--text)}
 .flow-toggle-icon{font-size:13px;color:var(--muted);transition:transform .2s ease}
 .flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
-.flow-body{display:none;padding-top:20px}
-.flow-section.open .flow-body{display:block}
+.flow-section.open .flow-header{border-bottom:1px solid var(--line)}
+/* Grid-track accordion: a single 0fr row has zero height; a single 1fr row
+   sizes to the row's own max-content height (the chart's real rendered
+   height, whatever it turns out to be) — the browser recomputes that every
+   frame of the transition, so this animates to the actual content height
+   without a JS scrollHeight/ResizeObserver measurement, and stays correct
+   if the chart's height ever changes (viewBox, legend wrapping, etc). */
+.flow-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.25,1,.5,1)}
+.flow-section.open .flow-body{grid-template-rows:1fr}
+.flow-body-inner{overflow:hidden;min-height:0;padding:4px 16px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 .flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
@@ -135,9 +143,11 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
       <span class="flow-toggle-icon" id="flowToggleIcon">↓</span>
     </div>
     <div class="flow-body">
-      <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="flow-legend" id="flowLegend"></div>
-      <div class="flow-consensus" id="flowConsensus"></div>
+      <div class="flow-body-inner">
+        <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="flow-legend" id="flowLegend"></div>
+        <div class="flow-consensus" id="flowConsensus"></div>
+      </div>
     </div>
   </div>
   <div class="div"></div>
@@ -1055,11 +1065,20 @@ function wireCitySearch(){
 wireCitySearch();
 wireFlowTouch();
 
-const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.85,width:1.6},{id:'icon_seamless',label:'ICON',opacity:0.42,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.30,width:1.2}];
+// opacity/width set the primary-vs-secondary line hierarchy in renderFlow
+// (thickness AND opacity both step down, never hue — the palette is
+// near-monochrome ink, so a second color would look like an error, not a
+// series). Secondary-model values are tuned against a white flow-chart card
+// (item 3), not the app's own light-blue --bg: at the old 0.42/0.30, ink
+// text/lines fall under WCAG's 3:1 non-text contrast minimum once they sit
+// on #ffffff instead (that bg's own luminance ~0.72 vs white's 1.0 was
+// carrying them) — 0.65 is roughly where a straight ink line clears 3:1 on
+// white, so anything meant to be legible there needs to sit at or above it.
+const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.9,width:2},{id:'icon_seamless',label:'ICON',opacity:0.78,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.65,width:1}];
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
 // reading, same pattern as the gust-or-wind fallback in advice-rules.js.
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
 
 // CAMS via Open-Meteo's Air Quality API — ECMWF's recommended UV source
 // (global CAMS coverage, better accuracy than the GFS-only reading above),
@@ -1111,8 +1130,11 @@ function parse(data,airData){
   const hourlyByModel=MODELS.map(m=>{
     const tArr=data.hourly?.[`temperature_2m_${m.id}`];
     const rArr=data.hourly?.[`precipitation_probability_${m.id}`];
+    // mm — the actual amount, not the probability. Bar height (renderFlow)
+    // reads this; probability (r) stays tooltip-only, same as before.
+    const mmArr=data.hourly?.[`precipitation_${m.id}`];
     if(!tArr)return null;
-    return{model:m,hourly:Array.from({length:24},(_,i)=>({t:tArr[S+i],r:rArr?(rArr[S+i]??0):0}))};
+    return{model:m,hourly:Array.from({length:24},(_,i)=>({t:tArr[S+i],r:rArr?(rArr[S+i]??0):0,mm:mmArr?(mmArr[S+i]??0):0}))};
   }).filter(x=>x);
 
   const primaryHourly=hourlyByModel.find(x=>x.model.id===primary)?.hourly||[];
@@ -1139,8 +1161,6 @@ function parse(data,airData){
   let rainSpread=0,maxRain=0;
   for(let i=0;i<24;i++){const rains=hourlyByModel.map(x=>x.hourly[i]?.r??0);const spread=Math.max(...rains)-Math.min(...rains);if(spread>rainSpread)rainSpread=spread;const avg=rains.reduce((a,b)=>a+b,0)/rains.length;if(avg>maxRain)maxRain=avg}
 
-  const envelope=Array.from({length:24},(_,i)=>{const ts=hourlyByModel.map(x=>x.hourly[i]?.t).filter(v=>v!=null);return{min:Math.min(...ts),max:Math.max(...ts),mean:ts.reduce((a,b)=>a+b,0)/ts.length}});
-
   // Old thresholds (rainSpread>=25 && maxRain>=30 for RAIN_SPLIT, maxSpread>=3
   // for LOW) fired on 5 of 6 real test cities — a message that shows up
   // nearly every time isn't information. Raised here as a reasoned-but-not-
@@ -1161,7 +1181,7 @@ function parse(data,airData){
   const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
   const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
 
-  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
+  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,pivot,now,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
 
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
@@ -1214,31 +1234,81 @@ window.closeFbSheet=()=>{
   fbLastFocus?.focus();
 };
 
+// Bar height reads mm (actual amount), never probability — probability-based
+// height made drizzle and a downpour look identical whenever both crossed
+// the same "likely" threshold. A straight linear mm scale has the opposite
+// problem: anchored to a fixed ceiling, light rain rounds down to invisible;
+// anchored to today's own max, a drizzle-only day and a downpour day both
+// paint full-height bars and the two become impossible to tell apart, which
+// defeats the point. sqrt(mm) is a fixed, absolute scale (comparable across
+// hours/cities/days, unlike a per-day-relative one) that also expands the
+// low end relative to a straight line — 1mm reads at ~35% height instead of
+// ~13% — so a light shower still shows a real bar instead of a sliver, while
+// heavy rain still tops out visibly taller. Ceiling of 8mm/h sits at the
+// low end of "heavy rain" (WMO/Met Office bands run heavy ≈7.6mm/h+); a rarer
+// spike above that clamps to full height rather than flattening the rest of
+// the day's bars the way an unclamped scale keyed to the day's own peak would.
+const PRECIP_MM_CEILING=8;
+function precipBarHeight(mm,maxH){
+  if(!mm||mm<=0)return 0;
+  const norm=Math.min(1,Math.sqrt(mm)/Math.sqrt(PRECIP_MM_CEILING));
+  return Math.max(2,norm*maxH);// 2px floor: a real but small reading should never round away to nothing
+}
+
 function renderFlow(p){
-  const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerW=W-padX*2,innerH=H-padY*2-24;
+  const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerH=H-padY*2-24,innerW=W-padX*2;
   const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
   if(allTemps.length===0){svg.innerHTML='';return}
   const tMin=Math.min(...allTemps),tMax=Math.max(...allTemps);const pad=Math.max(1,(tMax-tMin)*0.15);const yMin=tMin-pad,yMax=tMax+pad;
   const yScale=t=>padY+(1-(t-yMin)/(yMax-yMin))*innerH;const xScale=i=>padX+(i/23)*innerW;
-  const buildPath=(hourly)=>{return hourly.map((pt,i)=>{const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);return i===0?`M ${x},${y}`:`L ${x},${y}`}).join(' ')};
-  let bandPath='';if(p.envelope&&p.envelope.length===24){const top=p.envelope.map((e,i)=>`${i===0?'M':'L'} ${xScale(i).toFixed(1)},${yScale(e.max).toFixed(1)}`).join(' ');const bot=p.envelope.slice().reverse().map((e,i)=>{const idx=23-i;return`L ${xScale(idx).toFixed(1)},${yScale(e.min).toFixed(1)}`}).join(' ');bandPath=`${top} ${bot} Z`;}
-  const primary=p.hourlyByModel[0];const peakIdx=primary?primary.hourly.reduce((best,pt,i)=>pt.t>primary.hourly[best].t?i:best,0):13;const peakX=xScale(peakIdx),peakY=yScale(primary?.hourly[peakIdx]?.t??p.tMax);
+  // Skips hours with no reading instead of feeding yScale(null) into the
+  // path data — only ever drawing the primary model masked this: a
+  // secondary model missing its last hour or two near the forecast
+  // boundary produced an "L x,NaN" segment the moment ICON/GFS started
+  // drawing too, breaking the path.
+  const buildPath=(hourly)=>{let d='';hourly.forEach((pt,i)=>{if(pt.t==null)return;const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);d+=d===''?`M ${x},${y}`:` L ${x},${y}`});return d};
+  const primary=p.hourlyByModel[0];const peakIdx=primary?primary.hourly.reduce((best,pt,i)=>pt.t>primary.hourly[best].t?i:best,0):13;
   const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
-  let html=`<defs></defs>`;if(bandPath)html+=`<path d="${bandPath}" fill="rgb(var(--text-rgb))" fill-opacity="0.07"/>`;
-  {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="2" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round"/>`;}
-  {const rainThresh=40;let rStart=-1,rEnd=-1;primary.hourly.forEach((h,i)=>{if((h.r||0)>=rainThresh){if(rStart===-1)rStart=i;rEnd=i;}});if(rStart!==-1){
-    let rx1=xScale(rStart)-3,rx2=xScale(rEnd)+3;
-    // A single-hour rain window (rStart===rEnd) collapsed to a 6px sliver
-    // that read as a stray dot instead of a bar — enforce a floor so any
-    // rain window stays a recognizable bar, however short its real span.
-    const minWidth=14;if(rx2-rx1<minWidth){const mid=(rx1+rx2)/2;rx1=mid-minWidth/2;rx2=mid+minWidth/2;}
-    const ry=H-24;html+=`<rect x="${rx1.toFixed(1)}" y="${(ry-9).toFixed(1)}" width="${(rx2-rx1).toFixed(1)}" height="5" rx="2.5" fill="#5B8DEF" fill-opacity="0.5"/>`;
-  }}
-  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.7}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.55}">${a.label}</text>`;});
-  const labelY=H-8;html+=`<text x="${xScale(4).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">morning</text>`;html+=`<text x="${xScale(12).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">midday</text>`;html+=`<text x="${xScale(20).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.5">evening</text>`;
+
+  let html=`<defs></defs>`;
+
+  // Precipitation: per-hour bars, bottom-anchored and growing upward from a
+  // baseline just above the day-part labels, kept structurally separate
+  // from the temperature curve above it (curve readability first) rather
+  // than overlaid behind it.
+  {
+    const barBaseY=H-24,barMaxH=barBaseY-(padY+innerH); // reserved strip below the temp curve, same footprint the old single rain-window rect used
+    const slotW=innerW/24,barW=Math.max(2,slotW*0.55);
+    primary.hourly.forEach((h,i)=>{
+      const bh=precipBarHeight(h.mm,barMaxH);
+      if(bh<=0)return;
+      const cx=xScale(i),x=cx-barW/2,y=barBaseY-bh;
+      html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--text-rgb))" fill-opacity="0.4"/>`;
+    });
+  }
+
+  // Model lines: ECMWF (primary) stays the dark reference line; ICON/GFS
+  // draw as thinner, lower-opacity lines in the same ink color — never a
+  // different hue, the palette is near-monochrome and a second color would
+  // read as an error rather than "another model." This replaces the old
+  // min/max shaded envelope, which only ever showed the width of
+  // disagreement, never which model said what.
+  p.hourlyByModel.slice(1).forEach(x=>{
+    const path=buildPath(x.hourly);
+    html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+  {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${primary.model.width}" stroke-opacity="${primary.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;}
+
+  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.75}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.68}">${a.label}</text>`;});
+  // 0.5 read fine against the app's own light-blue --bg (luminance ~0.72)
+  // but falls under WCAG's 3:1 non-text minimum on the white flow-chart
+  // card (item 3, luminance 1.0) — 0.65 clears it with a small margin.
+  const labelY=H-8;html+=`<text x="${xScale(4).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">morning</text>`;html+=`<text x="${xScale(12).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">midday</text>`;html+=`<text x="${xScale(20).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">evening</text>`;
   html+=`<g id="flowMarker"></g>`;
   svg.innerHTML=html;
-  const legend=document.getElementById('flowLegend');legend.innerHTML=`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:0.9"></span>${primary.model.label} · other models shown as range</span>`;
+  const legend=document.getElementById('flowLegend');
+  const modelNames=p.hourlyByModel.map(x=>x.model.label).join(' · ');
+  legend.innerHTML=`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:0.9"></span>${modelNames}</span>`;
   // uaddon (buildAddendum, near the headline) is now the single canonical
   // place LOW/RAIN_SPLIT get stated — this used to repeat the same message
   // here too ("Models disagree on rain timing today" next to "rain timing's
