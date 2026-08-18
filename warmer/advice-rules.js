@@ -347,6 +347,11 @@ export function scoreSalience(variable, value, context = {}) {
   // dewPoint's copy states the feels-like gap as a number (see ADVICE_COPY)
   // instead of adjectives — apparent_temperature is the only source for that.
   if (variable === 'dewPoint') meta.feelsLike = context?.feels ?? null;
+  // apparentTempGap's own copy must state the actual feels-like number too
+  // (same rule as dewPoint above) — the gap is meta.value, but "way off the
+  // actual number" without the number itself was the bug: this candidate's
+  // translate fn never read context at all, so no meta wiring existed for it.
+  if (variable === 'apparentTempGap') meta.feelsLike = context?.feels ?? null;
   // diurnalRange's copy needs the actual overnight low (tMin), not just the
   // size of the drop — a 16° drop from 36° still lands at a shirt-sleeve
   // 20°, and garment wording is only accurate below coldWordingAccurate()'s
@@ -395,7 +400,16 @@ function describeRainTiming(meta, strong) {
   if (t?.phase === 'ongoing') {
     return strong ? "Rain's set in for a while — bring an umbrella." : 'On-and-off rain for a while — an umbrella might be worth it.';
   }
-  return strong ? 'Bring an umbrella.' : 'An umbrella might be worth it today.';
+  // No rainSeries, or a genuinely diffuse forecast (no single hour ever
+  // crosses findRainTiming's 40% threshold, so there's no honest hour to
+  // name) — this used to fall back to a bare "might be worth it" with no
+  // number at all (the London bug: every other city's rain line names a
+  // clock time + probability, London alone read as a vague hedge). meta.value
+  // is the same maxRain reading that put this candidate in its salience tier
+  // in the first place, so the fallback states it instead of going numberless.
+  return strong
+    ? `Rain's fairly likely today, around ${Math.round(meta.value)}% — bring an umbrella.`
+    : `Rain's possible today, around ${Math.round(meta.value)}% — an umbrella might be worth it.`;
 }
 
 // Stage 4: translate. Copy is keyed by variable + salience tier, as a
@@ -454,9 +468,9 @@ export const ADVICE_COPY = {
     oppressive: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° with the humidity — that gap is doing real work today.` : 'Feels well above the actual reading today, thanks to the humidity.',
   },
   apparentTempGap: {
-    mild: () => 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
-    notable: () => 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
-    big: () => 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
+    mild: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° than the actual reading — dress by feel, not just the number.` : 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
+    notable: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}°, well off the actual reading — dress for how it feels outside.` : 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
+    big: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° — way off the actual reading — trust the feels-like number when you dress.` : 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
   },
 };
 
@@ -649,8 +663,15 @@ export function buildProse(p) {
   let prose = '';
   if (maxRain > 40) {
     prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;
-    const rainHour = slots.find(s => s.rain > 40);
-    const rainWindow = rainHour ? proof('water_drop', `${rainHour.label} · ${Math.round(maxRain)}%`) : '';
+    // Must read the same now-aware timeline the advice line's precipitationTiming
+    // candidate uses (findRainTiming, below) — a separate "first daypart slot
+    // over 40%" lookup here was blind to *now*, so it could label an
+    // already-past or not-yet-started daypart as the window while the advice
+    // line correctly said rain was already falling and named a clearing time
+    // instead (Mexico City: chip said "evening", advice said "ease up around
+    // 11pm" mid-storm). One clock, one threshold, everywhere rain timing is stated.
+    const timing = findRainTiming(p);
+    const rainWindow = timing?.label ? proof('water_drop', `${timing.label} · ${Math.round(maxRain)}%`) : '';
     if (rainWindow) prose += rainWindow;
     if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
   } else if (abs >= 2) {

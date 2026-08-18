@@ -169,6 +169,18 @@ test('dew point: oppressive tier (derived, >=21°C) quotes the numeric feels-lik
   assert.ok(!html.includes('Feels closer to 29°'), `did not expect the muggy-tier line at oppressive severity: ${html}`);
 });
 
+// ---- Cusco bug: apparentTempGap's copy never read meta at all, so every
+// tier (including "big") produced adjectives only ("way off the actual
+// number") with no actual apparent_temperature value — violating the
+// numeric-feels-like-gap rule dewPoint already follows. ----
+
+test('apparentTempGap: big tier states the actual feels-like number, not just adjectives ("way off") (Cusco bug)', () => {
+  // gap = |29-22| = 7, in the "big" band (>=6); no humidity means dewPoint
+  // stays null, so apparentTempGap wins outright.
+  const html = buildProse(baseP({ feels: 29, tMax: 22, diff: 0, evening: 22 }));
+  assert.ok(html.includes('Feels closer to 29° — way off the actual reading'), `expected the actual feels-like number alongside the big-tier line in: ${html}`);
+});
+
 test('diurnal range now reads daily temperature_2m_max/min (일교차), not the evening-slot proxy, and names the actual drop', () => {
   // eveningTemp (tMin) of 8° is genuinely cold (bandForTemp -> 'cold'), so
   // garment wording is accurate here — see the item-6 tests below for the
@@ -238,20 +250,33 @@ test('wind gusts: 39km/h fires (Beaufort 6 "umbrellas used with difficulty"), 38
   assert.ok(!buildProse(baseP({ feels: 20, tMax: 20, diff: 0, evening: 20, gust: 38 })).includes('class="action"'));
 });
 
-test('precipitation timing: a rain-probability timeseries translates to a clock time, not a percentage', () => {
+test("precipitation timing: a rain-probability timeseries translates to a clock time, not a percentage, in the action line specifically (the headline chip's own \"· 65%\" proof badge is a separate, legitimate element)", () => {
   const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour === 16 ? 70 : 5 }));
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 65, rainSeries }));
   assert.ok(html.includes('4pm'), `expected the rain start time (4pm) in: ${html}`);
-  assert.ok(!html.includes('65%'), `did not expect a raw probability in the action line: ${html}`);
+  const actionLine = html.match(/<span class="action">(.*?)<\/span>/)?.[1] ?? '';
+  assert.ok(actionLine.includes('4pm'), `expected the action line itself to name the clock time in: ${actionLine}`);
+  assert.ok(!actionLine.includes('65%'), `did not expect a raw probability in the action line specifically: ${actionLine}`);
 });
 
-test('precipitation timing: without a rainSeries, falls back to generic umbrella copy rather than fabricating a time', () => {
+test('precipitation timing: without a rainSeries, falls back to generic umbrella copy rather than fabricating a time — but the fallback still states the probability (London bug: fallback used to read "might be worth it" with no number at all)', () => {
   // maxRain:35 (the "possible" tier, 30-60) deliberately stays at/below the
   // buildProse headline's own maxRain>40 threshold, so this test observes
   // precipitationTiming's own fallback copy in isolation, undisturbed by the
   // item-5 headline-dedup behavior covered separately below.
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35 }));
-  assert.ok(html.includes('An umbrella might be worth it today.'), `expected the generic possible-rain line in: ${html}`);
+  assert.ok(html.includes("Rain's possible today, around 35% — an umbrella might be worth it."), `expected the generic possible-rain line to include the probability in: ${html}`);
+});
+
+test('precipitation timing: a genuinely diffuse forecast (no single hour ever crosses the 40% start threshold, despite an average in the "possible" salience band) also falls back with a number, not a bare hedge', () => {
+  // Every hour sits at 35% — high enough to land in the 30-60 salience band
+  // (so the candidate is legitimately selected), but no hour ever crosses
+  // findRainTiming's 40% "is this actually rain" cutoff, so timing stays
+  // null and this exercises the same fallback via a real rainSeries rather
+  // than a missing one.
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: 35 }));
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35, rainSeries, nowHour: 10 }));
+  assert.ok(html.includes("Rain's possible today, around 35% — an umbrella might be worth it."), `expected the numeric fallback even when the series never crosses the start threshold: ${html}`);
 });
 
 // ---- Rain timing bug: New York and London both said "12am" (item 1) ----
@@ -286,6 +311,33 @@ test('precipitation timing: rain already falling now states when it clears, not 
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 }));
   assert.ok(html.includes('clears up around 3pm'), `expected a clearing time, not a start time, in: ${html}`);
   assert.ok(!html.includes('moves in'), `did not expect "moves in" phrasing for rain that's already falling: ${html}`);
+});
+
+// ---- Mexico City bug: the headline's rain-window chip and the advice
+// line's "is it raining now" call must agree — they used to read from two
+// different sources (a now-blind scan of the 3 fixed daily slots vs.
+// findRainTiming's now-aware hourly search), so the chip could name a
+// daypart bucket ("evening") that had already passed while the advice line
+// correctly said rain was already falling and named a clearing time instead. ----
+
+test('headline rain-window chip reads the same now-aware timing as the advice line, not a separate now-blind daypart scan', () => {
+  // Rain is high from 6pm to 11pm; "now" is 8pm, so it's already raining —
+  // findRainTiming reports phase "clearing" at 11pm. The old headline logic
+  // independently scanned the 3 fixed slots (morning/midday/evening) for the
+  // first one over 40%, found "evening" (the only one above threshold), and
+  // showed that bucket regardless of whether "now" had already passed it —
+  // producing a chip ("evening · 58%") that contradicted the advice line's
+  // "ease up around 11pm" (already raining, not starting later).
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour >= 18 && hour < 23 ? 80 : 10 }));
+  const slots = [
+    { label: 'morning', temp: 18, rain: 5 },
+    { label: 'midday', temp: 18, rain: 10 },
+    { label: 'evening', temp: 18, rain: 80 },
+  ];
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 58, rainSeries, slots, nowHour: 20 }));
+  assert.ok(html.includes('Rain should ease up around 11pm.'), `expected the advice line to state the real clearing time in: ${html}`);
+  assert.ok(html.includes('11pm · 58%'), `expected the headline chip to name the same 11pm clearing time as the advice line: ${html}`);
+  assert.ok(!html.includes('evening ·'), `did not expect the stale "evening" daypart bucket once rain is already underway: ${html}`);
 });
 
 // ---- Self-evident phrasing: checked once on the final rendered string,
