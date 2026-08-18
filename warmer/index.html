@@ -1285,7 +1285,7 @@ function deriveChip(p){if(p.maxRain>60)return'ğŸŒ‚ Rain';if(p.diff<=-4)return'ğŸ
 async function getAI(p){
   const nightFrame=p.band==='EVENING'||p.band==='NIGHT';
   const refTemp=nightFrame&&p.tomorrowMorningTemp!=null?p.tomorrowMorningTemp:(p.slots[2]?.temp??p.tMax);
-  try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-refTemp)},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}
+  try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,temp:p.tMax,delta:p.diff,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-refTemp)},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}
 }
 
 function buildNearbyProse(counts,userVote){
