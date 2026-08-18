@@ -149,7 +149,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
     <div class="flow-body">
       <div class="flow-body-inner">
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
-        <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 48" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 52" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="flow-legend" id="flowLegend"></div>
         <div class="flow-consensus" id="flowConsensus"></div>
       </div>
@@ -1245,12 +1245,16 @@ window.closeFbSheet=()=>{
 // problem: anchored to a fixed ceiling, light rain rounds down to invisible;
 // anchored to today's own max, a drizzle-only day and a downpour day both
 // paint full-height bars and the two become impossible to tell apart, which
-// defeats the point. Ceiling of 8mm/h is a fixed, absolute scale (comparable
-// across hours/cities/days, unlike a per-day-relative one) sitting at the low
-// end of "heavy rain" (WMO/Met Office bands run heavy ≈7.6mm/h+); a rarer
-// spike above that clamps to full height rather than flattening the rest of
-// the day's bars the way an unclamped scale keyed to the day's own peak would.
-const PRECIP_MM_CEILING=8;
+// defeats the point. Ceiling is a fixed, absolute scale (comparable across
+// hours/cities/days, unlike a per-day-relative one). 3mm/h sits just above
+// the light/moderate boundary in the standard hourly-rate bands (Met Office:
+// light <2.5, moderate 2.5-10, heavy >10mm/h) — 8mm/h (near the top of
+// "moderate"/bottom of "heavy") left ordinary rain, which is almost always
+// under 2.5mm/h, pinned to the bottom of the scale. A rarer spike above 3
+// clamps to full height (fine — violent/heavy rain reading as "as intense as
+// it gets" is the point) rather than flattening the rest of the day's bars
+// the way an unclamped scale keyed to the day's own peak would.
+const PRECIP_MM_CEILING=3;
 // Chart geometry shared by renderFlow (temp curve) and renderPrecipStrip (its
 // own row below): same W/padX/innerW means xScale(i) lands on identical
 // pixels in both — each SVG is independently scaled from this viewBox width
@@ -1309,9 +1313,15 @@ function renderFlow(p){
 
 // Its own row below the temp curve, not a bottom strip squeezed inside it —
 // that's what made drizzle days (Mexico City, ~0.1-1.9mm/h) collapse to a
-// handful of 2-3px dots. ~48 viewBox units here vs. 160 for the temp chart
-// (~30%, inside the 1/4-1/3 the layout asked for) is enough room for a real
-// gradient of bar heights at these hourly rates.
+// handful of 2-3px dots. PRECIP_STRIP_H=52 viewBox units vs. 160 for the temp
+// chart (H) is 0.325H — inside the 0.25H-0.33H the layout asked for, and
+// because both SVGs are scaled from the same 320-wide viewBox to the same
+// container width, that ratio holds in real rendered pixels too (measured:
+// 146px temp chart -> 47.5px precip strip at a 390px-wide card). Of those 52
+// units only PRECIP_LABEL_H(10)+PRECIP_BOTTOM_PAD(3) is off-limits to bars —
+// maxH=39 units (~75% of the strip) actually grows, vs. the old layout's
+// 30/48 (62%), so more of the region's real height is reachable ink, not
+// just reachable box.
 // cbrt(mm) over sqrt(mm): both are fixed/absolute (no per-day renorm — a
 // drizzle day must NOT look as "full" as a downpour day, or the scale lies),
 // but real forecasts cluster well under the old sqrt curve's effective
@@ -1319,17 +1329,16 @@ function renderFlow(p){
 // under 1mm/h — and sqrt only spends about the bottom third of its height
 // budget on 0-2mm/h. Cube root spends roughly the bottom two-thirds there,
 // so 0.1 vs 0.3 vs 1.0mm/h — all "light rain" by WMO bands — actually read
-// as different bar heights instead of three near-identical slivers. Ceiling
-// stays 8mm/h, same absolute cross-city/day scale as the temp chart's old bars.
+// as different bar heights instead of three near-identical slivers.
 // Height alone can still tie under the floor clamp (see below), so opacity
 // carries the same normalized intensity as a second, redundant channel —
 // no new hue, just more/less of the existing ink color.
 function precipStripHeight(mm,maxH){
   if(!mm||mm<=0)return{height:0,opacity:0};
   const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
-  return{height:Math.max(2.5,norm*maxH),opacity:0.32+norm*0.53};// 2.5px floor: a real but small reading should never round away to nothing
+  return{height:Math.max(1.5,norm*maxH),opacity:0.32+norm*0.53};// 1.5px floor: a real but small reading should never round away to nothing, without every light reading rounding UP to the same dot
 }
-const PRECIP_STRIP_H=48,PRECIP_LABEL_H=14,PRECIP_BOTTOM_PAD=4;
+const PRECIP_STRIP_H=52,PRECIP_LABEL_H=10,PRECIP_BOTTOM_PAD=3;
 function renderPrecipStrip(p){
   const svg=document.getElementById('precipSvg');
   const primary=p.hourlyByModel[0];
@@ -1341,7 +1350,12 @@ function renderPrecipStrip(p){
   const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
   const baseY=PRECIP_STRIP_H-PRECIP_BOTTOM_PAD,maxH=baseY-PRECIP_LABEL_H;
   const slotW=FLOW_INNER_W/24,barW=Math.max(2,slotW*0.6);
-  let html=`<text x="${FLOW_PAD_X}" y="10" font-family="Aspekta,DM Sans,sans-serif" font-size="9" letter-spacing="0.4" fill="rgb(var(--text-rgb))" fill-opacity="0.5">rain</text>`;
+  let html=`<text x="${FLOW_PAD_X}" y="9" font-family="Aspekta,DM Sans,sans-serif" font-size="9" letter-spacing="0.4" fill="rgb(var(--text-rgb))" fill-opacity="0.5">rain</text>`;
+  // Full-width baseline so every hour — rain or not — reads as sitting on a
+  // timeline rather than bars floating as isolated dots over blank space; a
+  // zero-rain hour is then visibly "on the line, no bar" instead of just
+  // absent from the picture.
+  html+=`<line x1="${FLOW_PAD_X}" y1="${baseY}" x2="${(FLOW_W-FLOW_PAD_X).toFixed(1)}" y2="${baseY}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
   primary.hourly.forEach((h,i)=>{
     const{height,opacity}=precipStripHeight(h.mm,maxH);
     if(height<=0)return;
