@@ -146,6 +146,12 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .cs-row-name{font-size:16px;font-weight:450;color:rgb(var(--text-rgb))}
 .cs-row-sub{font-size:13px;font-weight:350;color:rgba(var(--text-rgb),0.5);margin-top:2px}
 .cs-empty{padding:18px 2px;font-size:14px;color:rgba(var(--text-rgb),0.45)}
+@media (prefers-reduced-motion: reduce){
+  html,body{transition:none}
+  .dot{animation:none;opacity:1}
+  .fu{animation:none;opacity:1;transform:none}
+  .cmp-fill{transition:none}
+}
 </style>
 </head>
 <body>
