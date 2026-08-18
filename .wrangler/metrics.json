@@ -1,7 +1,8 @@
 {
 	"permission": {
 		"enabled": true,
-		"date": "2026-05-21T10:20:24.653Z"
+		"date": "2026-05-21T10:20:24.653Z",
+		"bannerLastShown": "4.115.0"
 	},
 	"deviceId": "097a4448-53c1-40ab-9e64-2a73f7d8a712"
 }
