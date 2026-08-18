@@ -45,7 +45,6 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .freshness{font-size:10.5px;color:var(--muted);opacity:0.5;letter-spacing:0.2px;margin-bottom:28px;min-height:13px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
 .div{height:1px;background:var(--line);margin-bottom:28px}
-.sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
 .sec-head{font-family:'Gelasio',serif;font-style:normal;font-weight:400;font-size:20px;letter-spacing:normal;text-transform:none;color:var(--text);margin-bottom:14px}
 .nearby{margin-bottom:32px}
 .nearby-prose{font-size:19px;line-height:1.4;font-weight:450;margin-bottom:14px;color:var(--text);min-height:46px}
@@ -202,7 +201,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
     <div class="nearby-q" id="nearbyQ">How is it where you are?</div>
     <button class="fb-trigger" id="fbTrigger" onclick="openFbSheet()">Share my experience</button>
   </div>
-  <div class="sec-label">Yesterday vs today</div>
+  <div class="sec-head">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
   <button class="refresh" onclick="manualRefresh()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
   <div id="onboarding">
