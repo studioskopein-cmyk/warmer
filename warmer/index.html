@@ -26,6 +26,9 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:48px}
 .meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
 .meta-sep{color:var(--dim)}
+.loc-fail{display:none;font-size:12px;color:var(--muted);margin:-28px 0 24px;line-height:1.4}
+.loc-fail.on{display:block}
+.loc-fail button{background:none;border:none;padding:0;margin:0;font:inherit;color:var(--text);text-decoration:underline;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .prose{font-size:40px;font-weight:450;line-height:1.24;letter-spacing:-0.5px;margin-bottom:24px;min-height:180px}
 .prose .g{color:var(--muted-lg)}
 .prose .w{color:var(--text);font-weight:450}
@@ -149,6 +152,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 <div class="app">
   <div class="wordmark">Warmer</div>
   <div class="meta"><button type="button" id="locEl" class="loc-tap" aria-label="Change location">—</button><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="loc-fail" id="locFail" role="status">Couldn't find you — <button type="button" id="locFailBtn">choose a city</button> instead.</div>
   <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
   <div class="chips" id="chips"></div>
@@ -1057,10 +1061,10 @@ function clearSavedLocation(){localStorage.removeItem('warmer_location')}
 const geoLoc=()=>new Promise(res=>{
   const saved=getSavedLocation();
   if(saved&&saved.source==='manual')return res(saved);
-  if(!navigator.geolocation)return res({lat:52.52,lon:13.41,label:null,source:'gps'});
+  if(!navigator.geolocation)return res({lat:52.52,lon:13.41,label:null,source:'gps-failed'});
   navigator.geolocation.getCurrentPosition(
     p=>res({lat:p.coords.latitude,lon:p.coords.longitude,label:null,source:'gps'}),
-    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps'}),
+    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps-failed'}),
     {timeout:8000,maximumAge:600000}
   );
 });
@@ -1111,6 +1115,7 @@ function wireCitySearch(){
     csDebounce=setTimeout(()=>searchCities(q),350);
   });
   document.getElementById('locEl').addEventListener('click',openCitySearch);
+  document.getElementById('locFailBtn').addEventListener('click',openCitySearch);
 }
 wireCitySearch();
 wireFlowTouch();
@@ -1646,7 +1651,13 @@ async function loadWeather(){
   const loc=await geoLoc();
   currentLoc=loc;
   currentKey=getFbKey(loc.lat,loc.lon);
-  document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
+  if(loc.source==='gps-failed'){
+    document.getElementById('locEl').textContent='Location unavailable';
+    document.getElementById('locFail').classList.add('on');
+  }else{
+    document.getElementById('locFail').classList.remove('on');
+    document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
+  }
   const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);
   const p=parse(data,airData);
   lastWeatherFetchAt=Date.now();
