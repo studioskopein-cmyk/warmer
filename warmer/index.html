@@ -1005,7 +1005,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 </div>
 
 <div class="fb-backdrop" id="fbBackdrop" onclick="closeFbSheet()"></div>
-<div class="fb-sheet" id="fbSheet" role="dialog" aria-modal="true" aria-label="Share your experience">
+<div class="fb-sheet" id="fbSheet" role="dialog" aria-modal="true" aria-label="Share your experience" inert>
   <div class="fb-sheet-handle"></div>
   <div class="fb-sheet-header">
     <span class="fb-sheet-title">How is it where you are?</span>
@@ -1354,12 +1354,16 @@ window.openFbSheet=()=>{
   fbLastFocus=document.activeElement;
   document.getElementById('fbBackdrop').classList.add('open');
   document.getElementById('fbSheet').classList.add('open');
+  document.getElementById('fbSheet').removeAttribute('inert');
+  document.querySelector('.app').setAttribute('inert','');
   document.addEventListener('keydown',fbSheetKeydown);
   document.getElementById('fbRow').querySelector('.fb-btn')?.focus();
 };
 window.closeFbSheet=()=>{
   document.getElementById('fbBackdrop').classList.remove('open');
   document.getElementById('fbSheet').classList.remove('open');
+  document.getElementById('fbSheet').setAttribute('inert','');
+  document.querySelector('.app').removeAttribute('inert');
   document.removeEventListener('keydown',fbSheetKeydown);
   fbLastFocus?.focus();
 };
