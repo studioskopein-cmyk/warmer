@@ -321,11 +321,15 @@ function findRainTiming(context) {
   const starts = upcoming.find(pt => pt.rain >= 40);
   return starts ? { phase: 'starting', label: formatHourLabel(starts.hour) } : null;
 }
+// hour >= 24 means "tomorrow" — index.html's rainSeries encodes tomorrow's
+// 05:00-11:00 window (EVENING/NIGHT bands) as hour+24 so a single ascending
+// series can hold both today's remainder and tomorrow morning without the
+// two colliding on the same 0-23 hour numbers.
 function formatHourLabel(hour) {
-  if (hour === 0) return '12am';
-  if (hour < 12) return `${hour}am`;
-  if (hour === 12) return '12pm';
-  return `${hour - 12}pm`;
+  const isTomorrow = hour >= 24;
+  const h = hour % 24;
+  const label = h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`;
+  return isTomorrow ? `tomorrow ${label}` : label;
 }
 
 /**
@@ -510,14 +514,25 @@ export function assertNotSelfEvident(text) {
   }
 }
 
+// EVENING/NIGHT read the evening-drop framing off tomorrow morning instead
+// of today's fixed evening slot — by then today's evening has either already
+// happened or is about to, never upcoming. Shared by buildProse and
+// coveredHeadlineTopics below so the two branch conditions can't drift out
+// of sync (see the dedup comment on coveredHeadlineTopics).
+function nextWindowTemp(p) {
+  const nightFrame = p.band === 'EVENING' || p.band === 'NIGHT';
+  if (nightFrame && p.tomorrowMorningTemp != null) return { temp: p.tomorrowMorningTemp, when: 'tomorrow morning' };
+  return { temp: p.slots?.[2]?.temp ?? null, when: null };
+}
+
 // Cross-layer dedup: buildProse's own headline/trend copy already states
 // some of these signals in plain language (rain in the "Rain coming"
 // headline, the day's temperature swing in the evening-drop trend line) —
 // mirrors buildProse()'s exact branch conditions below so the advice line
 // never restates what the headline already said.
 export function coveredHeadlineTopics(p) {
-  const { diff = 0, tMax, maxRain = 0, slots = [], wind = 0 } = p;
-  const eTemp = slots?.[2]?.temp ?? null;
+  const { diff = 0, tMax, maxRain = 0, wind = 0 } = p;
+  const { temp: eTemp } = nextWindowTemp(p);
   const eDrop = (tMax != null && eTemp != null) ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
   const covered = new Set();
@@ -660,8 +675,12 @@ export function buildProse(p) {
     return `<span class="w">${alert.headline}</span>${proof(alert.icon, alert.proof)}<br><span class="action">${alert.action}</span>`;
   }
 
-  const { diff, tCode, feels, slots, tMax, maxRain, wind } = p;
-  const eTemp = slots[2]?.temp;
+  const { diff, tCode, feels, tMax, maxRain, wind } = p;
+  // eWhen is null in MORNING/DAY (today's own evening slot, existing
+  // wording below already says "in the evening"/"tonight"); in
+  // EVENING/NIGHT it's "tomorrow morning" — today's evening is no longer
+  // upcoming by then, so eTemp itself also switches source (nextWindowTemp).
+  const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
   const eDrop = eTemp != null ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
   const dChip = ic(tMax, diff);
@@ -701,7 +720,7 @@ export function buildProse(p) {
     prose = `<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
     if (eChip) {
       const phrase = bandForTemp(eTemp).eveningPhrase;
-      prose += `<br><span class="g">but </span><span class="w">${phrase}</span><span class="g"> in the evening</span>${eChip}`;
+      prose += `<br><span class="g">but </span><span class="w">${phrase}</span><span class="g"> ${eWhen || 'in the evening'}</span>${eChip}`;
     }
   } else {
     const sameLabel = diff === 0 ? 'Same' : 'Similar';
@@ -712,7 +731,7 @@ export function buildProse(p) {
     const secondary = wind >= 25
       ? `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
       : eDrop >= 5 && eTemp != null
-      ? `<br><span class="g">but </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> tonight</span>${eveProof}`
+      ? `<br><span class="g">but </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'tonight'}</span>${eveProof}`
       : feels <= tMax - 4
       ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat', `${feels}°`)}`
       : `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;

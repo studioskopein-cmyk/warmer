@@ -17,6 +17,11 @@
 // ─────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────
+// band is optional and purely advisory to llmPolish's framing instruction
+// below — it never touches severity/salience/seed selection (Stages 1-4),
+// which stay fully deterministic and band-agnostic.
+export type TimeBand = 'MORNING' | 'DAY' | 'EVENING' | 'NIGHT';
+
 export interface WeatherInput {
   feelsLike: number;
   yesterdayDelta: number;
@@ -24,6 +29,7 @@ export interface WeatherInput {
   windSpeed: number;
   precipProb: number;
   eveningDelta: number;
+  band?: TimeBand | null;
 }
 
 export interface Severities {
@@ -364,16 +370,32 @@ export function composeEnglish(seed: string, overlay: string): string {
 // ─────────────────────────────────────────────────────────────────────
 // STAGE 6: LLM POLISH (좁은 역할 — 다른 언어로 번역 + 자연스러움 보정)
 // ─────────────────────────────────────────────────────────────────────
+// Time-band framing, appended as one extra CRITICAL RULE below — the
+// deterministic seed/overlay (Stages 1-5) already describe *what's*
+// happening; this only tells the polish pass *which moment* to describe it
+// as, so a sentence composed at 17:55 doesn't still read as upcoming at
+// 18:05. Never mention hours already past.
+const BAND_FRAME: Record<TimeBand, string> = {
+  MORNING: 'Frame this as today.',
+  DAY: "Frame this as the REMAINDER of today only — today's earlier hours are over, don't reference them as upcoming.",
+  EVENING: 'Frame this as tonight first; if there is room for a second point, make it about tomorrow morning.',
+  NIGHT: 'Frame this as tomorrow morning — that is the primary subject, not tonight.',
+};
+
 async function llmPolish(
   englishText: string,
   apiKey: string,
   lang: string,
-  dominant: Dominant
+  dominant: Dominant,
+  band?: TimeBand | null
 ): Promise<string> {
   // 영어면 그대로 반환 (polish 불필요)
   if (lang === 'en') return englishText;
 
   const langName = lang === 'ko' ? 'Korean (존댓말)' : lang;
+  const frameRule = band && BAND_FRAME[band]
+    ? `\n7. ${BAND_FRAME[band]} Never reference a time earlier than the current hour as if it were upcoming.`
+    : '';
 
   const prompt = `You are translating a weather narrative for the brand "Warmer".
 Voice: caring, calm, practical, observant. "Warm, never cheesy. Smart, never clinical."
@@ -384,7 +406,7 @@ CRITICAL RULES:
 3. The DOMINANT EVENT must lead the sentence: ${dominant.factor} (severity ${dominant.severity}/4).
 4. Do NOT add numbers, percentages, or units. Pure prose.
 5. Do NOT add disclaimers like "(uncertain)" or "(maybe)".
-6. Return ONLY the translated sentence, no JSON, no quotes.
+6. Return ONLY the translated sentence, no JSON, no quotes.${frameRule}
 
 English source: "${englishText}"
 
@@ -428,7 +450,7 @@ export async function generate(
   const seed = buildSeed(dominant, input);
   const overlay = buildOverlay(dominant, plan);
   const englishText = composeEnglish(seed, overlay);
-  const finalText = await llmPolish(englishText, apiKey, lang, dominant);
+  const finalText = await llmPolish(englishText, apiKey, lang, dominant, input.band);
 
   return {
     narrative: {

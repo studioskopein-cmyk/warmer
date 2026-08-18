@@ -34,7 +34,8 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .uaddon.on{display:block}
 .pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 3px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
 .pcip .ddot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 5px;vertical-align:middle;position:relative;top:-1px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:36px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.freshness{font-size:10.5px;color:var(--muted);opacity:0.5;letter-spacing:0.2px;margin-bottom:28px;min-height:13px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
 .div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
@@ -150,6 +151,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
   <div class="chips" id="chips"></div>
+  <div class="freshness" id="freshness"></div>
   <div class="flow-section" id="flowSection">
     <div class="flow-header" onclick="toggleFlow()">
       <span class="flow-title-group">
@@ -182,7 +184,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   </div>
   <div class="sec-label">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
-  <button class="refresh" onclick="init()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
+  <button class="refresh" onclick="manualRefresh()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>REFRESH</span></button>
   <div id="onboarding">
     <div id="ob-illus"><svg viewBox="0 0 402 874" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.5">
 <g clip-path="url(#clip0_276_649)">
@@ -1016,9 +1018,34 @@ const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomai
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 
-function applyTimeMode(){const h=new Date().getHours();document.body.classList.toggle('evening',h>=18||h<6)}
+// Single source of truth for "what time of day is it" — the evening
+// palette flip AND every band-windowed calculation in parse() both derive
+// from this, so there are never two competing time checks drifting apart.
+function getTimeBand(d=new Date()){
+  const h=d.getHours();
+  if(h<5)return'NIGHT';
+  if(h<11)return'MORNING';
+  if(h<18)return'DAY';
+  return'EVENING';
+}
+function applyTimeMode(){const band=getTimeBand();document.body.classList.toggle('evening',band==='EVENING'||band==='NIGHT')}
 applyTimeMode();
 setInterval(applyTimeMode,60_000);
+
+// Which (dayOffset, hour) pairs are "in view" for a band — every derived
+// scalar in parse() (tMax/tMin, rain window, etc.) is computed ONLY over
+// these hours, never the full day, so a stale past-tense statement (e.g.
+// naming a UV/rain peak that already happened) can't leak through. dayOffset
+// 0 = today, 1 = tomorrow — tomorrow's hours only ever exist in this list
+// for EVENING/NIGHT, whose window intentionally reaches into tomorrow morning.
+function getBandWindow(band,nowHour){
+  const range=(from,to,dayOffset=0)=>{const hrs=[];for(let h=from;h<=to;h++)hrs.push({dayOffset,hour:h});return hrs};
+  const tomorrowMorning=()=>range(5,11,1);
+  if(band==='MORNING')return range(5,23);
+  if(band==='DAY')return range(nowHour,23);
+  if(band==='EVENING')return[...range(nowHour,23),...tomorrowMorning()];
+  return[...range(nowHour,4),...tomorrowMorning()]; // NIGHT
+}
 
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
 
@@ -1104,7 +1131,9 @@ const MODELS=[
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
 // reading, same pattern as the gust-or-wind fallback in advice-rules.js.
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=1&timezone=auto`;return(await fetch(url)).json()}
+// forecast_days=2 (was 1) — EVENING/NIGHT band windows (getBandWindow below)
+// need tomorrow 05:00-11:00, which forecast_days=1 never returned at all.
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=2&timezone=auto`;return(await fetch(url)).json()}
 
 // CAMS via Open-Meteo's Air Quality API — ECMWF's recommended UV source
 // (global CAMS coverage, better accuracy than the GFS-only reading above),
@@ -1140,6 +1169,12 @@ function parse(data,airData){
   const now=new Date(),h=now.getHours();
   const startTime = data.hourly?.time?.[0] ? new Date(data.hourly.time[0]) : now;
   const S = Math.round((now - startTime) / 3600000) - h;
+  // band + the (dayOffset,hour) window it's in view of — every scalar below
+  // that used to scan the full day (tMax/tMin, rain window) now scans only
+  // this, so an already-past hour can never produce a stale statement.
+  const band=getTimeBand(now);
+  const bandWindow=getBandWindow(band,h);
+  const idxOf=w=>S+w.dayOffset*24+w.hour;
 
   const modelMaxToday=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[1]):null}).filter(v=>v!=null);
   const modelMaxYest=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[0]):null}).filter(v=>v!=null);
@@ -1147,11 +1182,26 @@ function parse(data,airData){
   const tMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxToday;
   const yMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxYest;
   const tCodeArr=data.daily?.[`weathercode_${primary}`]||[];
-  const tMax=Math.round(tMaxArr[1]??modelMaxToday[0]??0);
   const yMax=Math.round(yMaxArr[0]??modelMaxYest[0]??0);
   const tCode=tCodeArr[1]??0;
   const tMinArr=data.daily?.[`temperature_2m_min_${primary}`];
-  const tMin=tMinArr?.[1]!=null?Math.round(tMinArr[1]):null;
+
+  // tMax/tMin: windowed over the primary model's own hourly series, not
+  // Open-Meteo's whole-day daily max/min — at 8pm DAY/EVENING's window is
+  // "the rest of today" (+ tomorrow morning for EVENING), so a high reached
+  // at 2pm that's already passed no longer inflates "today's high." Falls
+  // back to the whole-day daily value only if the window scan comes up
+  // empty (missing hourly data for some reason).
+  const primaryTempArr=data.hourly?.[`temperature_2m_${primary}`]||[];
+  const windowTemps=bandWindow.map(w=>primaryTempArr[idxOf(w)]).filter(v=>v!=null);
+  const tMax=windowTemps.length?Math.round(Math.max(...windowTemps)):Math.round(tMaxArr[1]??modelMaxToday[0]??0);
+  const tMin=windowTemps.length?Math.round(Math.min(...windowTemps)):(tMinArr?.[1]!=null?Math.round(tMinArr[1]):null);
+  // Representative "tomorrow morning" temp (mirrors slots' own hour:8
+  // convention for "morning") — buildProse's EVENING/NIGHT branch reads
+  // this instead of today's evening slot, since by then today's evening
+  // has either already happened or is about to, not upcoming.
+  const tomorrowIdx=S+24+8;
+  const tomorrowMorningTemp=primaryTempArr[tomorrowIdx]!=null?Math.round(primaryTempArr[tomorrowIdx]):null;
 
   const hourlyByModel=MODELS.map(m=>{
     const tArr=data.hourly?.[`temperature_2m_${m.id}`];
@@ -1181,11 +1231,28 @@ function parse(data,airData){
   const humidity=humidityRaw!=null?Math.round(humidityRaw):null;
   const airQuality=parseAirQuality(airData,now);
   const uvIndex=airQuality.uvIndex??gfsUvIndex;
-  const rainSeries=primaryHourly.map((pt,i)=>({hour:i,rain:pt.r}));
+  // Windowed, not primaryHourly's fixed 0-23-today range: for EVENING/NIGHT
+  // this needs to reach into tomorrow morning too, so tomorrow's hours are
+  // encoded as hour+24 (formatHourLabel in advice-rules.js unwraps that back
+  // to a clock time). findRainTiming's own `hour >= nowHour` filter still
+  // works unchanged — every point in `bandWindow` already starts at nowHour
+  // or later by construction, and hour+24 is trivially >= nowHour too.
+  const rainProbArrs=MODELS.map(m=>data.hourly?.[`precipitation_probability_${m.id}`]||[]);
+  const rainSeries=bandWindow.map(w=>({hour:w.dayOffset===0?w.hour:w.hour+24,rain:rainProbArrs[0][idxOf(w)]??0}));
 
   const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;
+  // maxRain/rainSpread: same windowed scan as tMax/tMin above, across all
+  // models — an all-day RAIN_SPLIT/"Rain likely" reading that already
+  // finished at noon shouldn't still be driving the 8pm headline.
   let rainSpread=0,maxRain=0;
-  for(let i=0;i<24;i++){const rains=hourlyByModel.map(x=>x.hourly[i]?.r??0);const spread=Math.max(...rains)-Math.min(...rains);if(spread>rainSpread)rainSpread=spread;const avg=rains.reduce((a,b)=>a+b,0)/rains.length;if(avg>maxRain)maxRain=avg}
+  bandWindow.forEach(w=>{
+    const idx=idxOf(w);
+    const rains=rainProbArrs.map(arr=>arr[idx]??0);
+    const spread=Math.max(...rains)-Math.min(...rains);
+    if(spread>rainSpread)rainSpread=spread;
+    const avg=rains.reduce((a,b)=>a+b,0)/rains.length;
+    if(avg>maxRain)maxRain=avg;
+  });
 
   // Old thresholds (rainSpread>=25 && maxRain>=30 for RAIN_SPLIT, maxSpread>=3
   // for LOW) fired on 5 of 6 real test cities — a message that shows up
@@ -1200,16 +1267,26 @@ function parse(data,airData){
   else if(maxSpread>=2.5)consensus='MEDIUM';
   console.debug(`[consensus] maxSpread=${maxSpread.toFixed(2)} rainSpread=${rainSpread.toFixed(1)} maxRain=${maxRain.toFixed(1)} -> ${consensus}`);
 
-  const meanTodayMax=modelMaxToday.reduce((a,b)=>a+b,0)/Math.max(1,modelMaxToday.length);
-  const meanYestMax=modelMaxYest.reduce((a,b)=>a+b,0)/Math.max(1,modelMaxYest.length);
-  const diff=Math.round(meanTodayMax-meanYestMax);
+  // diff now reads the same windowed tMax the headline itself displays
+  // (was the multi-model mean of the whole day's daily-max field, which
+  // could no longer match what tMax says once tMax became windowed above).
+  const diff=Math.round(tMax-yMax);
 
-  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,now,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
+  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,now,band,tomorrowMorningTemp,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
 
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
 
-async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}}
+// eveningDelta mirrors buildProse's own nextWindowTemp swap (advice-rules.js)
+// — in EVENING/NIGHT it reads tomorrowMorningTemp instead of today's fixed
+// evening slot, same reasoning: today's evening is no longer upcoming by
+// then. p.band travels to the server as-is inside the ...p spread below, so
+// warmer-engine-v3.ts's llmPolish can frame its own prompt off the same value.
+async function getAI(p){
+  const nightFrame=p.band==='EVENING'||p.band==='NIGHT';
+  const refTemp=nightFrame&&p.tomorrowMorningTemp!=null?p.tomorrowMorningTemp:(p.slots[2]?.temp??p.tMax);
+  try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-refTemp)},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}
+}
 
 function buildNearbyProse(counts,userVote){
   const labels={match:'matches',colder:'colder',warmer:'warmer',rainy:'rainy',windy:'windy'};
@@ -1485,23 +1562,134 @@ function render(p){
   const{now,tMax,yMax,diff}=p;
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
   renderAdviceLine(p);
-  document.getElementById('chips').innerHTML='';
+  // #chips is deliberately NOT cleared here — it's owned by
+  // maybeRefreshBriefing/renderChip now (Part 4/5). A background or manual
+  // refresh that legitimately skips regenerating the briefing (cooldown not
+  // elapsed, band/location unchanged) must leave the currently-shown chip
+  // alone, not blank it out with nothing queued to replace it.
   document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';document.getElementById('flowInfo').classList.remove('open');
   renderFlow(p);
   renderPrecipStrip(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Part 4/5/6: auto-refresh, briefing cache, freshness indicator.
+//
+// Two independent cooldowns, not one: Open-Meteo is free/unlimited so
+// weather can refetch aggressively (5min); Gemini is a metered free tier,
+// so the briefing regenerates far less often (30min) UNLESS the time band
+// itself changed — a briefing composed at 17:55 is wrong at 18:05 regardless
+// of how young the cooldown is, so a band change always forces a
+// regeneration and ignores it.
+// ─────────────────────────────────────────────────────────────────────
+const WEATHER_REFETCH_MS=5*60*1000;
+const BRIEFING_REGEN_MS=30*60*1000;
+const BRIEFING_CACHE_KEY='warmer_briefing_cache';
+
+let currentLoc=null,lastWeatherFetchAt=0;
+let lastBriefingAt=0,lastBriefingBand=null,lastBriefingLocKey=null,briefingInFlight=false;
+
+function locationKey(loc){return loc?`${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`:''}
+function renderChip(text){document.getElementById('chips').innerHTML=text?`<div class="chip">${text}</div>`:'';}
+function updateFreshness(){
+  const el=document.getElementById('freshness');
+  if(!el)return;
+  const d=new Date();
+  el.textContent=`Updated ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function loadBriefingCache(){try{const raw=localStorage.getItem(BRIEFING_CACHE_KEY);return raw?JSON.parse(raw):null}catch{return null}}
+function saveBriefingCache(entry){try{localStorage.setItem(BRIEFING_CACHE_KEY,JSON.stringify(entry))}catch{}}
+// Cold-load only: a fresh page load inside the same band, same location,
+// still within BRIEFING_REGEN_MS of the cached write, renders straight from
+// localStorage and skips the Gemini call entirely.
+function tryBriefingCache(p){
+  const cached=loadBriefingCache();
+  const locKey=locationKey(currentLoc);
+  if(cached&&cached.band===p.band&&Date.now()-cached.ts<BRIEFING_REGEN_MS&&cached.locationKey===locKey){
+    renderChip(cached.text);
+    lastBriefingAt=cached.ts;lastBriefingBand=cached.band;lastBriefingLocKey=cached.locationKey;
+    return true;
+  }
+  return false;
+}
+
+// The one gate every briefing request passes through — manual refresh,
+// background auto-refresh, and cold init all call this instead of getAI()
+// directly, so the cooldown/band-change/location-change rules and the
+// in-flight guard (no two concurrent Gemini calls) live in exactly one place.
+async function maybeRefreshBriefing(p,{force=false}={}){
+  if(!p||briefingInFlight)return;
+  const locKey=locationKey(currentLoc);
+  const bandChanged=lastBriefingBand!=null&&p.band!==lastBriefingBand;
+  const locChanged=lastBriefingLocKey!=null&&locKey!==lastBriefingLocKey;
+  const cooldownElapsed=Date.now()-lastBriefingAt>=BRIEFING_REGEN_MS;
+  if(!force&&!bandChanged&&!locChanged&&!cooldownElapsed)return;
+  briefingInFlight=true;
+  try{
+    const ai=await getAI(p);
+    const text=ai?.translation?.chip||'';
+    renderChip(text);
+    lastBriefingAt=Date.now();lastBriefingBand=p.band;lastBriefingLocKey=locKey;
+    if(text)saveBriefingCache({text,band:p.band,ts:lastBriefingAt,locationKey:locKey});
+  }finally{
+    briefingInFlight=false;
+  }
+}
+
+// Fetch+parse+render only — no loading-state reset, so a background refresh
+// updates in place instead of flashing back to the loading dots. Always
+// fetches; callers (init/manualRefresh/autoRefreshCheck) decide whether the
+// WEATHER_REFETCH_MS cooldown permits calling it at all.
+async function loadWeather(){
+  const loc=await geoLoc();
+  currentLoc=loc;
+  currentKey=getFbKey(loc.lat,loc.lon);
+  document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
+  const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);
+  const p=parse(data,airData);
+  lastWeatherFetchAt=Date.now();
+  render(p);
+  updateFreshness();
+  loadNearby(currentKey);
+  return p;
+}
+
+// visibilitychange (→visible), focus, and a 60s interval all funnel through
+// here. document.hidden short-circuits every path uniformly (including the
+// 60s interval tick) rather than each caller re-checking it.
+async function autoRefreshCheck(){
+  if(document.hidden)return;
+  if(Date.now()-lastWeatherFetchAt<WEATHER_REFETCH_MS)return;
+  try{
+    const p=await loadWeather();
+    await maybeRefreshBriefing(p,{force:false});
+  }catch(e){console.error('auto-refresh failed',e);}
+}
+document.addEventListener('visibilitychange',autoRefreshCheck);
+window.addEventListener('focus',autoRefreshCheck);
+setInterval(autoRefreshCheck,60_000);
+
+// REFRESH button: bypasses the weather cooldown unconditionally (that's the
+// point of a manual refresh), but the briefing still only regenerates per
+// maybeRefreshBriefing's normal rules — force:false, so a tap seconds after
+// the last one doesn't burn a Gemini call unless the band changed meanwhile.
+window.manualRefresh=async function manualRefresh(){
+  try{
+    const p=await loadWeather();
+    await maybeRefreshBriefing(p,{force:false});
+  }catch(e){console.error(e);}
+};
+
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
-    const loc=await geoLoc();currentKey=getFbKey(loc.lat,loc.lon);document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
-    const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);const p=parse(data,airData);render(p);loadNearby(currentKey);
-    const ai=await getAI(p);if(ai?.translation?.chip)document.getElementById('chips').innerHTML=`<div class="chip">${ai.translation.chip}</div>`;
+    const p=await loadWeather();
+    if(!tryBriefingCache(p))await maybeRefreshBriefing(p,{force:true});
   }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather.</span>`;}
 }
 window.init=init;checkOnboarding();

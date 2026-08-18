@@ -44,6 +44,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const precipProb     = p.precipProb ?? (p.slots?.length
                               ? Math.max(...p.slots.map((s: any) => s.rain ?? 0))
                               : 0);
+    // index.html's parse() computes this once per fetch (getTimeBand) and
+    // spreads it straight into weatherContext — just forwarded here, not
+    // re-derived, so the client's clock stays the single source of truth.
+    const band            = p.band ?? null;
 
     let eveningDelta = p.eveningDelta ?? 0;
     if (!p.eveningDelta && p.slots?.length) {
@@ -55,7 +59,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 2) 엔진 호출 (v4 architecture)
     const engineResult = await generate(
-      { feelsLike, yesterdayDelta, windSpeed, uvIndex, precipProb, eveningDelta },
+      { feelsLike, yesterdayDelta, windSpeed, uvIndex, precipProb, eveningDelta, band },
       API_KEY,
       lang
     );
