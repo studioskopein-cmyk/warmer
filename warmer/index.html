@@ -63,9 +63,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-sheet-title{font-size:13px;color:var(--muted)}
 .fb-sheet-close{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent}
 .flow-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
-.flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;user-select:none;-webkit-user-select:none}
-.flow-header:active{opacity:.65}
-.flow-title-group{display:flex;align-items:center;gap:8px}
+.flow-header{display:flex;align-items:center;gap:8px;padding:12px 16px;user-select:none;-webkit-user-select:none}
+.flow-header-btn{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.flow-header-btn:active{opacity:.65}
+.flow-toggle-icon{margin-left:auto}
 .flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;color:var(--text)}
 .info-btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;border-radius:50%;border:1px solid var(--chip-bd);background:var(--chip-bg);color:var(--muted);font-size:10.5px;font-style:italic;font-family:Georgia,'Times New Roman',serif;line-height:1;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .info-btn:active{opacity:.5}
@@ -127,7 +128,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .ob-h3{font-family:'Gelasio',serif;font-style:italic;font-weight:400;font-size:40px;line-height:110%;letter-spacing:-0.05em;color:#7B4B49}
 #ob-cta-btn{display:flex;justify-content:space-between;align-items:flex-end;width:100%;padding:16px 17px;background:none;border:none;border-bottom:2px solid #7B4B49;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:450;letter-spacing:-0.01em;color:#7B4B49;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #ob-city-btn{display:block;width:100%;margin-top:16px;padding:10px 17px;background:none;border:none;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:350;letter-spacing:-0.01em;color:rgba(123,75,73,0.60);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
-.loc-tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.loc-tap{background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-tap:active{opacity:.5}
 #citySearch{position:fixed;inset:0;z-index:200;background:var(--bg,#EAECEA);max-width:390px;margin:0 auto;display:none;flex-direction:column;padding:20px 17px}
 #citySearch.on{display:flex}
@@ -147,20 +148,20 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 <body>
 <div class="app">
   <div class="wordmark">Warmer</div>
-  <div class="meta"><span id="locEl" class="loc-tap">—</span><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="meta"><button type="button" id="locEl" class="loc-tap" aria-label="Change location">—</button><span class="meta-sep">·</span><span id="dateEl">—</span></div>
   <div class="prose" id="prose"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
   <div class="chips" id="chips"></div>
   <div class="freshness" id="freshness"></div>
   <div class="flow-section" id="flowSection">
-    <div class="flow-header" onclick="toggleFlow()">
-      <span class="flow-title-group">
+    <div class="flow-header">
+      <button type="button" class="flow-header-btn" id="flowHeaderBtn" onclick="toggleFlow()" aria-expanded="false" aria-controls="flowBody">
         <span class="flow-pivot-text" id="pivotText">Three forecasts, compared</span>
-        <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-label="What is this chart?" onclick="event.stopPropagation();toggleFlowInfo()">i</button>
-      </span>
+      </button>
+      <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-label="What is this chart?" onclick="toggleFlowInfo()">i</button>
       <span class="flow-toggle-icon" id="flowToggleIcon">↓</span>
     </div>
-    <div class="flow-body">
+    <div class="flow-body" id="flowBody">
       <div class="flow-body-inner">
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
         <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 52" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -1316,7 +1317,7 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
-window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');s.classList.toggle('open');i.textContent=s.classList.contains('open')?'↑':'↓';};
+window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');const open=s.classList.toggle('open');i.textContent=open?'↑':'↓';document.getElementById('flowHeaderBtn').setAttribute('aria-expanded',String(open));};
 
 // Shared by the two info triggers (header title + legend row) so there's one
 // explanation, not two copies to keep in sync. Opening it from the header
