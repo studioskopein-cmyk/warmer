@@ -493,6 +493,15 @@ export const SELF_EVIDENT_PHRASES = [
   'stay cool', 'take it easy', 'dress warmly',
 ];
 export function assertNotSelfEvident(text) {
+  // Blank text used to pass silently — ''.includes(anyBannedPhrase) is
+  // always false, so an empty translateCandidate() output was accepted as
+  // "selected" instead of being disqualified and falling through to the
+  // next candidate (the London bug: precipitationTiming's own copy was
+  // fine, but a candidate that legitimately had nothing to add still needs
+  // this same disqualify-and-retry path, not a silent accept).
+  if (!text || !text.trim()) {
+    throw new Error('advice text is empty');
+  }
   const lower = text.toLowerCase();
   const hit = SELF_EVIDENT_PHRASES.find(p => lower.includes(p));
   if (hit) throw new Error(`self-evident phrase "${hit}" in advice text: "${text}"`);
@@ -711,4 +720,26 @@ export function buildProse(p) {
   }
 
   return action ? `${prose}<br><span class="action">${action}</span>` : prose;
+}
+
+// The RAIN_SPLIT/LOW model-consensus caption (rendered in index.html's
+// #uaddon element) is a supplement to the action line above it, never a
+// standalone message — it used to be written to its own DOM element
+// independently of whether buildProse(p) actually produced an action
+// sentence, so an hour where every score-pipeline candidate was legitimately
+// disqualified (real London case: rain had already faded below
+// findRainTiming's 40% cutoff with no future crossing left to name, and
+// nothing else was salient that hour) left the caption floating with no
+// body line above it — "rain timing's uncertain. Bring it anyway." reading
+// as a stray fragment instead of the addendum it's meant to be. hasAction —
+// whether the caller's buildProse(p) output actually included the action
+// span — must be passed in explicitly, not re-derived here, so caption and
+// action line can never drift out of sync again.
+export function buildAddendum(p, hasAction) {
+  if (!hasAction) return '';
+  if (p.consensus === 'HIGH') return '';
+  if (p.consensus === 'MEDIUM') return '';
+  if (p.consensus === 'LOW') return `— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;
+  if (p.consensus === 'RAIN_SPLIT') return `— rain timing's uncertain. Bring it anyway.`;
+  return '';
 }

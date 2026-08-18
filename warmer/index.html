@@ -979,7 +979,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{buildProse}from'./advice-rules.js';
+import{buildProse,buildAddendum}from'./advice-rules.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
@@ -1164,10 +1164,6 @@ function parse(data,airData){
   return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,pivot,now,hourlyByModel,envelope,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
 
-function buildAddendum(p){
-  if(p.consensus==='HIGH')return'';if(p.consensus==='MEDIUM')return'';if(p.consensus==='LOW'){return`— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;}if(p.consensus==='RAIN_SPLIT')return`— rain timing's uncertain. Bring it anyway.`;return'';
-}
-
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
 
 async function getAI(p){try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-(p.slots[2]?.temp??p.tMax))},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}}
@@ -1297,11 +1293,25 @@ function wireFlowTouch(){
   svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
 }
 
+// The advice line and its RAIN_SPLIT/LOW caption used to be written to
+// #prose and #uaddon independently — the only thing tying them together was
+// caller discipline in render(), which is exactly how they drifted out of
+// sync (see buildAddendum's hasAction param in advice-rules.js). This is now
+// the one place that decides both together, so #uaddon can never render
+// without the #prose action line it's meant to modify.
+function renderAdviceLine(p){
+  const proseHTML=buildProse(p);
+  const hasAction=proseHTML.includes('class="action"');
+  const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
+  const add=buildAddendum(p,hasAction);
+  const uel=document.getElementById('uaddon');
+  if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
+}
+
 function render(p){
   const{now,tMax,yMax,diff}=p;
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
-  const pe=document.getElementById('prose');pe.innerHTML=buildProse(p);pe.classList.add('fu');
-  const add=buildAddendum(p);const uel=document.getElementById('uaddon');if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
+  renderAdviceLine(p);
   document.getElementById('chips').innerHTML='';
   document.getElementById('pivotText').textContent=p.pivot||"Today's flow";document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';
   renderFlow(p);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   alertForConditions, bandForTemp, bandViolations, buildProse, TEMP_BANDS,
   COEFFICIENTS, scoreCandidates, selectCandidate, collectAdviceSignals, computeAdvice,
-  assertNotSelfEvident, ADVICE_COPY, coldWordingAccurate,
+  assertNotSelfEvident, ADVICE_COPY, coldWordingAccurate, buildAddendum,
 } from './advice-rules.js';
 
 function slotsFor(eveningTemp) {
@@ -311,6 +311,62 @@ test('precipitation timing: rain already falling now states when it clears, not 
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 }));
   assert.ok(html.includes('clears up around 3pm'), `expected a clearing time, not a start time, in: ${html}`);
   assert.ok(!html.includes('moves in'), `did not expect "moves in" phrasing for rain that's already falling: ${html}`);
+});
+
+// ---- London bug: rain that already faded below findRainTiming's 40%
+// cutoff, with no future re-crossing left to name, correctly leaves
+// precipitationTiming with nothing to add (a real third outcome distinct
+// from "ongoing" — findRainTiming returns null, not {phase:'ongoing'}) — but
+// this used to expose two real defects: (1) assertNotSelfEvident('') never
+// threw, so any candidate whose translate genuinely produced empty text was
+// silently accepted instead of disqualified-and-retried, and (2) the
+// RAIN_SPLIT/LOW caption rendered from a completely separate function with
+// no way to know whether the action line it's meant to modify existed at
+// all, so an hour where every candidate was legitimately disqualified left
+// the caption floating alone. ----
+
+test('assertNotSelfEvident rejects empty/blank text instead of passing it silently (the empty-string loophole: \'\'.includes(anyPhrase) is always false)', () => {
+  assert.throws(() => assertNotSelfEvident(''), /empty/i);
+  assert.throws(() => assertNotSelfEvident('   '), /empty/i);
+});
+
+test('precipitation timing: rain already faded below the start/clear threshold with no future re-crossing (findRainTiming returns null, not "ongoing") is correctly disqualified as a headline duplicate and falls through to the next candidate, not silence', () => {
+  // Rain was heavy from 2am-7am (>=40%) and has already dropped below 40%
+  // by "now" (11am) with nothing crossing 40% again for the rest of the
+  // day — findRainTiming has no starting/clearing/ongoing hour to name, so
+  // it returns null outright. maxRain (62%, the real London value) still
+  // triggers the "Rain possible" headline, so precipitationTiming has
+  // nothing new to add — but UV is real and salient here, so the line must
+  // fall through to it instead of going silent.
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => {
+    if (hour >= 2 && hour < 7) return { hour, rain: 60 };
+    return { hour, rain: 15 };
+  });
+  const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 18, maxRain: 62, rainSeries, nowHour: 11, uvIndex: 8 }));
+  const actionLine = html.match(/<span class="action">(.*?)<\/span>/)?.[1] ?? '';
+  assert.ok(actionLine.includes('UV'), `expected the advice line to fall through to UV rather than go silent or repeat the duplicate rain line: ${html}`);
+  assert.ok(!actionLine.toLowerCase().includes('umbrella'), `did not expect the disqualified duplicate rain line to leak through: ${html}`);
+});
+
+test('precipitation timing: the same faded-rain, no-future-crossing hour with no other salient signal at all correctly goes silent (mute), matching the winter-Berlin case — no fabricated action line', () => {
+  const rainSeries = Array.from({ length: 24 }, (_, hour) => {
+    if (hour >= 2 && hour < 7) return { hour, rain: 60 };
+    return { hour, rain: 15 };
+  });
+  const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 62, rainSeries, nowHour: 11 }));
+  assert.ok(!html.includes('class="action"'), `expected no action line when precipitationTiming is disqualified and nothing else scores above 0: ${html}`);
+});
+
+test('buildAddendum: the RAIN_SPLIT/LOW caption never renders when hasAction is false, regardless of consensus (the orphaned-caption bug)', () => {
+  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, false), '', 'RAIN_SPLIT caption must not appear without an action line');
+  assert.equal(buildAddendum({ consensus: 'LOW', maxSpread: 5 }, false), '', 'LOW caption must not appear without an action line');
+});
+
+test('buildAddendum: still produces its normal LOW/RAIN_SPLIT copy when hasAction is true (no regression from the hasAction gate)', () => {
+  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, true), `— rain timing's uncertain. Bring it anyway.`);
+  assert.equal(buildAddendum({ consensus: 'LOW', maxSpread: 5 }, true), `— forecasts disagree by about 5°. Keep a backup.`);
+  assert.equal(buildAddendum({ consensus: 'HIGH' }, true), '');
+  assert.equal(buildAddendum({ consensus: 'MEDIUM' }, true), '');
 });
 
 // ---- Mexico City bug: the headline's rain-window chip and the advice
