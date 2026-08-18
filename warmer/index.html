@@ -17,8 +17,8 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:#ffffff}
-body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:#8B615F}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:#ffffff;--accent:#AA1E18;--accent-rgb:170,30,24}
+body.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:#8B615F;--accent:#C5E6FC;--accent-rgb:197,230,252}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
@@ -64,7 +64,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
 .flow-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;user-select:none;-webkit-user-select:none}
 .flow-header:active{opacity:.65}
+.flow-title-group{display:flex;align-items:center;gap:8px}
 .flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;color:var(--text)}
+.info-btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;border-radius:50%;border:1px solid var(--chip-bd);background:var(--chip-bg);color:var(--muted);font-size:10.5px;font-style:italic;font-family:Georgia,'Times New Roman',serif;line-height:1;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.info-btn:active{opacity:.5}
 .flow-toggle-icon{font-size:13px;color:var(--muted);transition:transform .2s ease}
 .flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
 .flow-section.open .flow-header{border-bottom:1px solid var(--line)}
@@ -80,11 +83,17 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 /* display:none by default so a rain-free day leaves zero layout space —
    toggled to .on only when renderPrecipStrip actually draws bars. */
-.precip-svg{width:100%;height:auto;display:none;overflow:visible;margin:-4px 0 8px}
-.precip-svg.on{display:block}
-.flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
+.precip-svg{width:100%;height:auto;display:none;overflow:visible;margin:4px 0 8px}
+.precip-svg.on{display:block;border-top:1px solid var(--line);padding-top:6px}
+.flow-legend{display:flex;align-items:center;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
-.flow-legend-bar{width:12px;height:1.5px;background:var(--text)}
+.flow-legend-item svg{display:block;flex-shrink:0}
+/* Grid-track accordion, same trick as .flow-body — expands to the
+   explanation text's own height instead of a hardcoded max-height. */
+.flow-info{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.25,1,.5,1)}
+.flow-info.open{grid-template-rows:1fr}
+.flow-info-inner{overflow:hidden;min-height:0}
+.flow-info-text{font-size:12.5px;line-height:1.5;color:var(--muted);padding-top:2px;margin-bottom:10px}
 .credits{text-align:center;font-size:10px;color:var(--muted);letter-spacing:0.3px;padding:16px 20px 24px;opacity:0.6}
 .flow-consensus{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:14px;color:var(--text);opacity:0.7;line-height:1.1;letter-spacing:-0.05em;margin-top:8px}
 .flow-consensus.on{display:block}
@@ -143,7 +152,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   <div class="chips" id="chips"></div>
   <div class="flow-section" id="flowSection">
     <div class="flow-header" onclick="toggleFlow()">
-      <span class="flow-pivot-text" id="pivotText">Today's flow</span>
+      <span class="flow-title-group">
+        <span class="flow-pivot-text" id="pivotText">Three forecasts, compared</span>
+        <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-label="What is this chart?" onclick="event.stopPropagation();toggleFlowInfo()">i</button>
+      </span>
       <span class="flow-toggle-icon" id="flowToggleIcon">↓</span>
     </div>
     <div class="flow-body">
@@ -151,6 +163,11 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
         <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 52" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="flow-legend" id="flowLegend"></div>
+        <div class="flow-info" id="flowInfo">
+          <div class="flow-info-inner">
+            <div class="flow-info-text">ECMWF, ICON, and GFS are three weather agencies, each running its own forecast independently. When their lines stay close, that's a safer bet — when they split apart, the forecast is less certain.</div>
+          </div>
+        </div>
         <div class="flow-consensus" id="flowConsensus"></div>
       </div>
     </div>
@@ -1070,16 +1087,20 @@ function wireCitySearch(){
 wireCitySearch();
 wireFlowTouch();
 
-// opacity/width set the primary-vs-secondary line hierarchy in renderFlow
-// (thickness AND opacity both step down, never hue — the palette is
-// near-monochrome ink, so a second color would look like an error, not a
-// series). Secondary-model values are tuned against a white flow-chart card
-// (item 3), not the app's own light-blue --bg: at the old 0.42/0.30, ink
-// text/lines fall under WCAG's 3:1 non-text contrast minimum once they sit
-// on #ffffff instead (that bg's own luminance ~0.72 vs white's 1.0 was
-// carrying them) — 0.65 is roughly where a straight ink line clears 3:1 on
-// white, so anything meant to be legible there needs to sit at or above it.
-const MODELS=[{id:'ecmwf_ifs025',label:'ECMWF',opacity:0.9,width:2},{id:'icon_seamless',label:'ICON',opacity:0.78,width:1.2},{id:'gfs_seamless',label:'GFS',opacity:0.65,width:1}];
+// Primary/secondary hierarchy in renderFlow: the primary (ECMWF) line draws
+// in --accent — a saturated pull off the same ink hue (light: ink's own
+// ~2° hue at ~3x the saturation; dark: ink's ~204° hue, also boosted), never
+// a new hue — at full opacity and a heavier stroke, so it reads as the one
+// line that matters. Secondaries stay in plain ink, drop further in opacity
+// than before (they no longer need to individually clear a contrast floor —
+// the accent now carries "this is the primary" on its own), and pick up
+// dash/dot patterns (see `dash` below) so they're still distinguishable from
+// each other by shape, not just by how much they've faded.
+const MODELS=[
+  {id:'ecmwf_ifs025',label:'ECMWF',opacity:1,width:2.5,dash:null,primary:true},
+  {id:'icon_seamless',label:'ICON',opacity:0.5,width:1.2,dash:'7,4'},
+  {id:'gfs_seamless',label:'GFS',opacity:0.38,width:1,dash:'0.1,4'},
+];
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
 // reading, same pattern as the gust-or-wind fallback in advice-rules.js.
@@ -1183,10 +1204,7 @@ function parse(data,airData){
   const meanYestMax=modelMaxYest.reduce((a,b)=>a+b,0)/Math.max(1,modelMaxYest.length);
   const diff=Math.round(meanTodayMax-meanYestMax);
 
-  const ne=slots[2].temp-slots[1].temp,mn=slots[1].temp-slots[0].temp;
-  const pivot=Math.abs(ne)>=5?(ne<0?'Cooling tonight':'Warming tonight'):Math.abs(mn)>=5?(mn>0?'Warmest at midday':'Chilly this afternoon'):'';
-
-  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,pivot,now,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
+  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,now,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
 
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
@@ -1222,6 +1240,22 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
 window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');s.classList.toggle('open');i.textContent=s.classList.contains('open')?'↑':'↓';};
+
+// Shared by the two info triggers (header title + legend row) so there's one
+// explanation, not two copies to keep in sync. Opening it from the header
+// (which is visible even while the section is collapsed) also opens the
+// section itself — otherwise the text would expand inside a 0fr row nobody
+// can see.
+window.toggleFlowInfo=()=>{
+  const sec=document.getElementById('flowSection');
+  const info=document.getElementById('flowInfo');
+  const willOpen=!info.classList.contains('open');
+  if(willOpen&&!sec.classList.contains('open')){
+    sec.classList.add('open');
+    document.getElementById('flowToggleIcon').textContent='↑';
+  }
+  info.classList.toggle('open',willOpen);
+};
 
 let fbLastFocus=null;
 function fbSheetKeydown(e){if(e.key==='Escape')closeFbSheet();}
@@ -1274,40 +1308,60 @@ function renderFlow(p){
   // boundary produced an "L x,NaN" segment the moment ICON/GFS started
   // drawing too, breaking the path.
   const buildPath=(hourly)=>{let d='';hourly.forEach((pt,i)=>{if(pt.t==null)return;const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);d+=d===''?`M ${x},${y}`:` L ${x},${y}`});return d};
-  const primary=p.hourlyByModel[0];const peakIdx=primary?primary.hourly.reduce((best,pt,i)=>pt.t>primary.hourly[best].t?i:best,0):13;
-  const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
+  const primary=p.hourlyByModel[0];
 
   let html=`<defs></defs>`;
 
-  // Model lines: ECMWF (primary) stays the dark reference line; ICON/GFS
-  // draw as thinner, lower-opacity lines in the same ink color — never a
-  // different hue, the palette is near-monochrome and a second color would
-  // read as an error rather than "another model." This replaces the old
-  // min/max shaded envelope, which only ever showed the width of
-  // disagreement, never which model said what.
+  // Model lines: ECMWF (primary) draws in --accent, full opacity, the
+  // heaviest stroke — the one line meant to pop. ICON/GFS stay in plain ink,
+  // faded further back than before, and pick up a dash/dot pattern (per
+  // MODELS) so they read as distinct series by shape as well as by how far
+  // back they sit — never a second hue, so they never look like a mistake.
   p.hourlyByModel.slice(1).forEach(x=>{
     const path=buildPath(x.hourly);
-    html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const dashAttr=x.model.dash?` stroke-dasharray="${x.model.dash}"`:'';
+    html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"${dashAttr}/>`;
   });
-  {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${primary.model.width}" stroke-opacity="${primary.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;}
+  {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="${primary.model.width}" stroke-opacity="${primary.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;}
 
-  anchors.forEach(a=>{if(!primary)return;const t=primary.hourly[a.i]?.t;if(t==null)return;const x=xScale(a.i),y=yScale(t);html+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.bold?3:2.5}" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.75}"/>`;html+=`<text x="${x.toFixed(1)}" y="${(y+a.labelY).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="${a.bold?'13':'11'}" font-weight="450" fill="rgb(var(--text-rgb))" fill-opacity="${a.bold?1:0.68}">${a.label}</text>`;});
-  // 0.5 read fine against the app's own light-blue --bg (luminance ~0.72)
-  // but falls under WCAG's 3:1 non-text minimum on the white flow-chart
-  // card (item 3, luminance 1.0) — 0.65 clears it with a small margin.
-  const labelY=H-8;html+=`<text x="${xScale(4).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">morning</text>`;html+=`<text x="${xScale(12).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">midday</text>`;html+=`<text x="${xScale(20).toFixed(1)}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">evening</text>`;
+  // No more per-point anchor dots/labels on the curve (24°/15°/18°) — the
+  // headline chip already states the day's high, and the draggable marker
+  // below (drawFlowMarker) covers every hour on demand, so the static labels
+  // were pure clutter, not unique information.
+  // Bottom labels split the plotted width into equal thirds (not tied to
+  // hour-of-day x-positions, which bunched "morning" close to the left edge
+  // and left "evening" not centered under anything in particular) — this is
+  // a 3-way section label, not a tick mark, so even spacing is what actually
+  // reads as balanced.
+  const labelY=H-8;
+  [['morning',1/6],['midday',1/2],['evening',5/6]].forEach(([label,frac])=>{
+    const x=(padX+innerW*frac).toFixed(1);
+    html+=`<text x="${x}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">${label}</text>`;
+  });
   html+=`<g id="flowMarker"></g>`;
   svg.innerHTML=html;
+
+  // Legend: one item per model, each with a real line-style swatch (matching
+  // that model's own color/width/dash/opacity) instead of one shared bar and
+  // a "ECMWF · ICON · GFS" text run — with dash/dot now distinguishing the
+  // lines, the legend has to show which pattern belongs to which name, not
+  // just list the names.
   const legend=document.getElementById('flowLegend');
-  const modelNames=p.hourlyByModel.map(x=>x.model.label).join(' · ');
-  legend.innerHTML=`<span class="flow-legend-item"><span class="flow-legend-bar" style="opacity:0.9"></span>${modelNames}</span>`;
+  legend.innerHTML=p.hourlyByModel.map(x=>{
+    const m=x.model;
+    const color=m.primary?'var(--accent)':'rgb(var(--text-rgb))';
+    const dashAttr=m.dash?` stroke-dasharray="${m.dash}"`:'';
+    const swatch=`<svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true"><line x1="1" y1="4" x2="17" y2="4" stroke="${color}" stroke-width="${m.primary?2:1.4}" stroke-opacity="${m.opacity}" stroke-linecap="round"${dashAttr}/></svg>`;
+    return `<span class="flow-legend-item">${swatch}${m.label}</span>`;
+  }).join('')+`<button type="button" class="info-btn" id="flowLegendInfoBtn" aria-label="What does this chart mean?" onclick="toggleFlowInfo()">i</button>`;
+
   // uaddon (buildAddendum, near the headline) is now the single canonical
   // place LOW/RAIN_SPLIT get stated — this used to repeat the same message
   // here too ("Models disagree on rain timing today" next to "rain timing's
   // uncertain. Bring it anyway."), so this element no longer duplicates it.
   const cn=document.getElementById('flowConsensus');cn.classList.remove('on');cn.textContent='';
   const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
-  flowCtx={primary,xScale,yScale,padX,padY,innerW,W,H,defaultIdx,peakIdx};
+  flowCtx={primary,xScale,yScale,padX,padY,innerW,W,H,defaultIdx};
   drawFlowMarker(defaultIdx);
 }
 
@@ -1338,7 +1392,12 @@ function precipStripHeight(mm,maxH){
   const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
   return{height:Math.max(1.5,norm*maxH),opacity:0.32+norm*0.53};// 1.5px floor: a real but small reading should never round away to nothing, without every light reading rounding UP to the same dot
 }
-const PRECIP_STRIP_H=52,PRECIP_LABEL_H=10,PRECIP_BOTTOM_PAD=3;
+// PRECIP_LABEL_H bumped 10->13 to fit the larger "rain" label below (item 5)
+// — CSS now draws a divider (border-top on .precip-svg.on) between this strip
+// and the temp chart above it, and the old 9px near-invisible label grows to
+// match morning/midday/evening's own 11px/0.65-opacity treatment so it's
+// actually legible instead of just present in the markup.
+const PRECIP_STRIP_H=52,PRECIP_LABEL_H=13,PRECIP_BOTTOM_PAD=3;
 function renderPrecipStrip(p){
   const svg=document.getElementById('precipSvg');
   const primary=p.hourlyByModel[0];
@@ -1350,7 +1409,7 @@ function renderPrecipStrip(p){
   const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
   const baseY=PRECIP_STRIP_H-PRECIP_BOTTOM_PAD,maxH=baseY-PRECIP_LABEL_H;
   const slotW=FLOW_INNER_W/24,barW=Math.max(2,slotW*0.6);
-  let html=`<text x="${FLOW_PAD_X}" y="9" font-family="Aspekta,DM Sans,sans-serif" font-size="9" letter-spacing="0.4" fill="rgb(var(--text-rgb))" fill-opacity="0.5">rain</text>`;
+  let html=`<text x="${FLOW_PAD_X}" y="11" font-family="Aspekta,DM Sans,sans-serif" font-size="11" letter-spacing="0.3" fill="rgb(var(--text-rgb))" fill-opacity="0.65">rain</text>`;
   // Full-width baseline so every hour — rain or not — reads as sitting on a
   // timeline rather than bars floating as isolated dots over blank space; a
   // zero-rain hour is then visibly "on the line, no bar" instead of just
@@ -1370,7 +1429,7 @@ let flowCtx=null,flowDragging=false;
 function drawFlowMarker(idx){
   if(!flowCtx)return;
   idx=Math.max(0,Math.min(23,Math.round(idx)));
-  const{primary,xScale,yScale,padX,padY,innerW,W,H,peakIdx}=flowCtx;
+  const{primary,xScale,yScale,padX,padY,innerW,W,H}=flowCtx;
   const pt=primary.hourly[idx];
   const g=document.getElementById('flowMarker');
   if(!pt||pt.t==null||!g){if(g)g.innerHTML='';return}
@@ -1381,14 +1440,11 @@ function drawFlowMarker(idx){
   const text=`${hourLabel} · ${valueLabel}`;
   const tw=text.length*5.6+16;
   const tx=Math.max(padX,Math.min(W-padX-tw,x-tw/2));
-  // Default: tooltip sits above the point. The peak hour's own "28°" label
-  // (drawn once, statically, above) sits just above that point too — when
-  // the marker lands on or near the peak (its default position is "now,"
-  // which is often close to the daily peak), the two collided. Flip below
-  // the point in that case instead.
-  const peakPt=primary.hourly[peakIdx];
-  const nearPeak=peakPt&&peakPt.t!=null&&Math.abs(yScale(peakPt.t)-y)<22&&Math.abs(xScale(peakIdx)-x)<40;
-  const ty=nearPeak?Math.min(H-45,y+14):Math.max(padY-2,y-30);
+  // Default: tooltip sits above the point. Flip below only when the point
+  // itself is close enough to the chart's top edge that an above-placed
+  // tooltip would clip out of the viewBox (there's no static peak label to
+  // dodge anymore — that was the only other reason this used to flip).
+  const ty=(y-30<padY-2)?Math.min(H-45,y+14):Math.max(padY-2,y-30);
   g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(H-24).toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--chip-bg)" stroke="var(--chip-bd)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
 }
 function flowIndexFromEvent(e){
@@ -1430,7 +1486,7 @@ function render(p){
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
   renderAdviceLine(p);
   document.getElementById('chips').innerHTML='';
-  document.getElementById('pivotText').textContent=p.pivot||"Today's flow";document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';
+  document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';document.getElementById('flowInfo').classList.remove('open');
   renderFlow(p);
   renderPrecipStrip(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
@@ -1439,7 +1495,7 @@ function render(p){
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
