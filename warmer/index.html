@@ -78,6 +78,10 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-section.open .flow-body{grid-template-rows:1fr}
 .flow-body-inner{overflow:hidden;min-height:0;padding:4px 16px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
+/* display:none by default so a rain-free day leaves zero layout space —
+   toggled to .on only when renderPrecipStrip actually draws bars. */
+.precip-svg{width:100%;height:auto;display:none;overflow:visible;margin:-4px 0 8px}
+.precip-svg.on{display:block}
 .flow-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-bar{width:12px;height:1.5px;background:var(--text)}
@@ -145,6 +149,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
     <div class="flow-body">
       <div class="flow-body-inner">
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
+        <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 48" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="flow-legend" id="flowLegend"></div>
         <div class="flow-consensus" id="flowConsensus"></div>
       </div>
@@ -1240,23 +1245,21 @@ window.closeFbSheet=()=>{
 // problem: anchored to a fixed ceiling, light rain rounds down to invisible;
 // anchored to today's own max, a drizzle-only day and a downpour day both
 // paint full-height bars and the two become impossible to tell apart, which
-// defeats the point. sqrt(mm) is a fixed, absolute scale (comparable across
-// hours/cities/days, unlike a per-day-relative one) that also expands the
-// low end relative to a straight line — 1mm reads at ~35% height instead of
-// ~13% — so a light shower still shows a real bar instead of a sliver, while
-// heavy rain still tops out visibly taller. Ceiling of 8mm/h sits at the
-// low end of "heavy rain" (WMO/Met Office bands run heavy ≈7.6mm/h+); a rarer
+// defeats the point. Ceiling of 8mm/h is a fixed, absolute scale (comparable
+// across hours/cities/days, unlike a per-day-relative one) sitting at the low
+// end of "heavy rain" (WMO/Met Office bands run heavy ≈7.6mm/h+); a rarer
 // spike above that clamps to full height rather than flattening the rest of
 // the day's bars the way an unclamped scale keyed to the day's own peak would.
 const PRECIP_MM_CEILING=8;
-function precipBarHeight(mm,maxH){
-  if(!mm||mm<=0)return 0;
-  const norm=Math.min(1,Math.sqrt(mm)/Math.sqrt(PRECIP_MM_CEILING));
-  return Math.max(2,norm*maxH);// 2px floor: a real but small reading should never round away to nothing
-}
+// Chart geometry shared by renderFlow (temp curve) and renderPrecipStrip (its
+// own row below): same W/padX/innerW means xScale(i) lands on identical
+// pixels in both — each SVG is independently scaled from this viewBox width
+// to the container's own rendered width via CSS width:100%, so matching the
+// viewBox width is what keeps the hour columns aligned, not the DOM.
+const FLOW_W=320,FLOW_PAD_X=30,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
 
 function renderFlow(p){
-  const svg=document.getElementById('flowSvg');const W=320,H=160,padX=30,padY=24;const innerH=H-padY*2-24,innerW=W-padX*2;
+  const svg=document.getElementById('flowSvg');const W=FLOW_W,H=160,padX=FLOW_PAD_X,padY=24;const innerH=H-padY*2-24,innerW=FLOW_INNER_W;
   const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
   if(allTemps.length===0){svg.innerHTML='';return}
   const tMin=Math.min(...allTemps),tMax=Math.max(...allTemps);const pad=Math.max(1,(tMax-tMin)*0.15);const yMin=tMin-pad,yMax=tMax+pad;
@@ -1271,21 +1274,6 @@ function renderFlow(p){
   const anchors=[{i:8,label:`${p.slots[0].temp}°`,labelY:-8},{i:peakIdx,label:`${Math.round(primary?.hourly[peakIdx]?.t??p.tMax)}°`,labelY:-10,bold:true},{i:19,label:`${p.slots[2].temp}°`,labelY:-8}];
 
   let html=`<defs></defs>`;
-
-  // Precipitation: per-hour bars, bottom-anchored and growing upward from a
-  // baseline just above the day-part labels, kept structurally separate
-  // from the temperature curve above it (curve readability first) rather
-  // than overlaid behind it.
-  {
-    const barBaseY=H-24,barMaxH=barBaseY-(padY+innerH); // reserved strip below the temp curve, same footprint the old single rain-window rect used
-    const slotW=innerW/24,barW=Math.max(2,slotW*0.55);
-    primary.hourly.forEach((h,i)=>{
-      const bh=precipBarHeight(h.mm,barMaxH);
-      if(bh<=0)return;
-      const cx=xScale(i),x=cx-barW/2,y=barBaseY-bh;
-      html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--text-rgb))" fill-opacity="0.4"/>`;
-    });
-  }
 
   // Model lines: ECMWF (primary) stays the dark reference line; ICON/GFS
   // draw as thinner, lower-opacity lines in the same ink color — never a
@@ -1317,6 +1305,51 @@ function renderFlow(p){
   const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
   flowCtx={primary,xScale,yScale,padX,padY,innerW,W,H,defaultIdx,peakIdx};
   drawFlowMarker(defaultIdx);
+}
+
+// Its own row below the temp curve, not a bottom strip squeezed inside it —
+// that's what made drizzle days (Mexico City, ~0.1-1.9mm/h) collapse to a
+// handful of 2-3px dots. ~48 viewBox units here vs. 160 for the temp chart
+// (~30%, inside the 1/4-1/3 the layout asked for) is enough room for a real
+// gradient of bar heights at these hourly rates.
+// cbrt(mm) over sqrt(mm): both are fixed/absolute (no per-day renorm — a
+// drizzle day must NOT look as "full" as a downpour day, or the scale lies),
+// but real forecasts cluster well under the old sqrt curve's effective
+// range — Mexico City tops out at 1.9mm/h, Cusco's all-day drizzle sits
+// under 1mm/h — and sqrt only spends about the bottom third of its height
+// budget on 0-2mm/h. Cube root spends roughly the bottom two-thirds there,
+// so 0.1 vs 0.3 vs 1.0mm/h — all "light rain" by WMO bands — actually read
+// as different bar heights instead of three near-identical slivers. Ceiling
+// stays 8mm/h, same absolute cross-city/day scale as the temp chart's old bars.
+// Height alone can still tie under the floor clamp (see below), so opacity
+// carries the same normalized intensity as a second, redundant channel —
+// no new hue, just more/less of the existing ink color.
+function precipStripHeight(mm,maxH){
+  if(!mm||mm<=0)return{height:0,opacity:0};
+  const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
+  return{height:Math.max(2.5,norm*maxH),opacity:0.32+norm*0.53};// 2.5px floor: a real but small reading should never round away to nothing
+}
+const PRECIP_STRIP_H=48,PRECIP_LABEL_H=14,PRECIP_BOTTOM_PAD=4;
+function renderPrecipStrip(p){
+  const svg=document.getElementById('precipSvg');
+  const primary=p.hourlyByModel[0];
+  // No rain anywhere today: skip rendering entirely rather than drawing an
+  // empty baseline. The element stays display:none (no .on class) so it
+  // takes up zero layout space — same empty-wrapper trap as the old advice
+  // line, avoided the same way: never toggle visible without content.
+  if(!primary||!primary.hourly.some(h=>h.mm>0)){svg.classList.remove('on');svg.innerHTML='';return}
+  const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
+  const baseY=PRECIP_STRIP_H-PRECIP_BOTTOM_PAD,maxH=baseY-PRECIP_LABEL_H;
+  const slotW=FLOW_INNER_W/24,barW=Math.max(2,slotW*0.6);
+  let html=`<text x="${FLOW_PAD_X}" y="10" font-family="Aspekta,DM Sans,sans-serif" font-size="9" letter-spacing="0.4" fill="rgb(var(--text-rgb))" fill-opacity="0.5">rain</text>`;
+  primary.hourly.forEach((h,i)=>{
+    const{height,opacity}=precipStripHeight(h.mm,maxH);
+    if(height<=0)return;
+    const cx=xScale(i),x=cx-barW/2,y=baseY-height;
+    html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--text-rgb))" fill-opacity="${opacity.toFixed(2)}"/>`;
+  });
+  svg.innerHTML=html;
+  svg.classList.add('on');
 }
 
 let flowCtx=null,flowDragging=false;
@@ -1385,13 +1418,14 @@ function render(p){
   document.getElementById('chips').innerHTML='';
   document.getElementById('pivotText').textContent=p.pivot||"Today's flow";document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';
   renderFlow(p);
+  renderPrecipStrip(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
 }
 
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
