@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-BS44DWB69Q"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-BS44DWB69Q');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Warmer</title>
@@ -17,15 +26,15 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:#ffffff;--accent:#AA1E18;--accent-rgb:170,30,24}
-html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:#6E4A48;--accent:#C5E6FC;--accent-rgb:197,230,252}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73}
+html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
 .app{max-width:390px;margin:0 auto;min-height:100vh;padding:56px 32px 48px;display:flex;flex-direction:column}
 @media (min-width:640px){
   body{background:radial-gradient(circle at 25% 15%,rgba(var(--text-rgb),0.08),transparent 55%),radial-gradient(circle at 80% 85%,rgba(var(--text-rgb),0.06),transparent 50%),var(--bg)}
-  .app{margin:48px auto;min-height:calc(100vh - 96px);background:var(--bg);border:1px solid var(--chip-bd);border-radius:28px;box-shadow:0 30px 80px rgba(0,0,0,0.18),0 2px 10px rgba(0,0,0,0.08)}
+  .app{margin:48px auto;min-height:calc(100vh - 96px);background:var(--bg);border:1px solid rgba(255,255,255,0.10);border-radius:28px}
 }
 .wordmark{font-size:11px;font-weight:inherit;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin:0 0 48px}
 .meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
@@ -42,9 +51,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .uaddon.on{display:block}
 .pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 3px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
 .pcip .ddot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 5px;vertical-align:middle;position:relative;top:-1px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .freshness{font-size:10.5px;color:var(--muted);opacity:0.5;letter-spacing:0.2px;margin-bottom:28px;min-height:13px}
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:7px 15px;font-size:13px;color:var(--text)}
 .div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-head{font-family:'Gelasio',serif;font-style:normal;font-weight:400;font-size:20px;letter-spacing:normal;text-transform:none;color:var(--text);margin-bottom:14px}
 .nearby{margin-bottom:32px}
@@ -71,11 +78,11 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-sheet-close{position:relative;background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent}
 .fb-sheet-close::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 .flow-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
-.flow-header{display:flex;align-items:center;gap:8px;padding:12px 16px;user-select:none;-webkit-user-select:none}
+.flow-header{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 16px;user-select:none;-webkit-user-select:none}
 .flow-header-btn{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .flow-header-btn:active{opacity:.65}
 .flow-toggle-icon{margin-left:auto}
-.flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;color:var(--text)}
+.flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;line-height:1;position:relative;top:1px;color:var(--text)}
 .info-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;border-radius:50%;border:1px solid var(--chip-bd);background:var(--chip-bg);color:var(--muted);font-size:10.5px;font-style:italic;font-family:Georgia,'Times New Roman',serif;line-height:1;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .info-btn::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
@@ -170,7 +177,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
   <div class="loc-fail" id="locFail" role="status">Couldn't find you — <button type="button" id="locFailBtn">choose a city</button> instead.</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
-  <div class="chips" id="chips"></div>
   <div class="freshness" id="freshness"></div>
   <div class="flow-section" id="flowSection">
     <div class="flow-header">
@@ -1033,7 +1039,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{buildProse,buildAddendum}from'./advice-rules.js';
+import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
@@ -1297,17 +1303,6 @@ function parse(data,airData){
 }
 
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
-
-// eveningDelta mirrors buildProse's own nextWindowTemp swap (advice-rules.js)
-// — in EVENING/NIGHT it reads tomorrowMorningTemp instead of today's fixed
-// evening slot, same reasoning: today's evening is no longer upcoming by
-// then. p.band travels to the server as-is inside the ...p spread below, so
-// warmer-engine-v3.ts's llmPolish can frame its own prompt off the same value.
-async function getAI(p){
-  const nightFrame=p.band==='EVENING'||p.band==='NIGHT';
-  const refTemp=nightFrame&&p.tomorrowMorningTemp!=null?p.tomorrowMorningTemp:(p.slots[2]?.temp??p.tMax);
-  try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({weatherContext:{...p,temp:p.tMax,delta:p.diff,windSpeed:p.wind,feels_like:p.feels,precipProb:p.maxRain,eveningDelta:Math.max(0,p.tMax-refTemp)},lang:'en'})});const d=await r.json();return d.success?d:null;}catch{return null}
-}
 
 function buildNearbyProse(counts,userVote){
   const labels={match:'matches',colder:'colder',warmer:'warmer',rainy:'rainy',windy:'windy'};
@@ -1575,27 +1570,24 @@ function wireFlowTouch(){
 // the one place that decides both together, so #uaddon can never render
 // without the #prose action line it's meant to modify.
 function renderAdviceLine(p){
-  const proseHTML=buildProse(p);
+  const{html:proseHTML,selected}=buildProse(p);
   const hasAction=proseHTML.includes('class="action"');
   const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
   const add=buildAddendum(p,hasAction);
   const uel=document.getElementById('uaddon');
   if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
+  return selected;
 }
 
 function render(p){
   const{now,tMax,yMax,diff}=p;
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
-  renderAdviceLine(p);
-  // #chips is deliberately NOT cleared here — it's owned by
-  // maybeRefreshBriefing/renderChip now (Part 4/5). A background or manual
-  // refresh that legitimately skips regenerating the briefing (cooldown not
-  // elapsed, band/location unchanged) must leave the currently-shown chip
-  // alone, not blank it out with nothing queued to replace it.
+  const selected=renderAdviceLine(p);
   document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';document.getElementById('flowInfo').classList.remove('open');
   renderFlow(p);
   renderPrecipStrip(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
+  return selected;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1616,7 +1608,6 @@ let currentLoc=null,lastWeatherFetchAt=0;
 let lastBriefingAt=0,lastBriefingBand=null,lastBriefingLocKey=null,briefingInFlight=false;
 
 function locationKey(loc){return loc?`${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`:''}
-function renderChip(text){document.getElementById('chips').innerHTML=text?`<div class="chip">${text}</div>`:'';}
 function updateFreshness(){
   const el=document.getElementById('freshness');
   if(!el)return;
@@ -1625,38 +1616,74 @@ function updateFreshness(){
 }
 function loadBriefingCache(){try{const raw=localStorage.getItem(BRIEFING_CACHE_KEY);return raw?JSON.parse(raw):null}catch{return null}}
 function saveBriefingCache(entry){try{localStorage.setItem(BRIEFING_CACHE_KEY,JSON.stringify(entry))}catch{}}
-// Cold-load only: a fresh page load inside the same band, same location,
-// still within BRIEFING_REGEN_MS of the cached write, renders straight from
-// localStorage and skips the Gemini call entirely.
-function tryBriefingCache(p){
-  const cached=loadBriefingCache();
-  const locKey=locationKey(currentLoc);
-  if(cached&&cached.band===p.band&&Date.now()-cached.ts<BRIEFING_REGEN_MS&&cached.locationKey===locKey){
-    renderChip(cached.text);
-    lastBriefingAt=cached.ts;lastBriefingBand=cached.band;lastBriefingLocKey=cached.locationKey;
-    return true;
-  }
-  return false;
+
+// ─────────────────────────────────────────────────────────────────────
+// GEMINI PHRASING PILOT — reword ONE already-selected, already-templated
+// sentence (see advice-rules.js's GEMINI_PILOT_SCOPE) for apparentTempGap/big
+// and diurnalRange/notable only. Everything else in this file's render path
+// is untouched; the deterministic line from buildProse() is already on
+// screen by the time this runs, so this is strictly a progressive upgrade —
+// never something the initial render waits on.
+//
+// The prompt itself is built server-side (functions/api/translate.ts), not
+// here — this only sends the validated selection {key, tier, meta}. A
+// client-rendered free-text prompt would let anyone who can POST to
+// /api/translate direct our own metered GEMINI_API_KEY at an arbitrary
+// prompt; the server re-checks (key, tier) against GEMINI_PILOT_SCOPE itself
+// rather than trusting this file's isInGeminiPilotScope() call alone.
+// ─────────────────────────────────────────────────────────────────────
+// Single attempt, no retry — same proxy pattern getAI() used (POST
+// /api/translate, try/catch → null), but mode:'pilot-reword' bypasses
+// warmer-engine-v3.ts's own signal selection entirely and always calls
+// Gemini, since that pipeline's lang==='en' short-circuit never did.
+async function callGeminiPilot(selected){
+  try{
+    const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'pilot-reword',key:selected.key,tier:selected.tier,meta:selected.meta||{}})});
+    const d=await r.json();
+    return d.success?d.text:null;
+  }catch{return null}
+}
+function applyGeminiLine(text){
+  const el=document.querySelector('#prose .action');
+  if(el)el.textContent=text;
 }
 
 // The one gate every briefing request passes through — manual refresh,
-// background auto-refresh, and cold init all call this instead of getAI()
-// directly, so the cooldown/band-change/location-change rules and the
-// in-flight guard (no two concurrent Gemini calls) live in exactly one place.
-async function maybeRefreshBriefing(p,{force=false}={}){
-  if(!p||briefingInFlight)return;
+// background auto-refresh, and cold init all call this instead of
+// callGeminiPilot() directly, so the cooldown/band-change/location-change
+// rules and the in-flight guard (no two concurrent Gemini calls) live in
+// exactly one place. Out of pilot scope (the common case) is a same-tick,
+// no-network no-op.
+async function maybeRefreshBriefing(p,selected,{force=false}={}){
+  if(!p||!isInGeminiPilotScope(selected)||briefingInFlight)return;
   const locKey=locationKey(currentLoc);
+  const dateKey=p.now instanceof Date?p.now.toISOString().split('T')[0]:'';
+  const cacheKey=`${selected.key}:${selected.tier}:${p.band}:${locKey}:${dateKey}`;
+
+  // Reload on the same day/band/location/signal: apply the cached line
+  // (if one was ever accepted) and skip the network call outright,
+  // regardless of the cooldown/force below.
+  const cached=loadBriefingCache();
+  if(cached&&cached.cacheKey===cacheKey){
+    applyGeminiLine(cached.text);
+    lastBriefingAt=cached.ts;lastBriefingBand=p.band;lastBriefingLocKey=locKey;
+    return;
+  }
+
   const bandChanged=lastBriefingBand!=null&&p.band!==lastBriefingBand;
   const locChanged=lastBriefingLocKey!=null&&locKey!==lastBriefingLocKey;
   const cooldownElapsed=Date.now()-lastBriefingAt>=BRIEFING_REGEN_MS;
   if(!force&&!bandChanged&&!locChanged&&!cooldownElapsed)return;
+
   briefingInFlight=true;
   try{
-    const ai=await getAI(p);
-    const text=ai?.translation?.chip||'';
-    renderChip(text);
+    const text=await callGeminiPilot(selected);
     lastBriefingAt=Date.now();lastBriefingBand=p.band;lastBriefingLocKey=locKey;
-    if(text)saveBriefingCache({text,band:p.band,ts:lastBriefingAt,locationKey:locKey});
+    if(!text){console.debug('[gemini-pilot] request failed — keeping deterministic line');return;}
+    const result=validateGeminiLine(text,selected,p.tMax);
+    if(!result.ok){console.debug('[gemini-pilot] rejected:',result.reason);return;}
+    applyGeminiLine(text);
+    saveBriefingCache({text,cacheKey,ts:lastBriefingAt});
   }finally{
     briefingInFlight=false;
   }
@@ -1680,10 +1707,10 @@ async function loadWeather(){
   const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);
   const p=parse(data,airData);
   lastWeatherFetchAt=Date.now();
-  render(p);
+  const selected=render(p);
   updateFreshness();
   loadNearby(currentKey);
-  return p;
+  return{p,selected};
 }
 
 // visibilitychange (→visible), focus, and a 60s interval all funnel through
@@ -1693,8 +1720,8 @@ async function autoRefreshCheck(){
   if(document.hidden)return;
   if(Date.now()-lastWeatherFetchAt<WEATHER_REFETCH_MS)return;
   try{
-    const p=await loadWeather();
-    await maybeRefreshBriefing(p,{force:false});
+    const{p,selected}=await loadWeather();
+    await maybeRefreshBriefing(p,selected,{force:false});
   }catch(e){console.error('auto-refresh failed',e);}
 }
 document.addEventListener('visibilitychange',autoRefreshCheck);
@@ -1707,20 +1734,20 @@ setInterval(autoRefreshCheck,60_000);
 // the last one doesn't burn a Gemini call unless the band changed meanwhile.
 window.manualRefresh=async function manualRefresh(){
   try{
-    const p=await loadWeather();
-    await maybeRefreshBriefing(p,{force:false});
+    const{p,selected}=await loadWeather();
+    await maybeRefreshBriefing(p,selected,{force:false});
   }catch(e){console.error(e);}
 };
 
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('chips').innerHTML='';document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
-    const p=await loadWeather();
-    if(!tryBriefingCache(p))await maybeRefreshBriefing(p,{force:true});
+    const{p,selected}=await loadWeather();
+    await maybeRefreshBriefing(p,selected,{force:true});
   }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather. <button type="button" class="retry-btn" onclick="init()">Try again</button></span>`;}
 }
 window.init=init;checkOnboarding();
