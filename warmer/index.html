@@ -1037,12 +1037,27 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 
 <script type="module">
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
-import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getFirestore,doc,getDoc,setDoc,increment}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
-const app=initializeApp(firebaseConfig);
-const db=getFirestore(app);
+// Firebase is loaded dynamically, not via a top-level static import: a
+// static `import ... from 'https://www.gstatic.com/...'` throws when that
+// request is blocked (ad blockers/uBlock/corporate proxies commonly block
+// gstatic.com's firebasejs), and a throwing top-level import aborts this
+// entire <script type="module"> — including checkOnboarding() at the very
+// bottom, so the onboarding CTA's click listener never even gets attached.
+// db/doc/getDoc/setDoc/increment stay null until this resolves; loadNearby
+// and saveFeedback already tolerate that via their own try/catch.
+let db=null,doc=null,getDoc=null,setDoc=null,increment=null;
+(async()=>{
+  try{
+    const[{initializeApp},fs]=await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
+    ]);
+    db=fs.getFirestore(initializeApp(firebaseConfig));
+    ({doc,getDoc,setDoc,increment}=fs);
+  }catch(e){console.error('Firebase unavailable — nearby reports/feedback disabled',e);}
+})();
 
 // Single source of truth for "what time of day is it" — the evening
 // palette flip AND every band-windowed calculation in parse() both derive
