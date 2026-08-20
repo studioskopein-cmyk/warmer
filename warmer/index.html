@@ -26,7 +26,7 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73;--rain-rgb:114,128,251}
 html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
@@ -50,7 +50,7 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .uaddon.on{display:block}
 .pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 3px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
 .pcip .ddot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 5px;vertical-align:middle;position:relative;top:-1px}
-.freshness{font-size:10.5px;color:var(--muted);opacity:0.5;letter-spacing:0.2px;margin-bottom:28px;min-height:13px}
+.freshness{font-size:10.5px;color:var(--muted);opacity:0.5;letter-spacing:0.2px;text-align:center;min-height:13px}
 .div{height:1px;background:var(--line);margin-bottom:28px}
 .sec-head{font-family:'Gelasio',serif;font-style:normal;font-weight:400;font-size:20px;letter-spacing:normal;text-transform:none;color:var(--text);margin-bottom:14px}
 .nearby{margin-bottom:32px}
@@ -76,8 +76,8 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .fb-sheet-title{font-size:13px;color:var(--muted)}
 .fb-sheet-close{position:relative;background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent}
 .fb-sheet-close::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
-.flow-section{margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
-.flow-header{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 16px;user-select:none;-webkit-user-select:none}
+.flow-section{margin-top:28px;margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
+.flow-header{display:flex;align-items:center;gap:8px;padding:15px 10px;user-select:none;-webkit-user-select:none}
 .flow-header-btn{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .flow-header-btn:active{opacity:.65}
 .flow-toggle-icon{margin-left:auto}
@@ -97,7 +97,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
    if the chart's height ever changes (viewBox, legend wrapping, etc). */
 .flow-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.25,1,.5,1)}
 .flow-section.open .flow-body{grid-template-rows:1fr}
-.flow-body-inner{overflow:hidden;min-height:0;padding:4px 16px 16px}
+.flow-body-inner{overflow:hidden;min-height:0;padding:4px 10px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 /* display:none by default so a rain-free day leaves zero layout space —
    toggled to .on only when renderPrecipStrip actually draws bars. */
@@ -128,7 +128,8 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 @keyframes dp{0%,60%,100%{opacity:.25;transform:scale(1)}30%{opacity:1;transform:scale(1.35)}}
 @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fu .45s ease forwards}
-.refresh{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:auto;padding-top:16px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px;text-transform:uppercase}
+.footer{margin-top:auto;padding-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.refresh{display:flex;align-items:center;justify-content:center;gap:5px;background:none;border:none;color:var(--muted);font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.5px;text-transform:uppercase}
 .refresh:active{opacity:.4}
 .up{color:#F17666}
 .dn{color:#7280FB}
@@ -144,9 +145,10 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .ob-h3{font-family:'Gelasio',serif;font-style:italic;font-weight:400;font-size:40px;line-height:110%;letter-spacing:-0.05em;color:#7B4B49}
 #ob-cta-btn{display:flex;justify-content:space-between;align-items:flex-end;width:100%;padding:16px 17px;background:none;border:none;border-bottom:2px solid #7B4B49;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:450;letter-spacing:-0.01em;color:#7B4B49;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #ob-city-btn{display:block;width:100%;margin-top:16px;padding:10px 17px;background:none;border:none;font-family:'Aspekta',sans-serif;font-size:18px;font-weight:350;letter-spacing:-0.01em;color:rgba(123,75,73,0.95);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
-.loc-tap{position:relative;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.loc-tap{position:relative;display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-tap::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 .loc-tap:active{opacity:.5}
+.loc-caret{flex-shrink:0;color:var(--dim);position:relative;top:1px}
 #citySearch{position:fixed;inset:0;z-index:200;background:var(--bg,#EAECEA);max-width:390px;margin:0 auto;display:none;flex-direction:column;padding:20px 17px}
 #citySearch.on{display:flex}
 .cs-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
@@ -172,11 +174,10 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 <body>
 <main class="app">
   <h1 class="wordmark">Warmer</h1>
-  <div class="meta"><button type="button" id="locEl" class="loc-tap" aria-label="Change location">—</button><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="meta"><button type="button" id="locEl" class="loc-tap" aria-label="Change location"><span id="locElText">—</span><svg class="loc-caret" width="9" height="6" viewBox="0 0 9 6" fill="none" aria-hidden="true"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="meta-sep">·</span><span id="dateEl">—</span></div>
   <div class="loc-fail" id="locFail" role="status">Couldn't find you — <button type="button" id="locFailBtn">choose a city</button> instead.</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
-  <div class="freshness" id="freshness"></div>
   <div class="flow-section" id="flowSection">
     <div class="flow-header">
       <button type="button" class="flow-header-btn" id="flowHeaderBtn" onclick="toggleFlow()" aria-expanded="false" aria-controls="flowBody">
@@ -209,7 +210,10 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
   </div>
   <div class="sec-head">Yesterday vs today</div>
   <div class="cmp" id="cmp"></div>
-  <button class="refresh" onclick="manualRefresh()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Refresh</span></button>
+  <div class="footer">
+    <div class="freshness" id="freshness"></div>
+    <button class="refresh" onclick="manualRefresh()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Refresh</span></button>
+  </div>
   <div id="onboarding">
     <div id="ob-illus"><svg viewBox="0 0 402 874" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.5">
 <g clip-path="url(#clip0_276_649)">
@@ -1405,7 +1409,7 @@ const PRECIP_MM_CEILING=3;
 // pixels in both — each SVG is independently scaled from this viewBox width
 // to the container's own rendered width via CSS width:100%, so matching the
 // viewBox width is what keeps the hour columns aligned, not the DOM.
-const FLOW_W=320,FLOW_PAD_X=30,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
+const FLOW_W=320,FLOW_PAD_X=14,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
 
 function renderFlow(p){
   const svg=document.getElementById('flowSvg');const W=FLOW_W,H=160,padX=FLOW_PAD_X,padY=24;const innerH=H-padY*2-24,innerW=FLOW_INNER_W;
@@ -1421,7 +1425,7 @@ function renderFlow(p){
   const buildPath=(hourly)=>{let d='';hourly.forEach((pt,i)=>{if(pt.t==null)return;const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);d+=d===''?`M ${x},${y}`:` L ${x},${y}`});return d};
   const primary=p.hourlyByModel[0];
 
-  let html=`<defs></defs>`;
+  let html=`<defs><filter id="tooltipShadow" x="-50%" y="-100%" width="200%" height="300%"><feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="rgb(var(--text-rgb))" flood-opacity="0.22"/></filter></defs>`;
 
   // Model lines: ECMWF (primary) draws in --accent, full opacity, the
   // heaviest stroke — the one line meant to pop. ICON/GFS stay in plain ink,
@@ -1530,7 +1534,7 @@ function renderPrecipStrip(p){
     const{height,opacity}=precipStripHeight(h.mm,maxH);
     if(height<=0)return;
     const cx=xScale(i),x=cx-barW/2,y=baseY-height;
-    html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--text-rgb))" fill-opacity="${opacity.toFixed(2)}"/>`;
+    html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--rain-rgb))" fill-opacity="${opacity.toFixed(2)}"/>`;
   });
   svg.innerHTML=html;
   svg.classList.add('on');
@@ -1556,7 +1560,7 @@ function drawFlowMarker(idx){
   // tooltip would clip out of the viewBox (there's no static peak label to
   // dodge anymore — that was the only other reason this used to flip).
   const ty=(y-30<padY-2)?Math.min(H-45,y+14):Math.max(padY-2,y-30);
-  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(H-24).toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--chip-bg)" stroke="var(--chip-bd)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(H-24).toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
 }
 function flowIndexFromEvent(e){
   if(!flowCtx)return null;
@@ -1712,11 +1716,11 @@ async function loadWeather(){
   currentLoc=loc;
   currentKey=getFbKey(loc.lat,loc.lon);
   if(loc.source==='gps-failed'){
-    document.getElementById('locEl').textContent='Location unavailable';
+    document.getElementById('locElText').textContent='Location unavailable';
     document.getElementById('locFail').classList.add('on');
   }else{
     document.getElementById('locFail').classList.remove('on');
-    document.getElementById('locEl').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
+    document.getElementById('locElText').textContent=loc.source==='manual'&&loc.label?loc.label:await geoName(loc.lat,loc.lon);
   }
   const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);
   const p=parse(data,airData);
