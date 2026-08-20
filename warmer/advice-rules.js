@@ -66,6 +66,75 @@ export function bandForTemp(temp) {
   return TEMP_BANDS.find(b => temp >= b.min);
 }
 
+// ============================================================================
+// GEMINI PHRASING PILOT — scope, selection exposure, validation.
+//
+// Selection (which signal, which tier) stays entirely in the score pipeline
+// above. Gemini is only ever asked to reword an ALREADY-CHOSEN, ALREADY-
+// TEMPLATED sentence for two tiers that repeat most in real data. Every
+// other tier keeps its deterministic template untouched.
+// ============================================================================
+export const GEMINI_PILOT_SCOPE = [
+  { key: 'apparentTempGap', tier: 'big' },
+  { key: 'diurnalRange', tier: 'notable' },
+];
+
+export function isInGeminiPilotScope(selected) {
+  if (!selected) return false;
+  return GEMINI_PILOT_SCOPE.some(s => s.key === selected.key && s.tier === selected.tier);
+}
+
+// The one number each pilot template actually surfaces. Used to catch the
+// model silently drifting a figure while it rewords around it — checking
+// every numeric field on `meta` would false-positive, because the
+// deterministic template itself doesn't use all of them (e.g. the raw gap
+// size on apparentTempGap is never rendered, only feelsLike is).
+export const GEMINI_PILOT_RELEVANT_FIELD = {
+  apparentTempGap: 'feelsLike',
+  diurnalRange: 'eveningTemp',
+};
+
+export function geminiNumbersMatch(text, key, meta) {
+  const field = GEMINI_PILOT_RELEVANT_FIELD[key];
+  const expected = field != null && meta?.[field] != null ? Math.round(meta[field]) : null;
+  if (expected == null) return true;
+  const found = (text.match(/-?\d+(\.\d+)?/g) || []).map(s => Math.round(parseFloat(s)));
+  return found.includes(expected);
+}
+
+// A sentence can pass every other gate and still fail the reader who only
+// gets through half of it (truncated in a notification, skimmed, cut off by
+// a screen reader interruption) — the standard isn't "does the action come
+// first," it's "is the decision-relevant information (a number or a
+// concrete recommendation) present by the midpoint," so the sentence still
+// works if it's cut there.
+const DECISION_WORDS = /\b(bring|take|wear|dress|trust|skip|bundle|layer|umbrella|worth|grab|pack)\b/i;
+export function buriesPayoff(text) {
+  if (!text) return true;
+  const mid = Math.ceil(text.length / 2);
+  const firstHalf = text.slice(0, mid);
+  return !(/\d/.test(firstHalf) || DECISION_WORDS.test(firstHalf));
+}
+
+// Full validation gate for a Gemini-phrased line. All five must pass or the
+// caller must discard the line and keep the deterministic template — no
+// retry (a rejected line re-prompted back to the model tends to come back
+// either over-hedged or stranger, not better; discard-and-fall-back is safer
+// than a second generation attempt).
+export function validateGeminiLine(text, selected, tMax) {
+  if (!text || typeof text !== 'string') return { ok: false, reason: 'empty' };
+  const violations = bandViolations(tMax, text);
+  if (violations.length) return { ok: false, reason: `band:${violations.join('/')}` };
+  try { assertNotSelfEvident(text); } catch { return { ok: false, reason: 'self-evident' }; }
+  if (!geminiNumbersMatch(text, selected.key, selected.meta)) {
+    return { ok: false, reason: 'number-drift' };
+  }
+  if (buriesPayoff(text)) {
+    return { ok: false, reason: 'buries-payoff' };
+  }
+  return { ok: true };
+}
+
 // Words a band's own copy must never contain — for tests, not runtime filtering.
 export function bandViolations(temp, text) {
   const lower = text.toLowerCase();
@@ -590,7 +659,7 @@ export function computeAdvice(p) {
   console.debug(selected
     ? `[advice] selected "${selected.key}" (tier=${selected.tier}, priority=${selected.priority})`
     : '[advice] no candidate scored above 0, or all disqualified (headline duplicate / self-evident) — action line omitted');
-  return text;
+  return { text, selected };
 }
 
 // ---- P1: safety alerts — a hard top-level branch above everything else. ----
@@ -672,7 +741,11 @@ export function alertForConditions(p) {
 export function buildProse(p) {
   const alert = alertForConditions(p);
   if (alert) {
-    return `<span class="w">${alert.headline}</span>${proof(alert.icon, alert.proof)}<br><span class="action">${alert.action}</span>`;
+    return {
+      html: `<span class="w">${alert.headline}</span>${proof(alert.icon, alert.proof)}<br><span class="action">${alert.action}</span>`,
+      action: alert.action,
+      selected: null,
+    };
   }
 
   const { diff, tCode, feels, tMax, maxRain, wind } = p;
@@ -686,7 +759,7 @@ export function buildProse(p) {
   const dChip = ic(tMax, diff);
   const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${eTemp}°C`) : '';
 
-  const action = computeAdvice(p);
+  const { text: action, selected: adviceSelected } = computeAdvice(p);
 
   let prose = '';
   if (maxRain > 40) {
@@ -738,7 +811,11 @@ export function buildProse(p) {
     prose += secondary;
   }
 
-  return action ? `${prose}<br><span class="action">${action}</span>` : prose;
+  return {
+    html: action ? `${prose}<br><span class="action">${action}</span>` : prose,
+    action,
+    selected: adviceSelected,
+  };
 }
 
 // The RAIN_SPLIT/LOW model-consensus caption (rendered in index.html's
