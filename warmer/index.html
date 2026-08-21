@@ -106,7 +106,8 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
    if the chart's height ever changes (viewBox, legend wrapping, etc). */
 .flow-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.25,1,.5,1)}
 .flow-section.open .flow-body{grid-template-rows:1fr}
-.flow-body-inner{overflow:hidden;min-height:0;padding:16px 10px 16px}
+.flow-body-inner{overflow:hidden;min-height:0}
+.flow-section.open .flow-body-inner{padding:16px 10px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 /* display:none by default so a rain-free day leaves zero layout space —
    toggled to .on only when renderPrecipStrip actually draws bars. */
