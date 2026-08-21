@@ -92,10 +92,9 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
 /* Divider between header and body is its own element (.flow-divider), not
    a border on .flow-header — a border there sits at the header's own box
-   edge, flush with the card's corners, while every other divider in this
-   card (precip strip's border-top, its own baseline) is inset by the
-   card's 10px content padding. Matching that inset here instead of
-   border-bottom keeps all three lines starting/ending at the same x. */
+   edge, flush with the card's corners, while the chart's baseline below is
+   inset by the card's 10px content padding. Matching that inset here
+   instead of border-bottom keeps both lines starting/ending at the same x. */
 .flow-divider{display:none;height:1px;background:var(--line);margin:0 10px}
 .flow-section.open .flow-divider{display:block}
 /* Grid-track accordion: a single 0fr row has zero height; a single 1fr row
@@ -109,10 +108,21 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .flow-body-inner{overflow:hidden;min-height:0}
 .flow-section.open .flow-body-inner{padding:16px 10px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
-/* display:none by default so a rain-free day leaves zero layout space —
-   toggled to .on only when renderPrecipStrip actually draws bars. */
-.precip-svg{width:100%;height:auto;display:none;overflow:visible;margin:4px 0 8px}
-.precip-svg.on{display:block;border-top:1px solid var(--line);padding-top:6px}
+/* Rain card reuses .flow-section's own accordion CSS (defined above) so it
+   opens/closes identically to the temp chart card, but stays fully hidden
+   — not just collapsed — on a rain-free day, via this ID-scoped override
+   rather than a shared class (a shared class would also hide the temp
+   chart on a rain-free day, which is wrong). */
+#rainSection{display:none}
+#rainSection.has-rain{display:block}
+/* drawRainMarker's hover tooltip floats above y=0 of rainSvg (same trick
+   the old precip strip used) — that used to have room because it sat right
+   under the temp chart's own tall SVG in a shared flow-body-inner. Now
+   rainSvg is alone with only the standard 16px top padding, which isn't
+   enough clearance and let the tooltip clip against flow-body-inner's own
+   overflow:hidden. ID-scoped so the temp chart's card (which doesn't need
+   extra headroom) keeps the standard 16px. */
+#rainSection.open .flow-body-inner{padding-top:36px}
 .flow-legend{display:flex;align-items:center;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-item svg{display:block;flex-shrink:0}
@@ -200,7 +210,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
     <div class="flow-body" id="flowBody">
       <div class="flow-body-inner">
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
-        <svg class="precip-svg" id="precipSvg" viewBox="0 0 320 52" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="flow-legend" id="flowLegend"></div>
         <div class="flow-info" id="flowInfo">
           <div class="flow-info-inner">
@@ -208,6 +217,20 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
           </div>
         </div>
         <div class="flow-consensus" id="flowConsensus"></div>
+      </div>
+    </div>
+  </div>
+  <div class="flow-section" id="rainSection">
+    <div class="flow-header">
+      <button type="button" class="flow-header-btn" id="rainHeaderBtn" onclick="toggleRain()" aria-expanded="false" aria-controls="rainBody">
+        <span class="flow-pivot-text" id="rainPivotText">Rain, hour by hour</span>
+      </button>
+      <button type="button" class="flow-toggle-icon" id="rainToggleIcon" aria-hidden="true" tabindex="-1" onclick="toggleRain()">↓</button>
+    </div>
+    <div class="flow-divider"></div>
+    <div class="flow-body" id="rainBody">
+      <div class="flow-body-inner">
+        <svg class="flow-svg" id="rainSvg" viewBox="0 0 320 62" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
   </div>
@@ -1169,6 +1192,7 @@ function wireCitySearch(){
 }
 wireCitySearch();
 wireFlowTouch();
+wireRainTouch();
 
 // Primary/secondary hierarchy in renderFlow: the primary (ECMWF) line draws
 // in --accent — a saturated pull off the same ink hue (light: ink's own
@@ -1362,6 +1386,7 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
 window.toggleFlow=()=>{const s=document.getElementById('flowSection');const open=s.classList.toggle('open');document.getElementById('flowHeaderBtn').setAttribute('aria-expanded',String(open));};
+window.toggleRain=()=>{const s=document.getElementById('rainSection');const open=s.classList.toggle('open');document.getElementById('rainHeaderBtn').setAttribute('aria-expanded',String(open));};
 
 // Shared by the two info triggers (header title + legend row) so there's one
 // explanation, not two copies to keep in sync. Opening it from the header
@@ -1398,27 +1423,28 @@ window.closeFbSheet=()=>{
   fbLastFocus?.focus();
 };
 
-// Bar height reads mm (actual amount), never probability — probability-based
-// height made drizzle and a downpour look identical whenever both crossed
+// Icon tier reads mm (actual amount), never probability — probability-based
+// intensity made drizzle and a downpour look identical whenever both crossed
 // the same "likely" threshold. A straight linear mm scale has the opposite
 // problem: anchored to a fixed ceiling, light rain rounds down to invisible;
 // anchored to today's own max, a drizzle-only day and a downpour day both
-// paint full-height bars and the two become impossible to tell apart, which
+// hit the top tier and the two become impossible to tell apart, which
 // defeats the point. Ceiling is a fixed, absolute scale (comparable across
 // hours/cities/days, unlike a per-day-relative one). 3mm/h sits just above
 // the light/moderate boundary in the standard hourly-rate bands (Met Office:
 // light <2.5, moderate 2.5-10, heavy >10mm/h) — 8mm/h (near the top of
 // "moderate"/bottom of "heavy") left ordinary rain, which is almost always
 // under 2.5mm/h, pinned to the bottom of the scale. A rarer spike above 3
-// clamps to full height (fine — violent/heavy rain reading as "as intense as
-// it gets" is the point) rather than flattening the rest of the day's bars
-// the way an unclamped scale keyed to the day's own peak would.
+// clamps to the heaviest tier (fine — violent/heavy rain reading as "as
+// intense as it gets" is the point) rather than flattening the rest of the
+// day's readings the way an unclamped scale keyed to the day's own peak would.
 const PRECIP_MM_CEILING=3;
-// Chart geometry shared by renderFlow (temp curve) and renderPrecipStrip (its
-// own row below): same W/padX/innerW means xScale(i) lands on identical
-// pixels in both — each SVG is independently scaled from this viewBox width
-// to the container's own rendered width via CSS width:100%, so matching the
-// viewBox width is what keeps the hour columns aligned, not the DOM.
+// Chart geometry shared by renderFlow (temp curve) and renderRainStrip (its
+// own card, same viewBox width): same W/padX/innerW means xScale(i) lands
+// on identical pixels in both, even though they're separate SVGs in
+// separate cards now — each is independently scaled from this viewBox
+// width to its own container's rendered width via CSS width:100%, so
+// matching the viewBox width is what keeps the hour columns aligned.
 const FLOW_W=320,FLOW_PAD_X=14,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
 
 // Minimal ink-only sunrise/sun/sunset glyphs replacing the old morning/
@@ -1530,73 +1556,76 @@ function renderFlow(p){
   drawFlowMarker(defaultIdx);
 }
 
-// Its own row below the temp curve, not a bottom strip squeezed inside it —
-// that's what made drizzle days (Mexico City, ~0.1-1.9mm/h) collapse to a
-// handful of 2-3px dots. PRECIP_STRIP_H=52 viewBox units vs. 160 for the temp
-// chart (H) is 0.325H — inside the 0.25H-0.33H the layout asked for, and
-// because both SVGs are scaled from the same 320-wide viewBox to the same
-// container width, that ratio holds in real rendered pixels too (measured:
-// 146px temp chart -> 47.5px precip strip at a 390px-wide card). Of those 52
-// units only PRECIP_LABEL_H(10)+PRECIP_BOTTOM_PAD(3) is off-limits to bars —
-// maxH=39 units (~75% of the strip) actually grows, vs. the old layout's
-// 30/48 (62%), so more of the region's real height is reachable ink, not
-// just reachable box.
-// cbrt(mm) over sqrt(mm): both are fixed/absolute (no per-day renorm — a
-// drizzle day must NOT look as "full" as a downpour day, or the scale lies),
-// but real forecasts cluster well under the old sqrt curve's effective
-// range — Mexico City tops out at 1.9mm/h, Cusco's all-day drizzle sits
-// under 1mm/h — and sqrt only spends about the bottom third of its height
-// budget on 0-2mm/h. Cube root spends roughly the bottom two-thirds there,
-// so 0.1 vs 0.3 vs 1.0mm/h — all "light rain" by WMO bands — actually read
-// as different bar heights instead of three near-identical slivers.
-// Height alone can still tie under the floor clamp (see below), so opacity
-// carries the same normalized intensity as a second, redundant channel —
-// no new hue, just more/less of the existing ink color.
-function precipStripHeight(mm,maxH){
-  if(!mm||mm<=0)return{height:0,opacity:0};
+// Standalone card now (see #rainSection in the HTML) instead of a strip
+// squeezed under the temp curve — that's what made drizzle days (Mexico
+// City, ~0.1-1.9mm/h) collapse to a handful of 2-3px bars nobody could read.
+// Amount is shown as one of four intensity icons per hour rather than a
+// continuous bar height: probability already has its own voice in the
+// prose copy (see advice-rules.js's 4-tier language), so this chart's only
+// job is "how much," and a discrete icon reads faster than judging bar
+// height against a scale nobody has memorized.
+// cbrt(mm) over a linear scale for the same reason the old bar chart used
+// it: real forecasts cluster well under PRECIP_MM_CEILING, so a cube-root
+// norm spends most of its 0-1 range on ordinary light-to-moderate rain
+// instead of flattening it all into "basically zero."
+function rainTier(mm){
+  if(!mm||mm<=0)return 0;
   const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
-  return{height:Math.max(1.5,norm*maxH),opacity:0.32+norm*0.53};// 1.5px floor: a real but small reading should never round away to nothing, without every light reading rounding UP to the same dot
+  if(norm<=0.15)return 1;// drizzle
+  if(norm<=0.4)return 2;// light
+  if(norm<=0.7)return 3;// moderate
+  return 4;// heavy
 }
-// PRECIP_LABEL_H bumped 10->16 to fit the larger "rain" label below — CSS
-// draws a divider (border-top on .precip-svg.on) between this strip and the
-// temp chart above it, and the old 9px near-invisible label grows past even
-// morning/midday/evening's old 11px so it actually reads at a glance.
-const PRECIP_STRIP_H=52,PRECIP_LABEL_H=16,PRECIP_BOTTOM_PAD=3;
-function renderPrecipStrip(p){
-  const svg=document.getElementById('precipSvg');
+// Four hand-drawn tiers, not one shape scaled up — a bigger version of the
+// same teardrop reads as "bigger drop," not "more rain," at this size.
+// Heavy switches shape entirely (diagonal streaks) so it's told apart from
+// moderate by silhouette, not just by counting drops — the thin-drizzle vs
+// thick-shower-line distinction rain illustrations usually use. Single ink
+// color throughout (--rain-rgb) — intensity reads through count/shape/
+// opacity, never a new hue, same rule the old bar chart followed.
+function precipIcon(tier,cx,baseY){
+  const col='rgb(var(--rain-rgb))';
+  const drop=(x,y,scale,opacity)=>{
+    const w=2*scale,h=6*scale;
+    return `<path d="M ${x.toFixed(1)},${(y-h).toFixed(1)} C ${(x-w).toFixed(1)},${(y-h*0.45).toFixed(1)} ${(x-w).toFixed(1)},${(y-h*0.05).toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)} C ${(x+w).toFixed(1)},${(y-h*0.05).toFixed(1)} ${(x+w).toFixed(1)},${(y-h*0.45).toFixed(1)} ${x.toFixed(1)},${(y-h).toFixed(1)} Z" fill="${col}" fill-opacity="${opacity}"/>`;
+  };
+  const streak=(x,y,opacity)=>`<line x1="${(x-2.5).toFixed(1)}" y1="${(y-2).toFixed(1)}" x2="${(x+2.5).toFixed(1)}" y2="${(y-13).toFixed(1)}" stroke="${col}" stroke-opacity="${opacity}" stroke-width="1.6" stroke-linecap="round"/>`;
+  if(tier===1)return drop(cx,baseY-1,0.55,0.4);
+  if(tier===2)return drop(cx,baseY-1,1,0.65);
+  if(tier===3)return drop(cx-2.2,baseY-1,0.85,0.55)+drop(cx+2.2,baseY-1,1,0.75);
+  return streak(cx-3,baseY-1,0.6)+streak(cx,baseY-1,0.9)+streak(cx+3,baseY-1,0.75);
+}
+const RAIN_BASE_Y=48;
+function renderRainStrip(p){
+  const section=document.getElementById('rainSection');
+  const svg=document.getElementById('rainSvg');
   const primary=p.hourlyByModel[0];
-  // No rain anywhere today: skip rendering entirely rather than drawing an
-  // empty baseline. The element stays display:none (no .on class) so it
-  // takes up zero layout space — same empty-wrapper trap as the old advice
-  // line, avoided the same way: never toggle visible without content.
-  if(!primary||!primary.hourly.some(h=>h.mm>0)){svg.classList.remove('on');svg.innerHTML='';precipCtx=null;return}
+  // No rain anywhere today: hide the whole card, not just collapse it — an
+  // empty accordion header with nothing to open is worse than not showing
+  // the option at all.
+  if(!primary||!primary.hourly.some(h=>h.mm>0)){section.classList.remove('has-rain');svg.innerHTML='';rainCtx=null;return}
+  section.classList.add('has-rain');
   const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
-  const baseY=PRECIP_STRIP_H-PRECIP_BOTTOM_PAD,maxH=baseY-PRECIP_LABEL_H;
-  const slotW=FLOW_INNER_W/24,barW=Math.max(2,slotW*0.6);
-  let html=`<text x="${FLOW_PAD_X}" y="13" font-family="Aspekta,DM Sans,sans-serif" font-size="14" letter-spacing="0.2" fill="rgb(var(--text-rgb))" fill-opacity="0.65">rain</text>`;
-  // Full-width baseline so every hour — rain or not — reads as sitting on a
-  // timeline rather than bars floating as isolated dots over blank space; a
-  // zero-rain hour is then visibly "on the line, no bar" instead of just
-  // absent from the picture. Runs edge-to-edge of the viewBox (0 to FLOW_W,
-  // not FLOW_PAD_X-inset like the bars/x-axis) so its real inset comes only
-  // from flow-body-inner's own 10px padding — the same inset every other
-  // divider in this card uses, so all three lines start/end at the same x.
-  html+=`<line x1="0" y1="${baseY}" x2="${FLOW_W}" y2="${baseY}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
-  primary.hourly.forEach((h,i)=>{
-    const{height,opacity}=precipStripHeight(h.mm,maxH);
-    if(height<=0)return;
-    const cx=xScale(i),x=cx-barW/2,y=baseY-height;
-    html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--rain-rgb))" fill-opacity="${opacity.toFixed(2)}"/>`;
+  let html=`<line x1="0" y1="${RAIN_BASE_Y}" x2="${FLOW_W}" y2="${RAIN_BASE_Y}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
+  // Same rise/day/set glyphs as the temp chart's top margin — this card no
+  // longer sits directly under one, so it needs its own time-of-day anchor.
+  [['rise',1/6],['day',1/2],['set',5/6]].forEach(([variant,frac])=>{
+    const x=FLOW_PAD_X+FLOW_INNER_W*frac;
+    html+=sunGlyph(x,variant);
   });
-  html+=`<g id="precipMarker"></g>`;
+  primary.hourly.forEach((h,i)=>{
+    const tier=rainTier(h.mm);
+    if(tier===0)return;
+    html+=precipIcon(tier,xScale(i),RAIN_BASE_Y);
+  });
+  html+=`<g id="rainMarker"></g>`;
   svg.innerHTML=html;
-  svg.classList.add('on');
   const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
-  precipCtx={primary,xScale,baseY,W:FLOW_W};
-  drawPrecipMarker(defaultIdx);
+  rainCtx={primary,xScale,baseY:RAIN_BASE_Y,W:FLOW_W,defaultIdx};
+  drawRainMarker(defaultIdx);
 }
 
-let flowCtx=null,precipCtx=null,flowDragging=false;
+let flowCtx=null,flowDragging=false,rainCtx=null,rainDragging=false;
 function drawFlowMarker(idx){
   if(!flowCtx)return;
   idx=Math.max(0,Math.min(23,Math.round(idx)));
@@ -1606,8 +1635,8 @@ function drawFlowMarker(idx){
   if(!pt||pt.t==null||!g){if(g)g.innerHTML='';return}
   const x=xScale(idx),y=yScale(pt.t);
   const hourLabel=idx===0?'12am':idx<12?`${idx}am`:idx===12?'12pm':`${idx-12}pm`;
-  // Time + temp only — precipitation now gets its own tooltip in the rain
-  // strip below, so it no longer needs to double up here too.
+  // Time + temp only — precipitation has its own card (#rainSection) with
+  // its own tooltip now, so this one no longer doubles up on it.
   const text=`${hourLabel} · ${Math.round(pt.t)}°`;
   const tw=text.length*5.6+16;
   const tx=Math.max(padX,Math.min(W-padX-tw,x-tw/2));
@@ -1616,42 +1645,53 @@ function drawFlowMarker(idx){
   // tooltip would clip out of the viewBox (there's no static peak label to
   // dodge anymore — that was the only other reason this used to flip).
   const ty=(y-30<padY-2)?Math.min(H-45,y+14):Math.max(padY-2,y-30);
-  // The guide line runs to the chart's own bottom edge when there's no rain
-  // strip to hand off to; when there is one, it runs the rest of the way
-  // there (drawPrecipMarker draws the matching lower half), so dragging
-  // across either chart reads as one continuous line, not two.
-  const lineY2=precipCtx?H:H-24;
+  // Guide line runs to the chart's own bottom edge — no rain strip below it
+  // to hand off to anymore, so this is unconditional now.
+  const lineY2=H-24;
   g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${lineY2.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
 }
-// Lower half of the same guide line, drawn in the precip strip's own SVG
-// (it's a separate element from flowSvg, stacked directly beneath it) —
-// plus a second tooltip scoped to what that strip actually shows: amount
-// and probability, not time/temp again.
-function drawPrecipMarker(idx){
-  if(!precipCtx)return;
+// Rain card's own tap/drag marker — independent of flowCtx/drawFlowMarker
+// now that it's a separate card with its own SVG, not a strip stacked
+// beneath the temp chart sharing one guide line.
+function drawRainMarker(idx){
+  if(!rainCtx)return;
   idx=Math.max(0,Math.min(23,Math.round(idx)));
-  const{primary,xScale,baseY,W}=precipCtx;
+  const{primary,xScale,baseY,W}=rainCtx;
   const pt=primary.hourly[idx];
-  const g=document.getElementById('precipMarker');
+  const g=document.getElementById('rainMarker');
   if(!pt||!g){if(g)g.innerHTML='';return}
   const x=xScale(idx);
   const mm=pt.mm||0,pct=Math.round(pt.r||0);
   const mmLabel=mm>0?`${mm.toFixed(1)}mm`:'0mm';
   const text=pct>0?`${mmLabel} · ${pct}%`:mmLabel;
   // Same pill as the temp-chart tooltip (height/radius/font all match —
-  // drawFlowMarker's rect+text below is the reference) instead of its own
-  // smaller, more-rounded shape.
+  // drawFlowMarker's rect+text is the reference) instead of its own shape.
   const tw=text.length*5.6+16;
   const tx=Math.max(FLOW_PAD_X,Math.min(W-FLOW_PAD_X-tw,x-tw/2));
-  // Floats above the strip entirely — in the gap this SVG's own
-  // overflow:visible already exposes above y=0 — rather than dropping into
-  // the bar area, where a tall bar would sit right against it. The guide
-  // line still runs the strip's own full height (0 to baseY); the tooltip
-  // just isn't part of that space anymore.
+  // Floats above the icon row entirely, in the gap this SVG's own
+  // overflow:visible already exposes above y=0.
   const ty=-26;
   g.innerHTML=`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
 }
-function updateFlowHover(idx){drawFlowMarker(idx);drawPrecipMarker(idx);}
+function rainIndexFromEvent(e){
+  if(!rainCtx)return null;
+  const svg=document.getElementById('rainSvg');
+  const rect=svg.getBoundingClientRect();
+  if(rect.width===0)return null;
+  const svgX=(e.clientX-rect.left)/rect.width*rainCtx.W;
+  return Math.max(0,Math.min(23,Math.round((svgX-FLOW_PAD_X)/FLOW_INNER_W*23)));
+}
+function wireRainTouch(){
+  const svg=document.getElementById('rainSvg');
+  svg.style.touchAction='none';
+  const release=()=>{rainDragging=false;if(rainCtx)drawRainMarker(rainCtx.defaultIdx)};
+  svg.addEventListener('pointerdown',e=>{if(!rainCtx)return;rainDragging=true;svg.setPointerCapture(e.pointerId);const idx=rainIndexFromEvent(e);if(idx!=null)drawRainMarker(idx);});
+  svg.addEventListener('pointermove',e=>{if(!rainDragging)return;const idx=rainIndexFromEvent(e);if(idx!=null)drawRainMarker(idx);});
+  svg.addEventListener('pointerup',release);
+  svg.addEventListener('pointercancel',release);
+  svg.addEventListener('pointerleave',()=>{if(rainDragging)release();});
+}
+function updateFlowHover(idx){drawFlowMarker(idx);}
 function flowIndexFromEvent(e){
   if(!flowCtx)return null;
   const svg=document.getElementById('flowSvg');
@@ -1662,18 +1702,15 @@ function flowIndexFromEvent(e){
 }
 function wireFlowTouch(){
   const release=()=>{flowDragging=false;if(flowCtx)updateFlowHover(flowCtx.defaultIdx)};
-  // Wired on both the temp chart and the rain strip — either one can be
-  // dragged, and flowIndexFromEvent always measures against flowSvg's own
-  // rect (both SVGs share the same rendered width/left offset), so the
-  // shared guide line stays in sync no matter which chart the pointer is on.
-  [document.getElementById('flowSvg'),document.getElementById('precipSvg')].forEach(svg=>{
-    svg.style.touchAction='none';
-    svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
-    svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
-    svg.addEventListener('pointerup',release);
-    svg.addEventListener('pointercancel',release);
-    svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
-  });
+  // Temp chart only now — the rain card is a separate SVG with its own
+  // independent drag wiring (wireRainTouch), not a shared guide line.
+  const svg=document.getElementById('flowSvg');
+  svg.style.touchAction='none';
+  svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
+  svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
+  svg.addEventListener('pointerup',release);
+  svg.addEventListener('pointercancel',release);
+  svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
 }
 
 // The advice line and its RAIN_SPLIT/LOW caption used to be written to
@@ -1697,7 +1734,8 @@ function render(p){
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
   const selected=renderAdviceLine(p);
   document.getElementById('flowSection').classList.remove('open');document.getElementById('flowInfo').classList.remove('open');
-  renderPrecipStrip(p);
+  document.getElementById('rainSection').classList.remove('open');
+  renderRainStrip(p);
   renderFlow(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
   return selected;
@@ -1855,7 +1893,7 @@ window.manualRefresh=async function manualRefresh(){
 async function init(){
   applyTimeMode();userVote=null;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('precipSvg').innerHTML='';document.getElementById('precipSvg').classList.remove('on');document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
+  document.getElementById('uaddon').classList.remove('on');document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('rainSection').classList.remove('open');document.getElementById('rainSection').classList.remove('has-rain');document.getElementById('rainSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));
 
   try{
