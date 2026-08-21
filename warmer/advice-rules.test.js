@@ -357,13 +357,13 @@ test('precipitation timing: the same faded-rain, no-future-crossing hour with no
   assert.ok(!html.includes('class="action"'), `expected no action line when precipitationTiming is disqualified and nothing else scores above 0: ${html}`);
 });
 
-test('buildAddendum: the RAIN_SPLIT/LOW caption never renders when hasAction is false, regardless of consensus (the orphaned-caption bug)', () => {
-  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, false), '', 'RAIN_SPLIT caption must not appear without an action line');
+test('buildAddendum: the LOW caption never renders when hasAction is false, regardless of consensus (the orphaned-caption bug)', () => {
+  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, false), '', 'RAIN_SPLIT must not produce a caption without an action line');
   assert.equal(buildAddendum({ consensus: 'LOW', maxSpread: 5 }, false), '', 'LOW caption must not appear without an action line');
 });
 
-test('buildAddendum: still produces its normal LOW/RAIN_SPLIT copy when hasAction is true (no regression from the hasAction gate)', () => {
-  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, true), `— rain timing's uncertain. Bring it anyway.`);
+test('buildAddendum: still produces its normal LOW copy when hasAction is true (no regression from the hasAction gate); RAIN_SPLIT no longer has a caption at all (fired on nearly every rainy day, read as boilerplate)', () => {
+  assert.equal(buildAddendum({ consensus: 'RAIN_SPLIT' }, true), '');
   assert.equal(buildAddendum({ consensus: 'LOW', maxSpread: 5 }, true), `— forecasts disagree by about 5°. Keep a backup.`);
   assert.equal(buildAddendum({ consensus: 'HIGH' }, true), '');
   assert.equal(buildAddendum({ consensus: 'MEDIUM' }, true), '');

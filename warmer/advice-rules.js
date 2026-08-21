@@ -818,24 +818,24 @@ export function buildProse(p) {
   };
 }
 
-// The RAIN_SPLIT/LOW model-consensus caption (rendered in index.html's
-// #uaddon element) is a supplement to the action line above it, never a
-// standalone message — it used to be written to its own DOM element
-// independently of whether buildProse(p) actually produced an action
-// sentence, so an hour where every score-pipeline candidate was legitimately
-// disqualified (real London case: rain had already faded below
-// findRainTiming's 40% cutoff with no future crossing left to name, and
-// nothing else was salient that hour) left the caption floating with no
-// body line above it — "rain timing's uncertain. Bring it anyway." reading
-// as a stray fragment instead of the addendum it's meant to be. hasAction —
+// The LOW model-consensus caption (rendered in index.html's #uaddon
+// element) is a supplement to the action line above it, never a standalone
+// message — it used to be written to its own DOM element independently of
+// whether buildProse(p) actually produced an action sentence, so an hour
+// where every score-pipeline candidate was legitimately disqualified (real
+// London case: rain had already faded below findRainTiming's 40% cutoff
+// with no future crossing left to name, and nothing else was salient that
+// hour) left the caption floating with no body line above it. hasAction —
 // whether the caller's buildProse(p) output actually included the action
 // span — must be passed in explicitly, not re-derived here, so caption and
 // action line can never drift out of sync again.
+// RAIN_SPLIT used to get its own caption here too ("rain timing's
+// uncertain. Bring it anyway.") but it fired on essentially every rainy
+// day, so it read as boilerplate rather than real signal — dropped.
 export function buildAddendum(p, hasAction) {
   if (!hasAction) return '';
   if (p.consensus === 'HIGH') return '';
   if (p.consensus === 'MEDIUM') return '';
   if (p.consensus === 'LOW') return `— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;
-  if (p.consensus === 'RAIN_SPLIT') return `— rain timing's uncertain. Bring it anyway.`;
   return '';
 }
