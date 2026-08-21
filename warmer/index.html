@@ -80,7 +80,9 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .flow-header{display:flex;align-items:center;gap:8px;padding:15px 10px;user-select:none;-webkit-user-select:none}
 .flow-header-btn{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .flow-header-btn:active{opacity:.65}
-.flow-toggle-icon{margin-left:auto}
+.flow-toggle-icon{position:relative;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;background:none;border:none;padding:0;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.flow-toggle-icon::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+.flow-toggle-icon:active{opacity:.5}
 .flow-pivot-text{font-family:'Gelasio',serif;font-style:normal;font-size:20px;font-weight:400;line-height:1;position:relative;top:1px;color:var(--text)}
 .info-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;border-radius:50%;border:1px solid var(--chip-bd);background:var(--chip-bg);color:var(--muted);font-size:10.5px;font-style:italic;font-family:Georgia,'Times New Roman',serif;line-height:1;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .info-btn::after{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
@@ -88,7 +90,14 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .info-btn:active{opacity:.5}
 .flow-toggle-icon{font-size:13px;color:var(--muted);transition:transform .2s ease}
 .flow-section.open .flow-toggle-icon{transform:rotate(180deg)}
-.flow-section.open .flow-header{border-bottom:1px solid var(--line)}
+/* Divider between header and body is its own element (.flow-divider), not
+   a border on .flow-header — a border there sits at the header's own box
+   edge, flush with the card's corners, while every other divider in this
+   card (precip strip's border-top, its own baseline) is inset by the
+   card's 10px content padding. Matching that inset here instead of
+   border-bottom keeps all three lines starting/ending at the same x. */
+.flow-divider{display:none;height:1px;background:var(--line);margin:0 10px}
+.flow-section.open .flow-divider{display:block}
 /* Grid-track accordion: a single 0fr row has zero height; a single 1fr row
    sizes to the row's own max-content height (the chart's real rendered
    height, whatever it turns out to be) — the browser recomputes that every
@@ -97,7 +106,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
    if the chart's height ever changes (viewBox, legend wrapping, etc). */
 .flow-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.25,1,.5,1)}
 .flow-section.open .flow-body{grid-template-rows:1fr}
-.flow-body-inner{overflow:hidden;min-height:0;padding:4px 10px 16px}
+.flow-body-inner{overflow:hidden;min-height:0;padding:16px 10px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
 /* display:none by default so a rain-free day leaves zero layout space —
    toggled to .on only when renderPrecipStrip actually draws bars. */
@@ -184,8 +193,9 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
         <span class="flow-pivot-text" id="pivotText">Three forecasts, compared</span>
       </button>
       <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-label="What is this chart?" onclick="toggleFlowInfo()">i</button>
-      <span class="flow-toggle-icon" id="flowToggleIcon">↓</span>
+      <button type="button" class="flow-toggle-icon" id="flowToggleIcon" aria-hidden="true" tabindex="-1" onclick="toggleFlow()">↓</button>
     </div>
+    <div class="flow-divider"></div>
     <div class="flow-body" id="flowBody">
       <div class="flow-body-inner">
         <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -1350,7 +1360,7 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
-window.toggleFlow=()=>{const s=document.getElementById('flowSection');const i=document.getElementById('flowToggleIcon');const open=s.classList.toggle('open');i.textContent=open?'↑':'↓';document.getElementById('flowHeaderBtn').setAttribute('aria-expanded',String(open));};
+window.toggleFlow=()=>{const s=document.getElementById('flowSection');const open=s.classList.toggle('open');document.getElementById('flowHeaderBtn').setAttribute('aria-expanded',String(open));};
 
 // Shared by the two info triggers (header title + legend row) so there's one
 // explanation, not two copies to keep in sync. Opening it from the header
@@ -1363,7 +1373,6 @@ window.toggleFlowInfo=()=>{
   const willOpen=!info.classList.contains('open');
   if(willOpen&&!sec.classList.contains('open')){
     sec.classList.add('open');
-    document.getElementById('flowToggleIcon').textContent='↑';
   }
   info.classList.toggle('open',willOpen);
 };
@@ -1411,8 +1420,49 @@ const PRECIP_MM_CEILING=3;
 // viewBox width is what keeps the hour columns aligned, not the DOM.
 const FLOW_W=320,FLOW_PAD_X=14,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
 
+// Minimal ink-only sunrise/sun/sunset glyphs replacing the old morning/
+// midday/evening text labels — same muted color/opacity the text used, just
+// drawn instead of typeset. Sunrise and sunset share the same horizon+arc+
+// rays shape (there's no other way to draw "half a sun" at 12px) and are
+// told apart only by the arrow: up through the rays for rise, down through
+// the horizon for set — the one detail that actually carries the meaning.
+function sunGlyph(cx,variant){
+  const cy=12,col='rgb(var(--text-rgb))',op=0.6,r=3;
+  if(variant==='day'){
+    let rays='';
+    for(let a=0;a<360;a+=45){
+      const rad=a*Math.PI/180;
+      const x1=(cx+Math.cos(rad)*4.3).toFixed(1),y1=(cy+Math.sin(rad)*4.3).toFixed(1);
+      const x2=(cx+Math.cos(rad)*6.2).toFixed(1),y2=(cy+Math.sin(rad)*6.2).toFixed(1);
+      rays+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/>`;
+    }
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1.1"/>${rays}`;
+  }
+  const hy=cy+3;
+  const horizon=`<line x1="${(cx-6.5).toFixed(1)}" y1="${hy}" x2="${(cx+6.5).toFixed(1)}" y2="${hy}" stroke="${col}" stroke-opacity="${op}" stroke-width="1"/>`;
+  const arc=`<path d="M ${(cx-r).toFixed(1)},${hy} A ${r},${r} 0 0 1 ${(cx+r).toFixed(1)},${hy}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1.1"/>`;
+  let rays='';
+  [-1,0,1].forEach(i=>{
+    const x=(cx+i*2.4).toFixed(1);
+    rays+=`<line x1="${x}" y1="${(hy-r-3.6).toFixed(1)}" x2="${x}" y2="${(hy-r-1.4).toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/>`;
+  });
+  let arrow;
+  if(variant==='rise'){
+    const topY=hy-r-8,botY=hy-r-4.4;
+    arrow=`<line x1="${cx}" y1="${botY.toFixed(1)}" x2="${cx}" y2="${topY.toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/><path d="M ${(cx-1.8).toFixed(1)},${(topY+1.8).toFixed(1)} L ${cx},${topY.toFixed(1)} L ${(cx+1.8).toFixed(1)},${(topY+1.8).toFixed(1)}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }else{
+    const topY=hy+1.2,botY=hy+5.6;
+    arrow=`<line x1="${cx}" y1="${topY.toFixed(1)}" x2="${cx}" y2="${botY.toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/><path d="M ${(cx-1.8).toFixed(1)},${(botY-1.8).toFixed(1)} L ${cx},${botY.toFixed(1)} L ${(cx+1.8).toFixed(1)},${(botY-1.8).toFixed(1)}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  return horizon+arc+rays+arrow;
+}
+
 function renderFlow(p){
-  const svg=document.getElementById('flowSvg');const W=FLOW_W,H=160,padX=FLOW_PAD_X,padY=24;const innerH=H-padY*2-24,innerW=FLOW_INNER_W;
+  // padY (top) is bigger than the old symmetric 24 so the sunrise/sun/sunset
+  // icons above get real breathing room before the curve starts — bottom of
+  // the plotted range stays put (H-padY-24-24 below would move it; using
+  // padY once here, not twice, is what decouples top spacing from bottom).
+  const svg=document.getElementById('flowSvg');const W=FLOW_W,H=160,padX=FLOW_PAD_X,padY=34;const innerH=H-padY-24-24,innerW=FLOW_INNER_W;
   const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
   if(allTemps.length===0){svg.innerHTML='';return}
   const tMin=Math.min(...allTemps),tMax=Math.max(...allTemps);const pad=Math.max(1,(tMax-tMin)*0.15);const yMin=tMin-pad,yMax=tMax+pad;
@@ -1443,15 +1493,14 @@ function renderFlow(p){
   // headline chip already states the day's high, and the draggable marker
   // below (drawFlowMarker) covers every hour on demand, so the static labels
   // were pure clutter, not unique information.
-  // Bottom labels split the plotted width into equal thirds (not tied to
-  // hour-of-day x-positions, which bunched "morning" close to the left edge
-  // and left "evening" not centered under anything in particular) — this is
-  // a 3-way section label, not a tick mark, so even spacing is what actually
-  // reads as balanced.
-  const labelY=H-8;
-  [['morning',1/6],['midday',1/2],['evening',5/6]].forEach(([label,frac])=>{
-    const x=(padX+innerW*frac).toFixed(1);
-    html+=`<text x="${x}" y="${labelY}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" fill="rgb(var(--text-rgb))" fill-opacity="0.65">${label}</text>`;
+  // Section markers moved up into the top margin (icons, not text) so the
+  // bottom of the chart is free for the hover guide line to run straight
+  // down into the rain strip without cutting through a label. Same equal-
+  // thirds split as before (not hour-of-day x-positions, which bunched
+  // "morning" close to the left edge and left "evening" uncentered).
+  [['rise',1/6],['day',1/2],['set',5/6]].forEach(([variant,frac])=>{
+    const x=padX+innerW*frac;
+    html+=sunGlyph(x,variant);
   });
   html+=`<g id="flowMarker"></g>`;
   svg.innerHTML=html;
@@ -1507,12 +1556,11 @@ function precipStripHeight(mm,maxH){
   const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
   return{height:Math.max(1.5,norm*maxH),opacity:0.32+norm*0.53};// 1.5px floor: a real but small reading should never round away to nothing, without every light reading rounding UP to the same dot
 }
-// PRECIP_LABEL_H bumped 10->13 to fit the larger "rain" label below (item 5)
-// — CSS now draws a divider (border-top on .precip-svg.on) between this strip
-// and the temp chart above it, and the old 9px near-invisible label grows to
-// match morning/midday/evening's own 11px/0.65-opacity treatment so it's
-// actually legible instead of just present in the markup.
-const PRECIP_STRIP_H=52,PRECIP_LABEL_H=13,PRECIP_BOTTOM_PAD=3;
+// PRECIP_LABEL_H bumped 10->16 to fit the larger "rain" label below — CSS
+// draws a divider (border-top on .precip-svg.on) between this strip and the
+// temp chart above it, and the old 9px near-invisible label grows past even
+// morning/midday/evening's old 11px so it actually reads at a glance.
+const PRECIP_STRIP_H=52,PRECIP_LABEL_H=16,PRECIP_BOTTOM_PAD=3;
 function renderPrecipStrip(p){
   const svg=document.getElementById('precipSvg');
   const primary=p.hourlyByModel[0];
@@ -1520,27 +1568,34 @@ function renderPrecipStrip(p){
   // empty baseline. The element stays display:none (no .on class) so it
   // takes up zero layout space — same empty-wrapper trap as the old advice
   // line, avoided the same way: never toggle visible without content.
-  if(!primary||!primary.hourly.some(h=>h.mm>0)){svg.classList.remove('on');svg.innerHTML='';return}
+  if(!primary||!primary.hourly.some(h=>h.mm>0)){svg.classList.remove('on');svg.innerHTML='';precipCtx=null;return}
   const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
   const baseY=PRECIP_STRIP_H-PRECIP_BOTTOM_PAD,maxH=baseY-PRECIP_LABEL_H;
   const slotW=FLOW_INNER_W/24,barW=Math.max(2,slotW*0.6);
-  let html=`<text x="${FLOW_PAD_X}" y="11" font-family="Aspekta,DM Sans,sans-serif" font-size="11" letter-spacing="0.3" fill="rgb(var(--text-rgb))" fill-opacity="0.65">rain</text>`;
+  let html=`<text x="${FLOW_PAD_X}" y="13" font-family="Aspekta,DM Sans,sans-serif" font-size="14" letter-spacing="0.2" fill="rgb(var(--text-rgb))" fill-opacity="0.65">rain</text>`;
   // Full-width baseline so every hour — rain or not — reads as sitting on a
   // timeline rather than bars floating as isolated dots over blank space; a
   // zero-rain hour is then visibly "on the line, no bar" instead of just
-  // absent from the picture.
-  html+=`<line x1="${FLOW_PAD_X}" y1="${baseY}" x2="${(FLOW_W-FLOW_PAD_X).toFixed(1)}" y2="${baseY}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
+  // absent from the picture. Runs edge-to-edge of the viewBox (0 to FLOW_W,
+  // not FLOW_PAD_X-inset like the bars/x-axis) so its real inset comes only
+  // from flow-body-inner's own 10px padding — the same inset every other
+  // divider in this card uses, so all three lines start/end at the same x.
+  html+=`<line x1="0" y1="${baseY}" x2="${FLOW_W}" y2="${baseY}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
   primary.hourly.forEach((h,i)=>{
     const{height,opacity}=precipStripHeight(h.mm,maxH);
     if(height<=0)return;
     const cx=xScale(i),x=cx-barW/2,y=baseY-height;
     html+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="${Math.min(1.5,barW/2).toFixed(1)}" fill="rgb(var(--rain-rgb))" fill-opacity="${opacity.toFixed(2)}"/>`;
   });
+  html+=`<g id="precipMarker"></g>`;
   svg.innerHTML=html;
   svg.classList.add('on');
+  const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
+  precipCtx={primary,xScale,baseY,W:FLOW_W};
+  drawPrecipMarker(defaultIdx);
 }
 
-let flowCtx=null,flowDragging=false;
+let flowCtx=null,precipCtx=null,flowDragging=false;
 function drawFlowMarker(idx){
   if(!flowCtx)return;
   idx=Math.max(0,Math.min(23,Math.round(idx)));
@@ -1549,10 +1604,10 @@ function drawFlowMarker(idx){
   const g=document.getElementById('flowMarker');
   if(!pt||pt.t==null||!g){if(g)g.innerHTML='';return}
   const x=xScale(idx),y=yScale(pt.t);
-  const rain=Math.round(pt.r||0);
   const hourLabel=idx===0?'12am':idx<12?`${idx}am`:idx===12?'12pm':`${idx-12}pm`;
-  const valueLabel=`${Math.round(pt.t)}°${rain>=15?` · ${rain}%`:''}`;
-  const text=`${hourLabel} · ${valueLabel}`;
+  // Time + temp only — precipitation now gets its own tooltip in the rain
+  // strip below, so it no longer needs to double up here too.
+  const text=`${hourLabel} · ${Math.round(pt.t)}°`;
   const tw=text.length*5.6+16;
   const tx=Math.max(padX,Math.min(W-padX-tw,x-tw/2));
   // Default: tooltip sits above the point. Flip below only when the point
@@ -1560,8 +1615,42 @@ function drawFlowMarker(idx){
   // tooltip would clip out of the viewBox (there's no static peak label to
   // dodge anymore — that was the only other reason this used to flip).
   const ty=(y-30<padY-2)?Math.min(H-45,y+14):Math.max(padY-2,y-30);
-  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${(H-24).toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+  // The guide line runs to the chart's own bottom edge when there's no rain
+  // strip to hand off to; when there is one, it runs the rest of the way
+  // there (drawPrecipMarker draws the matching lower half), so dragging
+  // across either chart reads as one continuous line, not two.
+  const lineY2=precipCtx?H:H-24;
+  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${lineY2.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
 }
+// Lower half of the same guide line, drawn in the precip strip's own SVG
+// (it's a separate element from flowSvg, stacked directly beneath it) —
+// plus a second tooltip scoped to what that strip actually shows: amount
+// and probability, not time/temp again.
+function drawPrecipMarker(idx){
+  if(!precipCtx)return;
+  idx=Math.max(0,Math.min(23,Math.round(idx)));
+  const{primary,xScale,baseY,W}=precipCtx;
+  const pt=primary.hourly[idx];
+  const g=document.getElementById('precipMarker');
+  if(!pt||!g){if(g)g.innerHTML='';return}
+  const x=xScale(idx);
+  const mm=pt.mm||0,pct=Math.round(pt.r||0);
+  const mmLabel=mm>0?`${mm.toFixed(1)}mm`:'0mm';
+  const text=pct>0?`${mmLabel} · ${pct}%`:mmLabel;
+  // Same pill as the temp-chart tooltip (height/radius/font all match —
+  // drawFlowMarker's rect+text below is the reference) instead of its own
+  // smaller, more-rounded shape.
+  const tw=text.length*5.6+16;
+  const tx=Math.max(FLOW_PAD_X,Math.min(W-FLOW_PAD_X-tw,x-tw/2));
+  // Floats above the strip entirely — in the gap this SVG's own
+  // overflow:visible already exposes above y=0 — rather than dropping into
+  // the bar area, where a tall bar would sit right against it. The guide
+  // line still runs the strip's own full height (0 to baseY); the tooltip
+  // just isn't part of that space anymore.
+  const ty=-26;
+  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+}
+function updateFlowHover(idx){drawFlowMarker(idx);drawPrecipMarker(idx);}
 function flowIndexFromEvent(e){
   if(!flowCtx)return null;
   const svg=document.getElementById('flowSvg');
@@ -1571,14 +1660,19 @@ function flowIndexFromEvent(e){
   return Math.max(0,Math.min(23,Math.round((svgX-flowCtx.padX)/flowCtx.innerW*23)));
 }
 function wireFlowTouch(){
-  const svg=document.getElementById('flowSvg');
-  svg.style.touchAction='none';
-  const release=()=>{flowDragging=false;if(flowCtx)drawFlowMarker(flowCtx.defaultIdx)};
-  svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)drawFlowMarker(idx);});
-  svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)drawFlowMarker(idx);});
-  svg.addEventListener('pointerup',release);
-  svg.addEventListener('pointercancel',release);
-  svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
+  const release=()=>{flowDragging=false;if(flowCtx)updateFlowHover(flowCtx.defaultIdx)};
+  // Wired on both the temp chart and the rain strip — either one can be
+  // dragged, and flowIndexFromEvent always measures against flowSvg's own
+  // rect (both SVGs share the same rendered width/left offset), so the
+  // shared guide line stays in sync no matter which chart the pointer is on.
+  [document.getElementById('flowSvg'),document.getElementById('precipSvg')].forEach(svg=>{
+    svg.style.touchAction='none';
+    svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
+    svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
+    svg.addEventListener('pointerup',release);
+    svg.addEventListener('pointercancel',release);
+    svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
+  });
 }
 
 // The advice line and its RAIN_SPLIT/LOW caption used to be written to
@@ -1601,9 +1695,9 @@ function render(p){
   const{now,tMax,yMax,diff}=p;
   document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
   const selected=renderAdviceLine(p);
-  document.getElementById('flowSection').classList.remove('open');document.getElementById('flowToggleIcon').textContent='↓';document.getElementById('flowInfo').classList.remove('open');
-  renderFlow(p);
+  document.getElementById('flowSection').classList.remove('open');document.getElementById('flowInfo').classList.remove('open');
   renderPrecipStrip(p);
+  renderFlow(p);
   const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
   return selected;
 }
