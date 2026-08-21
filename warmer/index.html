@@ -1595,15 +1595,31 @@ function precipIcon(tier,cx,baseY){
   if(tier===3)return drop(cx-2.2,baseY-1,0.85,0.55)+drop(cx+2.2,baseY-1,1,0.75);
   return streak(cx-3,baseY-1,0.6)+streak(cx,baseY-1,0.9)+streak(cx+3,baseY-1,0.75);
 }
+// Rain reads all three models averaged together, not just the primary
+// (ECMWF) line the temp chart uses — precipitation probability/amount from
+// independent models blended is a better estimate than any single model's
+// opinion ("poor man's ensemble"). This does mean model disagreement (one
+// says 90%, another 10%, average reads 50%) is no longer visible the way
+// the temp chart's three separate lines show spread — an intentional
+// trade, not an oversight: a visible spread caption here read as
+// boilerplate on nearly every rainy day (see buildAddendum in
+// advice-rules.js) and got removed for the same reason.
+function avgRainHourly(hourlyByModel){
+  return Array.from({length:24},(_,i)=>{
+    let mmSum=0,rSum=0,n=0;
+    hourlyByModel.forEach(x=>{const h=x.hourly[i];if(h){mmSum+=h.mm;rSum+=h.r;n++}});
+    return n?{mm:mmSum/n,r:rSum/n}:{mm:0,r:0};
+  });
+}
 const RAIN_BASE_Y=48;
 function renderRainStrip(p){
   const section=document.getElementById('rainSection');
   const svg=document.getElementById('rainSvg');
-  const primary=p.hourlyByModel[0];
+  const hourly=avgRainHourly(p.hourlyByModel);
   // No rain anywhere today: hide the whole card, not just collapse it — an
   // empty accordion header with nothing to open is worse than not showing
   // the option at all.
-  if(!primary||!primary.hourly.some(h=>h.mm>0)){section.classList.remove('has-rain');svg.innerHTML='';rainCtx=null;return}
+  if(!hourly.some(h=>h.mm>0)){section.classList.remove('has-rain');svg.innerHTML='';rainCtx=null;return}
   section.classList.add('has-rain');
   const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
   let html=`<line x1="0" y1="${RAIN_BASE_Y}" x2="${FLOW_W}" y2="${RAIN_BASE_Y}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
@@ -1613,7 +1629,7 @@ function renderRainStrip(p){
     const x=FLOW_PAD_X+FLOW_INNER_W*frac;
     html+=sunGlyph(x,variant);
   });
-  primary.hourly.forEach((h,i)=>{
+  hourly.forEach((h,i)=>{
     const tier=rainTier(h.mm);
     if(tier===0)return;
     html+=precipIcon(tier,xScale(i),RAIN_BASE_Y);
@@ -1621,7 +1637,7 @@ function renderRainStrip(p){
   html+=`<g id="rainMarker"></g>`;
   svg.innerHTML=html;
   const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
-  rainCtx={primary,xScale,baseY:RAIN_BASE_Y,W:FLOW_W,defaultIdx};
+  rainCtx={hourly,xScale,baseY:RAIN_BASE_Y,W:FLOW_W,defaultIdx};
   drawRainMarker(defaultIdx);
 }
 
@@ -1656,8 +1672,8 @@ function drawFlowMarker(idx){
 function drawRainMarker(idx){
   if(!rainCtx)return;
   idx=Math.max(0,Math.min(23,Math.round(idx)));
-  const{primary,xScale,baseY,W}=rainCtx;
-  const pt=primary.hourly[idx];
+  const{hourly,xScale,baseY,W}=rainCtx;
+  const pt=hourly[idx];
   const g=document.getElementById('rainMarker');
   if(!pt||!g){if(g)g.innerHTML='';return}
   const x=xScale(idx);
