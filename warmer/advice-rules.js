@@ -1,3 +1,5 @@
+import { formatTemperature, formatDelta, formatHourLabel } from './weather-display.js';
+
 // ============================================================================
 // Warmer — headline copy rules for index.html's buildProse().
 //
@@ -154,12 +156,12 @@ export function coldWordingAccurate(temp) {
 }
 
 // ---- HTML fragment helpers (presentation only, no weather logic) ----
-const ic = (temp, delta) => {
+const ic = (temp, delta, unit) => {
   const sign = delta > 0 ? '<span class="up">' : delta < 0 ? '<span class="dn">' : '<span>';
   const arr = delta > 0 ? '↑' : delta < 0 ? '↓' : '';
   const abs = Math.abs(delta);
-  const deltaStr = delta === 0 ? `±0°` : `${delta < 0 ? '-' : ''}${abs}°${arr}`;
-  return `<span class="pcip">${temp}° <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
+  const deltaStr = `${delta === 0 ? '±' : delta < 0 ? '-' : ''}${formatDelta(abs, unit)}${arr}`;
+  return `<span class="pcip">${formatTemperature(temp, unit)} <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
 };
 const proof = (icon, text) => `<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
 const iconChip = (icon, text) => `<span class="pcip"><span class="mi">${icon}</span> ${text}</span>`;
@@ -379,28 +381,17 @@ function scorePollenSalience(speciesReadings) {
 // within the rest of the day, there's no honest hour to name at all.
 function findRainTiming(context) {
   const series = context?.rainSeries;
-  const nowHour = context?.now instanceof Date ? context.now.getHours() : null;
+  const nowHour = context?.nowHour ?? (context?.now instanceof Date ? context.now.getHours() : null);
   if (!Array.isArray(series) || nowHour == null) return null;
   const upcoming = series.filter(pt => pt.hour >= nowHour);
-  if (upcoming.length === 0) return null;
+  if (upcoming.length === 0 || !Number.isFinite(upcoming[0].rain)) return null;
   if (upcoming[0].rain >= 40) {
-    const clears = upcoming.find(pt => pt.rain < 40);
-    return clears ? { phase: 'clearing', label: formatHourLabel(clears.hour) } : { phase: 'ongoing', label: null };
+    const clears = upcoming.find(pt => Number.isFinite(pt.rain) && pt.rain < 40);
+    return clears ? { phase: 'clearing', label: formatHourLabel(clears.hour), probability: clears.rain } : { phase: 'ongoing', label: null };
   }
   const starts = upcoming.find(pt => pt.rain >= 40);
-  return starts ? { phase: 'starting', label: formatHourLabel(starts.hour) } : null;
+  return starts ? { phase: 'starting', label: formatHourLabel(starts.hour), probability: starts.rain } : null;
 }
-// hour >= 24 means "tomorrow" — index.html's rainSeries encodes tomorrow's
-// 05:00-11:00 window (EVENING/NIGHT bands) as hour+24 so a single ascending
-// series can hold both today's remainder and tomorrow morning without the
-// two colliding on the same 0-23 hour numbers.
-function formatHourLabel(hour) {
-  const isTomorrow = hour >= 24;
-  const h = hour % 24;
-  const label = h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`;
-  return isTomorrow ? `tomorrow ${label}` : label;
-}
-
 /**
  * Stage 2a: how unusual is this one reading, today? v1 implementation is
  * threshold bands; a null value (no data) returns null rather than a fake 0,
@@ -415,7 +406,8 @@ export function scoreSalience(variable, value, context = {}) {
   if (value == null) return null;
   const bands = SALIENCE_BANDS[variable] || [];
   const hit = bands.find(b => value >= b.min && value < b.max);
-  const meta = { value };
+  const meta = { value, temperatureUnit: context.temperatureUnit };
+  if (context.forecastWindow === 'next24h') meta.period = 'in the next 24 hours';
   if (variable === 'precipitationTiming') meta.timing = findRainTiming(context);
   // dewPoint's copy states the feels-like gap as a number (see ADVICE_COPY)
   // instead of adjectives — apparent_temperature is the only source for that.
@@ -465,10 +457,11 @@ const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1
 function describeRainTiming(meta, strong) {
   const t = meta.timing;
   if (t?.phase === 'starting') {
-    return strong ? `Rain moves in around ${t.label} — bring an umbrella.` : `Rain's possible from around ${t.label}.`;
+    const chance = t.probability >= 70 ? 'likely' : 'possible';
+    return strong ? `Rain's ${chance} from around ${t.label} — bring an umbrella.` : `Rain's ${chance} from around ${t.label}.`;
   }
   if (t?.phase === 'clearing') {
-    return strong ? `Rain clears up around ${t.label} — bring an umbrella until then.` : `Rain should ease up around ${t.label}.`;
+    return strong ? `Rain becomes less likely around ${t.label} — bring an umbrella until then.` : `Rain becomes less likely around ${t.label}.`;
   }
   if (t?.phase === 'ongoing') {
     return strong ? "Rain's set in for a while — bring an umbrella." : 'On-and-off rain for a while — an umbrella might be worth it.';
@@ -481,8 +474,8 @@ function describeRainTiming(meta, strong) {
   // is the same maxRain reading that put this candidate in its salience tier
   // in the first place, so the fallback states it instead of going numberless.
   return strong
-    ? `Rain's fairly likely today, around ${Math.round(meta.value)}% — bring an umbrella.`
-    : `Rain's possible today, around ${Math.round(meta.value)}% — an umbrella might be worth it.`;
+    ? `Rain's fairly likely ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — bring an umbrella.`
+    : `Rain's possible ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — an umbrella might be worth it.`;
 }
 
 // Stage 4: translate. Copy is keyed by variable + salience tier, as a
@@ -516,14 +509,14 @@ export const ADVICE_COPY = {
   // sunset — see the timing note on findRainTiming's neighbors above.
   diurnalRange: {
     mild: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${Math.round(meta.value)}° overnight — worth having a layer on hand.`
-      : `Cools to about ${Math.round(meta.eveningTemp)}° overnight — a comfortable night, nothing dramatic.`,
+      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — worth having a layer on hand.`
+      : `Cools to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} overnight — a comfortable night, nothing dramatic.`,
     notable: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${Math.round(meta.value)}° overnight — bring a layer before you head out later.`
-      : `Nights ease down to about ${Math.round(meta.eveningTemp)}° — well below the daytime high, but still warm.`,
+      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — bring a layer before you head out later.`
+      : `Nights ease down to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} — well below the daytime high, but still warm.`,
     big: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${Math.round(meta.value)}° overnight — dress in layers you can add as it falls.`
-      : `Big swing to about ${Math.round(meta.eveningTemp)}° overnight — a lot cooler than the day, though still mild out.`,
+      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — dress in layers you can add as it falls.`
+      : `Big swing to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} overnight — a lot cooler than the day, though still mild out.`,
   },
   windGusts: {
     notable: meta => `Gusts to ${Math.round(meta.value)}km/h — umbrellas won't hold up well; a windproof layer's worth it.`,
@@ -536,14 +529,14 @@ export const ADVICE_COPY = {
     extremelyPoor: () => "Air quality's extremely poor — best to skip outdoor exercise entirely today.",
   },
   dewPoint: {
-    dry: meta => `Dew point's down near ${Math.round(meta.value)}° — air's dry; lip balm or lotion helps.`,
-    muggy: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° with the humidity.` : 'Feels a few degrees warmer than the reading, thanks to the humidity.',
-    oppressive: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° with the humidity — that gap is doing real work today.` : 'Feels well above the actual reading today, thanks to the humidity.',
+    dry: meta => `Dew point's down near ${formatTemperature(meta.value, meta.temperatureUnit)} — air's dry; lip balm or lotion helps.`,
+    muggy: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} with the humidity.` : 'Feels a few degrees warmer than the reading, thanks to the humidity.',
+    oppressive: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} with the humidity — that gap is doing real work today.` : 'Feels well above the actual reading today, thanks to the humidity.',
   },
   apparentTempGap: {
-    mild: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° than the actual reading — dress by feel, not just the number.` : 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
-    notable: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}°, well off the actual reading — dress for how it feels outside.` : 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
-    big: meta => meta.feelsLike != null ? `Feels closer to ${meta.feelsLike}° — way off the actual reading — trust the feels-like number when you dress.` : 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
+    mild: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} than the actual reading — dress by feel, not just the number.` : 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
+    notable: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)}, well off the actual reading — dress for how it feels outside.` : 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
+    big: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} — way off the actual reading — trust the feels-like number when you dress.` : 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
   },
 };
 
@@ -589,7 +582,8 @@ export function assertNotSelfEvident(text) {
 // coveredHeadlineTopics below so the two branch conditions can't drift out
 // of sync (see the dedup comment on coveredHeadlineTopics).
 function nextWindowTemp(p) {
-  const nightFrame = p.band === 'EVENING' || p.band === 'NIGHT';
+  if (p.band === 'NIGHT') return { temp: p.todayMorningTemp ?? null, when: 'this morning' };
+  const nightFrame = p.band === 'EVENING';
   if (nightFrame && p.tomorrowMorningTemp != null) return { temp: p.tomorrowMorningTemp, when: 'tomorrow morning' };
   return { temp: p.slots?.[2]?.temp ?? null, when: null };
 }
@@ -685,13 +679,13 @@ export function alertForConditions(p) {
   // probability reading of 50%+ stands in — this is a derived read of actual
   // data, not a fabricated constant.
   const precip = p.precip ?? (maxRain >= 50);
-  const trendSuffix = Math.abs(diff) >= 3 ? ` · ${Math.abs(diff)}° ${diff > 0 ? 'warmer' : 'cooler'} than yesterday` : '';
+  const trendSuffix = Math.abs(diff) >= 3 ? ` · ${formatDelta(Math.abs(diff), p.temperatureUnit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday` : '';
 
   if (feels >= 36) {
     return {
       headline: 'Dangerous heat today — plan around it',
       action: HEAT_ALERT_ACTION,
-      proof: `${feels}° feels-like${trendSuffix}`,
+      proof: `${formatTemperature(feels, p.temperatureUnit)} feels-like${trendSuffix}`,
       icon: 'thermostat',
     };
   }
@@ -699,7 +693,7 @@ export function alertForConditions(p) {
     return {
       headline: 'A hard freeze — dress for far colder',
       action: COLD_ALERT_ACTION,
-      proof: `Feels like ${feels}°${trendSuffix}`,
+      proof: `Feels like ${formatTemperature(feels, p.temperatureUnit)}${trendSuffix}`,
       icon: 'thermostat',
     };
   }
@@ -717,7 +711,7 @@ export function alertForConditions(p) {
     return {
       headline: 'Icy surfaces possible today',
       action: ICE_ALERT_ACTION,
-      proof: `${feels}° with precipitation${trendSuffix}`,
+      proof: `${formatTemperature(feels, p.temperatureUnit)} with precipitation${trendSuffix}`,
       icon: 'ac_unit',
     };
   }
@@ -756,8 +750,8 @@ export function buildProse(p) {
   const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
   const eDrop = eTemp != null ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
-  const dChip = ic(tMax, diff);
-  const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${eTemp}°C`) : '';
+  const dChip = ic(tMax, diff, p.temperatureUnit);
+  const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${formatTemperature(eTemp, p.temperatureUnit || 'C')}`) : '';
 
   const { text: action, selected: adviceSelected } = computeAdvice(p);
 
@@ -772,7 +766,9 @@ export function buildProse(p) {
     // instead (Mexico City: chip said "evening", advice said "ease up around
     // 11pm" mid-storm). One clock, one threshold, everywhere rain timing is stated.
     const timing = findRainTiming(p);
-    const rainWindow = timing?.label ? proof('water_drop', `${timing.label} · ${Math.round(maxRain)}%`) : '';
+    const rainWindow = timing?.label ? proof('water_drop', timing.phase === 'clearing'
+      ? `below 40% from ${timing.label}`
+      : `from ${timing.label} · ${Math.round(timing.probability)}%`) : '';
     if (rainWindow) prose += rainWindow;
     if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
   } else if (abs >= 2) {
@@ -800,13 +796,13 @@ export function buildProse(p) {
     const samePrep = diff === 0 ? 'as' : 'to';
     prose = `<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
     const windProof = wind >= 25 ? proof('air', `${wind}km/h`) : '';
-    const eveProof = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${eTemp}°C`) : '';
+    const eveProof = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${formatTemperature(eTemp, p.temperatureUnit || 'C')}`) : '';
     const secondary = wind >= 25
       ? `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
       : eDrop >= 5 && eTemp != null
       ? `<br><span class="g">but </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'tonight'}</span>${eveProof}`
       : feels <= tMax - 4
-      ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat', `${feels}°`)}`
+      ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat', `${formatTemperature(feels, p.temperatureUnit)}`)}`
       : `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
     prose += secondary;
   }
@@ -836,6 +832,6 @@ export function buildAddendum(p, hasAction) {
   if (!hasAction) return '';
   if (p.consensus === 'HIGH') return '';
   if (p.consensus === 'MEDIUM') return '';
-  if (p.consensus === 'LOW') return `— forecasts disagree by about ${p.maxSpread}°. Keep a backup.`;
+  if (p.consensus === 'LOW') return `— forecasts disagree by about ${formatDelta(p.maxSpread, p.temperatureUnit)}. Keep a backup.`;
   return '';
 }

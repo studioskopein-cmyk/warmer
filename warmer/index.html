@@ -36,8 +36,16 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
   .app{margin:48px auto;min-height:calc(100vh - 96px);background:var(--bg);border:1px solid rgba(255,255,255,0.10);border-radius:28px}
 }
 .wordmark{font-size:11px;font-weight:inherit;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin:0 0 48px}
-.meta{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:36px}
+.meta{flex-wrap:wrap;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .meta-sep{color:var(--dim)}
+.weather-settings{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:28px;font-size:11px;line-height:1.4;color:var(--muted)}
+.unit-toggle{flex-shrink:0;min-height:32px;padding:4px 8px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;font:inherit;color:inherit;cursor:pointer}
+.unit-toggle .active{font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.chart-caption{font-size:11px;line-height:1.5;color:var(--muted);margin-bottom:12px}
+.chart-details{font-size:11px;line-height:1.5;color:var(--muted)}
+.chart-details summary{cursor:pointer;padding:4px 0;margin-bottom:8px}
+.chart-readout{font-size:12px;line-height:1.5;min-height:36px;color:var(--text);margin:8px 0 12px;font-variant-numeric:tabular-nums}
+.flow-svg:focus-visible,.unit-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .loc-fail{display:none;font-size:12px;color:var(--muted);margin:-28px 0 24px;line-height:1.4}
 .loc-fail.on{display:block}
 .loc-fail button{background:none;border:none;padding:0;margin:0;font:inherit;color:var(--text);text-decoration:underline;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -115,15 +123,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
    chart on a rain-free day, which is wrong). */
 #rainSection{display:none}
 #rainSection.has-rain{display:block}
-/* drawRainMarker's hover tooltip floats above y=0 of rainSvg (same trick
-   the old precip strip used) — that used to have room because it sat right
-   under the temp chart's own tall SVG in a shared flow-body-inner. Now
-   rainSvg is alone with only the standard 16px top padding, which isn't
-   enough clearance and let the tooltip clip against flow-body-inner's own
-   overflow:hidden. ID-scoped so the temp chart's card (which doesn't need
-   extra headroom) keeps the standard 16px. */
-#rainSection.open .flow-body-inner{padding-top:36px}
-.flow-legend{display:flex;align-items:center;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
+.flow-legend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-item svg{display:block;flex-shrink:0}
 /* Grid-track accordion, same trick as .flow-body — expands to the
@@ -141,7 +141,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .cmp-track{flex:1;height:2px;background:var(--dim);border-radius:1px;overflow:hidden}
 .cmp-fill{height:100%;border-radius:1px;transition:width 1.2s cubic-bezier(.25,1,.5,1)}
 .fill-y{background:var(--muted)}.fill-t{background:var(--text)}
-.cmp-v{font-size:12px;color:var(--muted);width:30px;text-align:right}
+.cmp-v{font-size:12px;color:var(--muted);width:48px;text-align:right}
 .dots{display:flex;gap:5px;align-items:center;padding:8px 0}
 .dot{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:dp 1.2s infinite}
 .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
@@ -154,7 +154,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .up{color:#F17666}
 .dn{color:#7280FB}
 .mi{font-family:'Material Icons Round';font-size:12px;font-style:normal;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:2px}
-.pcip-proof{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:16.8px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:nowrap;position:relative;top:-3px;margin-left:3px;line-height:1.5}
+.pcip-proof{max-width:100%;display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:16.8px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:normal;position:relative;top:-3px;margin-left:3px;line-height:1.5}
 #onboarding{position:fixed;inset:0;z-index:100;background:#C9E0EF;max-width:390px;margin:0 auto;overflow:hidden;transition:opacity 0.4s ease}
 #ob-illus{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #ob-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:56px 32px 48px}
@@ -195,6 +195,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 <main class="app">
   <h1 class="wordmark">Warmer</h1>
   <div class="meta"><button type="button" id="locEl" class="loc-tap" aria-label="Change location"><span id="locElText">—</span><svg class="loc-caret" width="9" height="6" viewBox="0 0 9 6" fill="none" aria-hidden="true"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="meta-sep">·</span><span id="dateEl">—</span></div>
+  <div class="weather-settings"><span id="localTime">Local time</span><button type="button" id="unitToggle" class="unit-toggle" aria-label="Temperature in Fahrenheit (°F)" aria-pressed="false"><span id="unitC">°C</span> / <span id="unitF">°F</span></button></div>
   <div class="loc-fail" id="locFail" role="status">Couldn't find you — <button type="button" id="locFailBtn">choose a city</button> instead.</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
@@ -203,17 +204,19 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
       <button type="button" class="flow-header-btn" id="flowHeaderBtn" onclick="toggleFlow()" aria-expanded="false" aria-controls="flowBody">
         <span class="flow-pivot-text" id="pivotText">Three forecasts, compared</span>
       </button>
-      <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-label="What is this chart?" onclick="toggleFlowInfo()">i</button>
+      <button type="button" class="info-btn" id="flowTitleInfoBtn" aria-controls="flowInfo" aria-expanded="false" aria-label="What is this chart?" onclick="toggleFlowInfo()">i</button>
       <button type="button" class="flow-toggle-icon" id="flowToggleIcon" aria-hidden="true" tabindex="-1" onclick="toggleFlow()">↓</button>
     </div>
     <div class="flow-divider"></div>
-    <div class="flow-body" id="flowBody">
+    <div class="flow-body" id="flowBody" inert>
       <div class="flow-body-inner">
-        <svg class="flow-svg" id="flowSvg" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="chart-caption" id="flowRange"></p>
+        <svg class="flow-svg" id="flowSvg" tabindex="0" role="slider" aria-label="Forecast hour" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0" aria-describedby="flowReadout" viewBox="0 0 320 174" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="flow-legend" id="flowLegend"></div>
+        <p class="chart-readout" id="flowReadout"></p>
         <div class="flow-info" id="flowInfo">
           <div class="flow-info-inner">
-            <div class="flow-info-text">ECMWF, ICON, and GFS are three weather agencies, each running its own forecast independently. When their lines stay close, that's a safer bet — when they split apart, the forecast is less certain.</div>
+            <div class="flow-info-text">Air temperature at 2m from three forecast models: ECMWF IFS, DWD ICON, and NOAA GFS. Solid means ECMWF, dashed means ICON, and dotted means GFS. The headline uses ECMWF when available. A wider gap means the models disagree; agreement is no guarantee. Move across the chart or use the arrow keys to compare each hour.</div>
           </div>
         </div>
         <div class="flow-consensus" id="flowConsensus"></div>
@@ -228,9 +231,13 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
       <button type="button" class="flow-toggle-icon" id="rainToggleIcon" aria-hidden="true" tabindex="-1" onclick="toggleRain()">↓</button>
     </div>
     <div class="flow-divider"></div>
-    <div class="flow-body" id="rainBody">
+    <div class="flow-body" id="rainBody" inert>
       <div class="flow-body-inner">
-        <svg class="flow-svg" id="rainSvg" viewBox="0 0 320 62" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="chart-caption" id="rainRange"></p>
+        <svg class="flow-svg" id="rainSvg" tabindex="0" role="slider" aria-label="Precipitation hour" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0" aria-describedby="rainReadout rainExplanation" viewBox="0 0 320 232" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="chart-readout" id="rainReadout"></p>
+        <p class="chart-caption" id="rainExplanation">Each column covers one hour. Chance (%) and amount (mm) are separate estimates. Mean of available models; — means no data.</p>
+        <details class="chart-details"><summary>Sources &amp; rain timing</summary><p class="chart-caption">ECMWF, ICON and GFS values are averaged separately for chance and amount; counts show models available out of 3. Chance means more than 0.1 mm. Amount includes rain, showers and snow. Times mark the start of each hour. Rain timing in the headline is approximate, starting when mean chance reaches 40%.</p></details>
       </div>
     </div>
   </div>
@@ -1074,7 +1081,12 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 
 <script type="module">
 function checkOnboarding(){const ob=document.getElementById('onboarding');if(!ob)return;if(localStorage.getItem('warmer_onboarded')==='1'){ob.style.display='none';init();return;}function dismiss(){localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';init();},420);}document.getElementById('ob-cta-btn').addEventListener('click',dismiss);document.getElementById('ob-city-btn').addEventListener('click',()=>{localStorage.setItem('warmer_onboarded','1');ob.style.opacity='0';ob.style.pointerEvents='none';setTimeout(()=>{ob.style.display='none';openCitySearch();},420);});}
+import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.js';
+import{formatTemperature,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
 import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
+let currentTimeZone=null,latestWeather=null;
+let temperatureUnit;
+try{temperatureUnit=localStorage.getItem('warmer_temperature_unit')==='F'?'F':'C'}catch{temperatureUnit='C'}
 const firebaseConfig={apiKey:"AIzaSyDqQdTvJ6jHn_xXLFDc_gJknVYJRKJ4xww",authDomain:"warmer-8a7ab.firebaseapp.com",projectId:"warmer-8a7ab",storageBucket:"warmer-8a7ab.firebasestorage.app",messagingSenderId:"1097930276522",appId:"1:1097930276522:web:a533c6efabfd1804f39ad3"};
 // Firebase is loaded dynamically, not via a top-level static import: a
 // static `import ... from 'https://www.gstatic.com/...'` throws when that
@@ -1099,31 +1111,9 @@ let db=null,doc=null,getDoc=null,setDoc=null,increment=null;
 // Single source of truth for "what time of day is it" — the evening
 // palette flip AND every band-windowed calculation in parse() both derive
 // from this, so there are never two competing time checks drifting apart.
-function getTimeBand(d=new Date()){
-  const h=d.getHours();
-  if(h<5)return'NIGHT';
-  if(h<11)return'MORNING';
-  if(h<18)return'DAY';
-  return'EVENING';
-}
-function applyTimeMode(){const band=getTimeBand();document.documentElement.classList.toggle('evening',band==='EVENING'||band==='NIGHT')}
+function applyTimeMode(){const band=getTimeBand(currentTimeZone?locationClock(new Date(),currentTimeZone).hour:new Date());document.documentElement.classList.toggle('evening',band==='EVENING'||band==='NIGHT')}
 applyTimeMode();
 setInterval(applyTimeMode,60_000);
-
-// Which (dayOffset, hour) pairs are "in view" for a band — every derived
-// scalar in parse() (tMax/tMin, rain window, etc.) is computed ONLY over
-// these hours, never the full day, so a stale past-tense statement (e.g.
-// naming a UV/rain peak that already happened) can't leak through. dayOffset
-// 0 = today, 1 = tomorrow — tomorrow's hours only ever exist in this list
-// for EVENING/NIGHT, whose window intentionally reaches into tomorrow morning.
-function getBandWindow(band,nowHour){
-  const range=(from,to,dayOffset=0)=>{const hrs=[];for(let h=from;h<=to;h++)hrs.push({dayOffset,hour:h});return hrs};
-  const tomorrowMorning=()=>range(5,11,1);
-  if(band==='MORNING')return range(5,23);
-  if(band==='DAY')return range(nowHour,23);
-  if(band==='EVENING')return[...range(nowHour,23),...tomorrowMorning()];
-  return[...range(nowHour,4),...tomorrowMorning()]; // NIGHT
-}
 
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
 
@@ -1193,27 +1183,22 @@ function wireCitySearch(){
 wireCitySearch();
 wireFlowTouch();
 wireRainTouch();
+document.getElementById('unitToggle').addEventListener('click',()=>{
+  temperatureUnit=temperatureUnit==='C'?'F':'C';
+  try{localStorage.setItem('warmer_temperature_unit',temperatureUnit)}catch{}
+  if(latestWeather)render(latestWeather);
+});
+function updateLocalTime(){
+  if(!currentTimeZone)return;
+  document.getElementById('localTime').textContent=`${new Date().toLocaleTimeString('en-US',{timeZone:currentTimeZone,hour:'numeric',minute:'2-digit',timeZoneName:'short'})} · local time`;
+}
+setInterval(updateLocalTime,60_000);
 
-// Primary/secondary hierarchy in renderFlow: the primary (ECMWF) line draws
-// in --accent — a saturated pull off the same ink hue (light: ink's own
-// ~2° hue at ~3x the saturation; dark: ink's ~204° hue, also boosted), never
-// a new hue — at full opacity and a heavier stroke, so it reads as the one
-// line that matters. Secondaries stay in plain ink, drop further in opacity
-// than before (they no longer need to individually clear a contrast floor —
-// the accent now carries "this is the primary" on its own), and pick up
-// dash/dot patterns (see `dash` below) so they're still distinguishable from
-// each other by shape, not just by how much they've faded.
-const MODELS=[
-  {id:'ecmwf_ifs025',label:'ECMWF',opacity:1,width:2.5,dash:null,primary:true},
-  {id:'icon_seamless',label:'ICON',opacity:0.7,width:1.2,dash:'7,4'},
-  {id:'gfs_seamless',label:'GFS',opacity:0.65,width:1,dash:'0.1,4'},
-];
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
 // reading, same pattern as the gust-or-wind fallback in advice-rules.js.
-// forecast_days=2 (was 1) — EVENING/NIGHT band windows (getBandWindow below)
-// need tomorrow 05:00-11:00, which forecast_days=1 never returned at all.
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=2&timezone=auto`;return(await fetch(url)).json()}
+// Two forecast days cover the next 24 hours, including overnight rain.
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=2&timezone=auto&timeformat=unixtime&temperature_unit=celsius&precipitation_unit=mm&wind_speed_unit=kmh`;return(await fetch(url)).json()}
 
 // CAMS via Open-Meteo's Air Quality API — ECMWF's recommended UV source
 // (global CAMS coverage, better accuracy than the GFS-only reading above),
@@ -1223,137 +1208,13 @@ async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1
 // line near the end of <body>).
 async function fetchAirQuality(lat,lon){
   try{
-    const url=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=uv_index,european_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto`;
+    const url=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=uv_index,european_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto&timeformat=unixtime`;
     const r=await fetch(url);
     if(!r.ok)return null;
     return await r.json();
   }catch{return null}
 }
 
-function parseAirQuality(data,now){
-  const empty={uvIndex:null,europeanAqi:null,pollenSpecies:{grass:null,birch:null,alder:null,mugwort:null,olive:null,ragweed:null}};
-  if(!data||data.error||!data.hourly)return empty;
-  const startTime=data.hourly.time?.[0]?new Date(data.hourly.time[0]):now;
-  const idx=Math.round((now-startTime)/3600000);
-  const at=key=>{const v=data.hourly[key]?.[idx];return v!=null?v:null};
-  const uv=at('uv_index');
-  return{
-    uvIndex:uv!=null?Math.round(uv*10)/10:null,
-    europeanAqi:at('european_aqi')!=null?Math.round(at('european_aqi')):null,
-    pollenSpecies:{grass:at('grass_pollen'),birch:at('birch_pollen'),alder:at('alder_pollen'),mugwort:at('mugwort_pollen'),olive:at('olive_pollen'),ragweed:at('ragweed_pollen')},
-  };
-}
-
-function parse(data,airData){
-  if(!data || data.error) throw new Error(data?.reason || 'API Error');
-  const now=new Date(),h=now.getHours();
-  const startTime = data.hourly?.time?.[0] ? new Date(data.hourly.time[0]) : now;
-  const S = Math.round((now - startTime) / 3600000) - h;
-  // band + the (dayOffset,hour) window it's in view of — every scalar below
-  // that used to scan the full day (tMax/tMin, rain window) now scans only
-  // this, so an already-past hour can never produce a stale statement.
-  const band=getTimeBand(now);
-  const bandWindow=getBandWindow(band,h);
-  const idxOf=w=>S+w.dayOffset*24+w.hour;
-
-  const modelMaxToday=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[1]):null}).filter(v=>v!=null);
-  const modelMaxYest=MODELS.map(m=>{const arr=data.daily?.[`temperature_2m_max_${m.id}`];return arr?Math.round(arr[0]):null}).filter(v=>v!=null);
-  const primary=MODELS[0].id;
-  const tMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxToday;
-  const yMaxArr=data.daily?.[`temperature_2m_max_${primary}`]||modelMaxYest;
-  const tCodeArr=data.daily?.[`weathercode_${primary}`]||[];
-  const yMax=Math.round(yMaxArr[0]??modelMaxYest[0]??0);
-  const tCode=tCodeArr[1]??0;
-  const tMinArr=data.daily?.[`temperature_2m_min_${primary}`];
-
-  // tMax/tMin: windowed over the primary model's own hourly series, not
-  // Open-Meteo's whole-day daily max/min — at 8pm DAY/EVENING's window is
-  // "the rest of today" (+ tomorrow morning for EVENING), so a high reached
-  // at 2pm that's already passed no longer inflates "today's high." Falls
-  // back to the whole-day daily value only if the window scan comes up
-  // empty (missing hourly data for some reason).
-  const primaryTempArr=data.hourly?.[`temperature_2m_${primary}`]||[];
-  const windowTemps=bandWindow.map(w=>primaryTempArr[idxOf(w)]).filter(v=>v!=null);
-  const tMax=windowTemps.length?Math.round(Math.max(...windowTemps)):Math.round(tMaxArr[1]??modelMaxToday[0]??0);
-  const tMin=windowTemps.length?Math.round(Math.min(...windowTemps)):(tMinArr?.[1]!=null?Math.round(tMinArr[1]):null);
-  // Representative "tomorrow morning" temp (mirrors slots' own hour:8
-  // convention for "morning") — buildProse's EVENING/NIGHT branch reads
-  // this instead of today's evening slot, since by then today's evening
-  // has either already happened or is about to, not upcoming.
-  const tomorrowIdx=S+24+8;
-  const tomorrowMorningTemp=primaryTempArr[tomorrowIdx]!=null?Math.round(primaryTempArr[tomorrowIdx]):null;
-
-  const hourlyByModel=MODELS.map(m=>{
-    const tArr=data.hourly?.[`temperature_2m_${m.id}`];
-    const rArr=data.hourly?.[`precipitation_probability_${m.id}`];
-    // mm — the actual amount, not the probability. Bar height (renderFlow)
-    // reads this; probability (r) stays tooltip-only, same as before.
-    const mmArr=data.hourly?.[`precipitation_${m.id}`];
-    if(!tArr)return null;
-    return{model:m,hourly:Array.from({length:24},(_,i)=>({t:tArr[S+i],r:rArr?(rArr[S+i]??0):0,mm:mmArr?(mmArr[S+i]??0):0}))};
-  }).filter(x=>x);
-
-  const primaryHourly=hourlyByModel.find(x=>x.model.id===primary)?.hourly||[];
-  const slots=[{label:'morning',h:8},{label:'midday',h:13},{label:'evening',h:19}].map(s=>({label:s.label,h:s.h,temp:Math.round(primaryHourly[s.h]?.t??0),rain:Math.round(primaryHourly[s.h]?.r??0)}));
-  const feels=Math.round(data.hourly?.[`apparent_temperature_${primary}`]?.[S+h]??slots[1].temp);
-  const wind=Math.round(data.hourly?.[`windspeed_10m_${primary}`]?.[S+h]??0);
-  const gustRaw=data.hourly?.[`wind_gusts_10m_${primary}`]?.[S+h];
-  const gust=gustRaw!=null?Math.round(gustRaw):null;
-  const dewRaw=data.hourly?.[`dew_point_2m_${primary}`]?.[S+h];
-  const dewPoint=dewRaw!=null?Math.round(dewRaw*10)/10:null;
-  // CAMS (via parseAirQuality below) is the preferred UV source — ECMWF's
-  // recommended source, global coverage. GFS is read here purely as a live
-  // fallback if the CAMS call failed; no constant fallback either way — if
-  // both are missing, uvIndex stays null and UV-based copy is simply not shown.
-  const gfsUvRaw=data.hourly?.[`uv_index_gfs_seamless`]?.[S+h];
-  const gfsUvIndex=gfsUvRaw!=null?Math.round(gfsUvRaw*10)/10:null;
-  const humidityRaw=data.hourly?.[`relative_humidity_2m_${primary}`]?.[S+h];
-  const humidity=humidityRaw!=null?Math.round(humidityRaw):null;
-  const airQuality=parseAirQuality(airData,now);
-  const uvIndex=airQuality.uvIndex??gfsUvIndex;
-  // Windowed, not primaryHourly's fixed 0-23-today range: for EVENING/NIGHT
-  // this needs to reach into tomorrow morning too, so tomorrow's hours are
-  // encoded as hour+24 (formatHourLabel in advice-rules.js unwraps that back
-  // to a clock time). findRainTiming's own `hour >= nowHour` filter still
-  // works unchanged — every point in `bandWindow` already starts at nowHour
-  // or later by construction, and hour+24 is trivially >= nowHour too.
-  const rainProbArrs=MODELS.map(m=>data.hourly?.[`precipitation_probability_${m.id}`]||[]);
-  const rainSeries=bandWindow.map(w=>({hour:w.dayOffset===0?w.hour:w.hour+24,rain:rainProbArrs[0][idxOf(w)]??0}));
-
-  const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;
-  // maxRain/rainSpread: same windowed scan as tMax/tMin above, across all
-  // models — an all-day RAIN_SPLIT/"Rain likely" reading that already
-  // finished at noon shouldn't still be driving the 8pm headline.
-  let rainSpread=0,maxRain=0;
-  bandWindow.forEach(w=>{
-    const idx=idxOf(w);
-    const rains=rainProbArrs.map(arr=>arr[idx]??0);
-    const spread=Math.max(...rains)-Math.min(...rains);
-    if(spread>rainSpread)rainSpread=spread;
-    const avg=rains.reduce((a,b)=>a+b,0)/rains.length;
-    if(avg>maxRain)maxRain=avg;
-  });
-
-  // Old thresholds (rainSpread>=25 && maxRain>=30 for RAIN_SPLIT, maxSpread>=3
-  // for LOW) fired on 5 of 6 real test cities — a message that shows up
-  // nearly every time isn't information. Raised here as a reasoned-but-not-
-  // yet-percentile-calibrated estimate (no real distribution data exists for
-  // these spread values); console.debug below logs the raw numbers on every
-  // render so a future pass can tune these against real percentiles instead
-  // of guessing again.
-  let consensus='HIGH';
-  if(rainSpread>=40&&maxRain>=45)consensus='RAIN_SPLIT';
-  else if(maxSpread>=4.5)consensus='LOW';
-  else if(maxSpread>=2.5)consensus='MEDIUM';
-  console.debug(`[consensus] maxSpread=${maxSpread.toFixed(2)} rainSpread=${rainSpread.toFixed(1)} maxRain=${maxRain.toFixed(1)} -> ${consensus}`);
-
-  // diff now reads the same windowed tMax the headline itself displays
-  // (was the multi-model mean of the whole day's daily-max field, which
-  // could no longer match what tMax says once tMax became windowed above).
-  const diff=Math.round(tMax-yMax);
-
-  return{tMax,tMin,yMax,tCode,feels,wind,gust,dewPoint,slots,diff,now,band,tomorrowMorningTemp,hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
-}
 
 function deriveChip(p){if(p.maxRain>60)return'🌂 Rain';if(p.diff<=-4)return'🥶 Colder';if(p.diff>=4)return'🌤 Warmer';if(p.feels>=28)return'🌡 Hot';if(p.feels<=0)return'🧊 Freezing';return p.feels>=26?'🌡 Warm':p.feels>=21?'☀️ Clear':p.feels>=16?'🍃 Mild':p.feels>=11?'🧥 Crisp':'🥶 Cold'}
 
@@ -1385,8 +1246,13 @@ async function saveFeedback(k,f){try{await setDoc(doc(db,'feedbacks',k),{[f]:inc
 
 window.onFB=async t=>{document.querySelectorAll('#fbRow .fb-btn').forEach(b=>b.classList.remove('selected'));event.target.classList.add('selected');userVote=t;await saveFeedback(currentKey,t);document.getElementById('nearbyQ').textContent='Thanks — added to nearby.';await loadNearby(currentKey);};
 
-window.toggleFlow=()=>{const s=document.getElementById('flowSection');const open=s.classList.toggle('open');document.getElementById('flowHeaderBtn').setAttribute('aria-expanded',String(open));};
-window.toggleRain=()=>{const s=document.getElementById('rainSection');const open=s.classList.toggle('open');document.getElementById('rainHeaderBtn').setAttribute('aria-expanded',String(open));};
+function setChartOpen(name,open){
+  document.getElementById(`${name}Section`).classList.toggle('open',open);
+  document.getElementById(`${name}HeaderBtn`).setAttribute('aria-expanded',String(open));
+  document.getElementById(`${name}Body`).inert=!open;
+}
+window.toggleFlow=()=>setChartOpen('flow',!document.getElementById('flowSection').classList.contains('open'));
+window.toggleRain=()=>setChartOpen('rain',!document.getElementById('rainSection').classList.contains('open'));
 
 // Shared by the two info triggers (header title + legend row) so there's one
 // explanation, not two copies to keep in sync. Opening it from the header
@@ -1398,9 +1264,10 @@ window.toggleFlowInfo=()=>{
   const info=document.getElementById('flowInfo');
   const willOpen=!info.classList.contains('open');
   if(willOpen&&!sec.classList.contains('open')){
-    sec.classList.add('open');
+    setChartOpen('flow',true);
   }
   info.classList.toggle('open',willOpen);
+  document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded',String(willOpen));
 };
 
 let fbLastFocus=null;
@@ -1423,311 +1290,130 @@ window.closeFbSheet=()=>{
   fbLastFocus?.focus();
 };
 
-// Icon tier reads mm (actual amount), never probability — probability-based
-// intensity made drizzle and a downpour look identical whenever both crossed
-// the same "likely" threshold. A straight linear mm scale has the opposite
-// problem: anchored to a fixed ceiling, light rain rounds down to invisible;
-// anchored to today's own max, a drizzle-only day and a downpour day both
-// hit the top tier and the two become impossible to tell apart, which
-// defeats the point. Ceiling is a fixed, absolute scale (comparable across
-// hours/cities/days, unlike a per-day-relative one). 3mm/h sits just above
-// the light/moderate boundary in the standard hourly-rate bands (Met Office:
-// light <2.5, moderate 2.5-10, heavy >10mm/h) — 8mm/h (near the top of
-// "moderate"/bottom of "heavy") left ordinary rain, which is almost always
-// under 2.5mm/h, pinned to the bottom of the scale. A rarer spike above 3
-// clamps to the heaviest tier (fine — violent/heavy rain reading as "as
-// intense as it gets" is the point) rather than flattening the rest of the
-// day's readings the way an unclamped scale keyed to the day's own peak would.
-const PRECIP_MM_CEILING=3;
-// Chart geometry shared by renderFlow (temp curve) and renderRainStrip (its
-// own card, same viewBox width): same W/padX/innerW means xScale(i) lands
-// on identical pixels in both, even though they're separate SVGs in
-// separate cards now — each is independently scaled from this viewBox
-// width to its own container's rendered width via CSS width:100%, so
-// matching the viewBox width is what keeps the hour columns aligned.
-const FLOW_W=320,FLOW_PAD_X=14,FLOW_INNER_W=FLOW_W-FLOW_PAD_X*2;
-
-// Minimal ink-only sunrise/sun/sunset glyphs replacing the old morning/
-// midday/evening text labels — same muted color/opacity the text used, just
-// drawn instead of typeset. Sunrise and sunset share the same horizon+arc+
-// rays shape (there's no other way to draw "half a sun" at 12px) and are
-// told apart only by the arrow: up through the rays for rise, down through
-// the horizon for set — the one detail that actually carries the meaning.
-function sunGlyph(cx,variant){
-  const cy=12,col='rgb(var(--text-rgb))',op=0.6,r=3;
-  if(variant==='day'){
-    let rays='';
-    for(let a=0;a<360;a+=45){
-      const rad=a*Math.PI/180;
-      const x1=(cx+Math.cos(rad)*4.3).toFixed(1),y1=(cy+Math.sin(rad)*4.3).toFixed(1);
-      const x2=(cx+Math.cos(rad)*6.2).toFixed(1),y2=(cy+Math.sin(rad)*6.2).toFixed(1);
-      rays+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/>`;
-    }
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1.1"/>${rays}`;
-  }
-  const hy=cy+3;
-  const horizon=`<line x1="${(cx-6.5).toFixed(1)}" y1="${hy}" x2="${(cx+6.5).toFixed(1)}" y2="${hy}" stroke="${col}" stroke-opacity="${op}" stroke-width="1"/>`;
-  const arc=`<path d="M ${(cx-r).toFixed(1)},${hy} A ${r},${r} 0 0 1 ${(cx+r).toFixed(1)},${hy}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1.1"/>`;
-  let rays='';
-  [-1,0,1].forEach(i=>{
-    const x=(cx+i*2.4).toFixed(1);
-    rays+=`<line x1="${x}" y1="${(hy-r-3.6).toFixed(1)}" x2="${x}" y2="${(hy-r-1.4).toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/>`;
-  });
-  let arrow;
-  if(variant==='rise'){
-    const topY=hy-r-8,botY=hy-r-4.4;
-    arrow=`<line x1="${cx}" y1="${botY.toFixed(1)}" x2="${cx}" y2="${topY.toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/><path d="M ${(cx-1.8).toFixed(1)},${(topY+1.8).toFixed(1)} L ${cx},${topY.toFixed(1)} L ${(cx+1.8).toFixed(1)},${(topY+1.8).toFixed(1)}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`;
-  }else{
-    const topY=hy+1.2,botY=hy+5.6;
-    arrow=`<line x1="${cx}" y1="${topY.toFixed(1)}" x2="${cx}" y2="${botY.toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round"/><path d="M ${(cx-1.8).toFixed(1)},${(botY-1.8).toFixed(1)} L ${cx},${botY.toFixed(1)} L ${(cx+1.8).toFixed(1)},${(botY-1.8).toFixed(1)}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`;
-  }
-  return horizon+arc+rays+arrow;
-}
-
-function renderFlow(p){
-  // padY (top) is bigger than the old symmetric 24 so the sunrise/sun/sunset
-  // icons above get real breathing room before the curve starts — bottom of
-  // the plotted range stays put (H-padY-24-24 below would move it; using
-  // padY once here, not twice, is what decouples top spacing from bottom).
-  const svg=document.getElementById('flowSvg');const W=FLOW_W,H=160,padX=FLOW_PAD_X,padY=34;const innerH=H-padY-24-24,innerW=FLOW_INNER_W;
-  const allTemps=[];p.hourlyByModel.forEach(x=>x.hourly.forEach(pt=>{if(pt.t!=null)allTemps.push(pt.t)}));
-  if(allTemps.length===0){svg.innerHTML='';return}
-  const tMin=Math.min(...allTemps),tMax=Math.max(...allTemps);const pad=Math.max(1,(tMax-tMin)*0.15);const yMin=tMin-pad,yMax=tMax+pad;
-  const yScale=t=>padY+(1-(t-yMin)/(yMax-yMin))*innerH;const xScale=i=>padX+(i/23)*innerW;
-  // Skips hours with no reading instead of feeding yScale(null) into the
-  // path data — only ever drawing the primary model masked this: a
-  // secondary model missing its last hour or two near the forecast
-  // boundary produced an "L x,NaN" segment the moment ICON/GFS started
-  // drawing too, breaking the path.
-  const buildPath=(hourly)=>{let d='';hourly.forEach((pt,i)=>{if(pt.t==null)return;const x=xScale(i).toFixed(1),y=yScale(pt.t).toFixed(1);d+=d===''?`M ${x},${y}`:` L ${x},${y}`});return d};
-  const primary=p.hourlyByModel[0];
-
-  let html=`<defs><filter id="tooltipShadow" x="-50%" y="-100%" width="200%" height="300%"><feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="rgb(var(--text-rgb))" flood-opacity="0.22"/></filter></defs>`;
-
-  // Model lines: ECMWF (primary) draws in --accent, full opacity, the
-  // heaviest stroke — the one line meant to pop. ICON/GFS stay in plain ink,
-  // faded further back than before, and pick up a dash/dot pattern (per
-  // MODELS) so they read as distinct series by shape as well as by how far
-  // back they sit — never a second hue, so they never look like a mistake.
-  p.hourlyByModel.slice(1).forEach(x=>{
-    const path=buildPath(x.hourly);
-    const dashAttr=x.model.dash?` stroke-dasharray="${x.model.dash}"`:'';
-    html+=`<path d="${path}" fill="none" stroke="rgb(var(--text-rgb))" stroke-width="${x.model.width}" stroke-opacity="${x.model.opacity}" stroke-linecap="round" stroke-linejoin="round"${dashAttr}/>`;
-  });
-  {const path=buildPath(primary.hourly);html+=`<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="${primary.model.width}" stroke-opacity="${primary.model.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`;}
-
-  // No more per-point anchor dots/labels on the curve (24°/15°/18°) — the
-  // headline chip already states the day's high, and the draggable marker
-  // below (drawFlowMarker) covers every hour on demand, so the static labels
-  // were pure clutter, not unique information.
-  // Section markers moved up into the top margin (icons, not text) so the
-  // bottom of the chart is free for the hover guide line to run straight
-  // down into the rain strip without cutting through a label. Same equal-
-  // thirds split as before (not hour-of-day x-positions, which bunched
-  // "morning" close to the left edge and left "evening" uncentered).
-  [['rise',1/6],['day',1/2],['set',5/6]].forEach(([variant,frac])=>{
-    const x=padX+innerW*frac;
-    html+=sunGlyph(x,variant);
-  });
-  html+=`<g id="flowMarker"></g>`;
-  svg.innerHTML=html;
-
-  // Legend: one item per model, each with a real line-style swatch (matching
-  // that model's own color/width/dash/opacity) instead of one shared bar and
-  // a "ECMWF · ICON · GFS" text run — with dash/dot now distinguishing the
-  // lines, the legend has to show which pattern belongs to which name, not
-  // just list the names.
-  const legend=document.getElementById('flowLegend');
-  legend.innerHTML=p.hourlyByModel.map(x=>{
-    const m=x.model;
-    const color=m.primary?'var(--accent)':'rgb(var(--text-rgb))';
-    const dashAttr=m.dash?` stroke-dasharray="${m.dash}"`:'';
-    const swatch=`<svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true"><line x1="1" y1="4" x2="17" y2="4" stroke="${color}" stroke-width="${m.primary?2:1.4}" stroke-opacity="${m.opacity}" stroke-linecap="round"${dashAttr}/></svg>`;
-    return `<span class="flow-legend-item">${swatch}${m.label}</span>`;
-  }).join('')+`<button type="button" class="info-btn" id="flowLegendInfoBtn" aria-label="What does this chart mean?" onclick="toggleFlowInfo()">i</button>`;
-
-  // uaddon (buildAddendum, near the headline) is now the single canonical
-  // place LOW/RAIN_SPLIT get stated — this used to repeat the same message
-  // here too ("Models disagree on rain timing today" next to "rain timing's
-  // uncertain. Bring it anyway."), so this element no longer duplicates it.
-  const cn=document.getElementById('flowConsensus');cn.classList.remove('on');cn.textContent='';
-  const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
-  flowCtx={primary,xScale,yScale,padX,padY,innerW,W,H,defaultIdx};
-  drawFlowMarker(defaultIdx);
-}
-
-// Standalone card now (see #rainSection in the HTML) instead of a strip
-// squeezed under the temp curve — that's what made drizzle days (Mexico
-// City, ~0.1-1.9mm/h) collapse to a handful of 2-3px bars nobody could read.
-// Amount is shown as one of four intensity icons per hour rather than a
-// continuous bar height: probability already has its own voice in the
-// prose copy (see advice-rules.js's 4-tier language), so this chart's only
-// job is "how much," and a discrete icon reads faster than judging bar
-// height against a scale nobody has memorized.
-// cbrt(mm) over a linear scale for the same reason the old bar chart used
-// it: real forecasts cluster well under PRECIP_MM_CEILING, so a cube-root
-// norm spends most of its 0-1 range on ordinary light-to-moderate rain
-// instead of flattening it all into "basically zero."
-function rainTier(mm){
-  if(!mm||mm<=0)return 0;
-  const norm=Math.min(1,Math.cbrt(mm)/Math.cbrt(PRECIP_MM_CEILING));
-  if(norm<=0.15)return 1;// drizzle
-  if(norm<=0.4)return 2;// light
-  if(norm<=0.7)return 3;// moderate
-  return 4;// heavy
-}
-// Four hand-drawn tiers, not one shape scaled up — a bigger version of the
-// same teardrop reads as "bigger drop," not "more rain," at this size.
-// Heavy switches shape entirely (diagonal streaks) so it's told apart from
-// moderate by silhouette, not just by counting drops — the thin-drizzle vs
-// thick-shower-line distinction rain illustrations usually use. Single ink
-// color throughout (--rain-rgb) — intensity reads through count/shape/
-// opacity, never a new hue, same rule the old bar chart followed.
-function precipIcon(tier,cx,baseY){
-  const col='rgb(var(--rain-rgb))';
-  const drop=(x,y,scale,opacity)=>{
-    const w=2*scale,h=6*scale;
-    return `<path d="M ${x.toFixed(1)},${(y-h).toFixed(1)} C ${(x-w).toFixed(1)},${(y-h*0.45).toFixed(1)} ${(x-w).toFixed(1)},${(y-h*0.05).toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)} C ${(x+w).toFixed(1)},${(y-h*0.05).toFixed(1)} ${(x+w).toFixed(1)},${(y-h*0.45).toFixed(1)} ${x.toFixed(1)},${(y-h).toFixed(1)} Z" fill="${col}" fill-opacity="${opacity}"/>`;
-  };
-  const streak=(x,y,opacity)=>`<line x1="${(x-2.5).toFixed(1)}" y1="${(y-2).toFixed(1)}" x2="${(x+2.5).toFixed(1)}" y2="${(y-13).toFixed(1)}" stroke="${col}" stroke-opacity="${opacity}" stroke-width="1.6" stroke-linecap="round"/>`;
-  if(tier===1)return drop(cx,baseY-1,0.55,0.4);
-  if(tier===2)return drop(cx,baseY-1,1,0.65);
-  if(tier===3)return drop(cx-2.2,baseY-1,0.85,0.55)+drop(cx+2.2,baseY-1,1,0.75);
-  return streak(cx-3,baseY-1,0.6)+streak(cx,baseY-1,0.9)+streak(cx+3,baseY-1,0.75);
-}
-// Rain reads all three models averaged together, not just the primary
-// (ECMWF) line the temp chart uses — precipitation probability/amount from
-// independent models blended is a better estimate than any single model's
-// opinion ("poor man's ensemble"). This does mean model disagreement (one
-// says 90%, another 10%, average reads 50%) is no longer visible the way
-// the temp chart's three separate lines show spread — an intentional
-// trade, not an oversight: a visible spread caption here read as
-// boilerplate on nearly every rainy day (see buildAddendum in
-// advice-rules.js) and got removed for the same reason.
-function avgRainHourly(hourlyByModel){
-  return Array.from({length:24},(_,i)=>{
-    let mmSum=0,rSum=0,n=0;
-    hourlyByModel.forEach(x=>{const h=x.hourly[i];if(h){mmSum+=h.mm;rSum+=h.r;n++}});
-    return n?{mm:mmSum/n,r:rSum/n}:{mm:0,r:0};
-  });
-}
-const RAIN_BASE_Y=48;
-function renderRainStrip(p){
-  const section=document.getElementById('rainSection');
-  const svg=document.getElementById('rainSvg');
-  const hourly=avgRainHourly(p.hourlyByModel);
-  // No rain anywhere today: hide the whole card, not just collapse it — an
-  // empty accordion header with nothing to open is worse than not showing
-  // the option at all.
-  if(!hourly.some(h=>h.mm>0)){section.classList.remove('has-rain');svg.innerHTML='';rainCtx=null;return}
-  section.classList.add('has-rain');
-  const xScale=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
-  let html=`<line x1="0" y1="${RAIN_BASE_Y}" x2="${FLOW_W}" y2="${RAIN_BASE_Y}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.14" stroke-width="1"/>`;
-  // Same rise/day/set glyphs as the temp chart's top margin — this card no
-  // longer sits directly under one, so it needs its own time-of-day anchor.
-  [['rise',1/6],['day',1/2],['set',5/6]].forEach(([variant,frac])=>{
-    const x=FLOW_PAD_X+FLOW_INNER_W*frac;
-    html+=sunGlyph(x,variant);
-  });
-  hourly.forEach((h,i)=>{
-    const tier=rainTier(h.mm);
-    if(tier===0)return;
-    html+=precipIcon(tier,xScale(i),RAIN_BASE_Y);
-  });
-  html+=`<g id="rainMarker"></g>`;
-  svg.innerHTML=html;
-  const defaultIdx=Math.max(0,Math.min(23,p.now.getHours()));
-  rainCtx={hourly,xScale,baseY:RAIN_BASE_Y,W:FLOW_W,defaultIdx};
-  drawRainMarker(defaultIdx);
-}
-
+const FLOW_W=320,FLOW_PAD_X=36,FLOW_INNER_W=FLOW_W-FLOW_PAD_X-14;
 let flowCtx=null,flowDragging=false,rainCtx=null,rainDragging=false;
+const chartX=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
+const chartText=(x,y,text,anchor='start',size=10)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Aspekta,DM Sans,sans-serif" font-size="${size}" fill="currentColor">${text}</text>`;
+function timeAxis(hours,y){
+  return[0,6,12,18,23].filter(i=>hours[i]).map(i=>{
+    const pt=hours[i];
+    const day=new Intl.DateTimeFormat('en-US',{timeZone:currentTimeZone,weekday:'short'}).format(new Date(pt.time*1000));
+    return chartText(chartX(i),y,formatHourLabel(pt.hour%24),'middle')+chartText(chartX(i),y+13,day,'middle',9);
+  }).join('');
+}
+function pointTime(pt){return new Intl.DateTimeFormat('en-US',{timeZone:currentTimeZone,weekday:'short',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(pt.time*1000))}
+function chartRange(p){
+  const hours=p.hourlyByModel[0].hourly;
+  const fmt=new Intl.DateTimeFormat('en-US',{timeZone:p.timeZone,month:'short',day:'numeric'});
+  return`Next 24 hours · ${fmt.format(new Date(hours[0].time*1000))}–${fmt.format(new Date((hours.at(-1).time+3600)*1000))} · local time`;
+}
+function chartGrid(values,yScale,format){
+  return values.map(value=>{
+    const y=yScale(value);
+    return`<line x1="${FLOW_PAD_X}" y1="${y}" x2="${FLOW_W-14}" y2="${y}" stroke="currentColor" stroke-opacity="0.14"/>`+chartText(FLOW_PAD_X-6,y+3,format(value),'end',9);
+  }).join('');
+}
+function markerState(svg,idx,text){
+  svg.setAttribute('aria-valuenow',idx);
+  svg.setAttribute('aria-valuetext',text);
+}
+function renderFlow(p){
+  const svg=document.getElementById('flowSvg');
+  const models=p.hourlyByModel.filter(x=>x.hourly.some(pt=>Number.isFinite(pt.t)));
+  const temps=models.flatMap(x=>x.hourly.map(pt=>temperatureValue(pt.t,temperatureUnit)).filter(Number.isFinite));
+  if(!temps.length){svg.innerHTML='';flowCtx=null;return}
+  const min=Math.floor(Math.min(...temps))-1,max=Math.ceil(Math.max(...temps))+1;
+  const mid=(min+max)/2,yScale=t=>32+(max-t)/(max-min)*90;
+  let html=chartText(FLOW_PAD_X,14,`Temperature (°${temperatureUnit})`);
+  html+=chartGrid([min,mid,max],yScale,v=>Math.round(v));
+  // Start a new segment after a missing value; never bridge an unknown hour.
+  [...models.filter(x=>!x.model.primary),...models.filter(x=>x.model.primary)].forEach(x=>{
+    let d='',connected=false;
+    x.hourly.forEach((pt,i)=>{
+      if(!Number.isFinite(pt.t)){connected=false;return}
+      d+=`${connected?' L':' M'} ${chartX(i).toFixed(1)},${yScale(temperatureValue(pt.t,temperatureUnit)).toFixed(1)}`;
+      connected=true;
+    });
+    const m=x.model;
+    html+=`<path d="${d}" fill="none" stroke="${m.primary?'var(--accent)':'currentColor'}" stroke-width="${m.width}" stroke-opacity="${m.opacity}" stroke-linecap="round" stroke-linejoin="round"${m.dash?` stroke-dasharray="${m.dash}"`:''}/>`;
+  });
+  html+=timeAxis(models[0].hourly,145)+`<g id="flowMarker" aria-hidden="true"></g>`;
+  svg.innerHTML=html;
+  document.getElementById('flowRange').textContent=chartRange(p);
+  document.getElementById('flowLegend').innerHTML=models.map(({model:m})=>`<span class="flow-legend-item"><svg width="18" height="8" viewBox="0 0 18 8" aria-hidden="true"><line x1="1" y1="4" x2="17" y2="4" stroke="currentColor" stroke-width="${m.width}" stroke-opacity="${m.opacity}" stroke-linecap="round"${m.dash?` stroke-dasharray="${m.dash}"`:''}/></svg>${m.label}${m.id===p.primaryModel?' · main':''}</span>`).join('');
+  flowCtx={models,hours:models[0].hourly,yScale};
+  drawFlowMarker(0);
+}
+function renderRainStrip(p){
+  const section=document.getElementById('rainSection'),svg=document.getElementById('rainSvg');
+  const hourly=avgRainHourly(p.hourlyByModel),hours=p.hourlyByModel[0].hourly;
+  // A probability-only or unavailable forecast must not disappear as "dry".
+  const dry=hourly.every(pt=>pt.r===0&&pt.mm===0);
+  section.classList.toggle('has-rain',!dry);
+  if(dry){svg.innerHTML='';rainCtx=null;return}
+  const mmMax=Math.max(0.1,...hourly.map(pt=>pt.mm).filter(Number.isFinite));
+  const mmTop=mmMax<1?Math.ceil(mmMax*10)/10:Math.ceil(mmMax);
+  const probY=v=>88-v/100*52,amountY=v=>183-v/mmTop*52;
+  let html=chartText(FLOW_PAD_X,15,'Chance (%)')+chartGrid([0,50,100],probY,v=>v);
+  html+=chartText(FLOW_PAD_X,113,'Amount (mm in 1 hour)')+chartGrid([0,mmTop/2,mmTop],amountY,v=>v<1?v.toFixed(2).replace(/0$/,''):v.toFixed(1));
+  hourly.forEach((pt,i)=>{
+    const x=chartX(i),width=7;
+    for(const[key,scale,base,opacity]of[['r',probY,88,0.55],['mm',amountY,183,0.85]]){
+      if(pt[key]==null){html+=chartText(x,base-4,'—','middle',8);continue}
+      if(pt[key]===0)continue;
+      const height=Math.max(1,base-scale(pt[key]));
+      html+=`<rect x="${x-width/2}" y="${base-height}" width="${width}" height="${height}" rx="1" fill="rgb(var(--rain-rgb))" fill-opacity="${opacity}"/>`;
+    }
+  });
+  html+=timeAxis(hours,206)+`<g id="rainMarker" aria-hidden="true"></g>`;
+  svg.innerHTML=html;
+  document.getElementById('rainRange').textContent=chartRange(p);
+  rainCtx={hourly,hours};
+  drawRainMarker(0);
+}
 function drawFlowMarker(idx){
   if(!flowCtx)return;
-  idx=Math.max(0,Math.min(23,Math.round(idx)));
-  const{primary,xScale,yScale,padX,padY,innerW,W,H}=flowCtx;
-  const pt=primary.hourly[idx];
-  const g=document.getElementById('flowMarker');
-  if(!pt||pt.t==null||!g){if(g)g.innerHTML='';return}
-  const x=xScale(idx),y=yScale(pt.t);
-  const hourLabel=idx===0?'12am':idx<12?`${idx}am`:idx===12?'12pm':`${idx-12}pm`;
-  // Time + temp only — precipitation has its own card (#rainSection) with
-  // its own tooltip now, so this one no longer doubles up on it.
-  const text=`${hourLabel} · ${Math.round(pt.t)}°`;
-  const tw=text.length*5.6+16;
-  const tx=Math.max(padX,Math.min(W-padX-tw,x-tw/2));
-  // Default: tooltip sits above the point. Flip below only when the point
-  // itself is close enough to the chart's top edge that an above-placed
-  // tooltip would clip out of the viewBox (there's no static peak label to
-  // dodge anymore — that was the only other reason this used to flip).
-  const ty=(y-30<padY-2)?Math.min(H-45,y+14):Math.max(padY-2,y-30);
-  // Guide line runs to the chart's own bottom edge — no rain strip below it
-  // to hand off to anymore, so this is unconditional now.
-  const lineY2=H-24;
-  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="${padY.toFixed(1)}" x2="${x.toFixed(1)}" y2="${lineY2.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="rgb(var(--text-rgb))"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+  idx=Math.max(0,Math.min(flowCtx.hours.length-1,Math.round(idx)));
+  const {models,hours,yScale}=flowCtx,x=chartX(idx);
+  let html=`<line x1="${x}" y1="28" x2="${x}" y2="125" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="2,2"/>`;
+  models.forEach(m=>{const t=m.hourly[idx]?.t;if(Number.isFinite(t))html+=`<circle cx="${x}" cy="${yScale(temperatureValue(t,temperatureUnit))}" r="2.5" fill="currentColor"/>`});
+  document.getElementById('flowMarker').innerHTML=html;
+  const text=`${pointTime(hours[idx])} · ${models.map(m=>`${m.model.label} ${formatTemperature(m.hourly[idx]?.t,temperatureUnit)}`).join(' · ')}`;
+  document.getElementById('flowReadout').textContent=text;
+  markerState(document.getElementById('flowSvg'),idx,text);
 }
-// Rain card's own tap/drag marker — independent of flowCtx/drawFlowMarker
-// now that it's a separate card with its own SVG, not a strip stacked
-// beneath the temp chart sharing one guide line.
 function drawRainMarker(idx){
   if(!rainCtx)return;
-  idx=Math.max(0,Math.min(23,Math.round(idx)));
-  const{hourly,xScale,baseY,W}=rainCtx;
-  const pt=hourly[idx];
-  const g=document.getElementById('rainMarker');
-  if(!pt||!g){if(g)g.innerHTML='';return}
-  const x=xScale(idx);
-  const mm=pt.mm||0,pct=Math.round(pt.r||0);
-  const mmLabel=mm>0?`${mm.toFixed(1)}mm`:'0mm';
-  const text=pct>0?`${mmLabel} · ${pct}%`:mmLabel;
-  // Same pill as the temp-chart tooltip (height/radius/font all match —
-  // drawFlowMarker's rect+text is the reference) instead of its own shape.
-  const tw=text.length*5.6+16;
-  const tx=Math.max(FLOW_PAD_X,Math.min(W-FLOW_PAD_X-tw,x-tw/2));
-  // Floats above the icon row entirely, in the gap this SVG's own
-  // overflow:visible already exposes above y=0.
-  const ty=-26;
-  g.innerHTML=`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="rgb(var(--text-rgb))" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="2,2"/><rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" rx="9" fill="var(--bg)" fill-opacity="0.96" stroke="var(--chip-bd)" filter="url(#tooltipShadow)"/><text x="${(tx+tw/2).toFixed(1)}" y="${(ty+12.5).toFixed(1)}" text-anchor="middle" font-family="Aspekta,DM Sans,sans-serif" font-size="11" font-weight="500" fill="rgb(var(--text-rgb))">${text}</text>`;
+  idx=Math.max(0,Math.min(rainCtx.hours.length-1,Math.round(idx)));
+  const pt=rainCtx.hourly[idx],hour=rainCtx.hours[idx],x=chartX(idx);
+  document.getElementById('rainMarker').innerHTML=`<line x1="${x}" y1="28" x2="${x}" y2="186" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="2,2"/>`;
+  const text=`${pointTime(hour)} · Chance ${pt.r==null?'—':`${Math.round(pt.r)}%`} (${pt.rCount}/3) · Amount ${formatAmount(pt.mm)} / 1h (${pt.mmCount}/3)`;
+  document.getElementById('rainReadout').textContent=text;
+  markerState(document.getElementById('rainSvg'),idx,text);
 }
-function rainIndexFromEvent(e){
-  if(!rainCtx)return null;
-  const svg=document.getElementById('rainSvg');
-  const rect=svg.getBoundingClientRect();
-  if(rect.width===0)return null;
-  const svgX=(e.clientX-rect.left)/rect.width*rainCtx.W;
-  return Math.max(0,Math.min(23,Math.round((svgX-FLOW_PAD_X)/FLOW_INNER_W*23)));
+function wireChart(id,draw,getContext){
+  const svg=document.getElementById(id);
+  let dragging=false;
+  svg.style.touchAction='pan-y';
+  const point=e=>{
+    if(!getContext())return;
+    const rect=svg.getBoundingClientRect();
+    if(!rect.width)return;
+    const x=(e.clientX-rect.left)/rect.width*FLOW_W;
+    draw(Math.round((x-FLOW_PAD_X)/FLOW_INNER_W*23));
+  };
+  svg.addEventListener('pointerdown',e=>{dragging=true;svg.setPointerCapture(e.pointerId);point(e)});
+  svg.addEventListener('pointermove',e=>{if(dragging||e.pointerType==='mouse')point(e)});
+  svg.addEventListener('pointerup',()=>{dragging=false});
+  svg.addEventListener('pointercancel',()=>{dragging=false});
+  svg.addEventListener('keydown',e=>{
+    const idx=Number(svg.getAttribute('aria-valuenow')||0);
+    const next={ArrowLeft:idx-1,ArrowDown:idx-1,ArrowRight:idx+1,ArrowUp:idx+1,Home:0,End:23}[e.key];
+    if(next!=null){e.preventDefault();draw(next)}
+  });
 }
-function wireRainTouch(){
-  const svg=document.getElementById('rainSvg');
-  svg.style.touchAction='none';
-  const release=()=>{rainDragging=false;if(rainCtx)drawRainMarker(rainCtx.defaultIdx)};
-  svg.addEventListener('pointerdown',e=>{if(!rainCtx)return;rainDragging=true;svg.setPointerCapture(e.pointerId);const idx=rainIndexFromEvent(e);if(idx!=null)drawRainMarker(idx);});
-  svg.addEventListener('pointermove',e=>{if(!rainDragging)return;const idx=rainIndexFromEvent(e);if(idx!=null)drawRainMarker(idx);});
-  svg.addEventListener('pointerup',release);
-  svg.addEventListener('pointercancel',release);
-  svg.addEventListener('pointerleave',()=>{if(rainDragging)release();});
-}
-function updateFlowHover(idx){drawFlowMarker(idx);}
-function flowIndexFromEvent(e){
-  if(!flowCtx)return null;
-  const svg=document.getElementById('flowSvg');
-  const rect=svg.getBoundingClientRect();
-  if(rect.width===0)return null;
-  const svgX=(e.clientX-rect.left)/rect.width*flowCtx.W;
-  return Math.max(0,Math.min(23,Math.round((svgX-flowCtx.padX)/flowCtx.innerW*23)));
-}
-function wireFlowTouch(){
-  const release=()=>{flowDragging=false;if(flowCtx)updateFlowHover(flowCtx.defaultIdx)};
-  // Temp chart only now — the rain card is a separate SVG with its own
-  // independent drag wiring (wireRainTouch), not a shared guide line.
-  const svg=document.getElementById('flowSvg');
-  svg.style.touchAction='none';
-  svg.addEventListener('pointerdown',e=>{if(!flowCtx)return;flowDragging=true;svg.setPointerCapture(e.pointerId);const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
-  svg.addEventListener('pointermove',e=>{if(!flowDragging)return;const idx=flowIndexFromEvent(e);if(idx!=null)updateFlowHover(idx);});
-  svg.addEventListener('pointerup',release);
-  svg.addEventListener('pointercancel',release);
-  svg.addEventListener('pointerleave',()=>{if(flowDragging)release();});
-}
+function wireFlowTouch(){wireChart('flowSvg',drawFlowMarker,()=>flowCtx)}
+function wireRainTouch(){wireChart('rainSvg',drawRainMarker,()=>rainCtx)}
 
 // The advice line and its RAIN_SPLIT/LOW caption used to be written to
 // #prose and #uaddon independently — the only thing tying them together was
@@ -1746,14 +1432,17 @@ function renderAdviceLine(p){
 }
 
 function render(p){
+  p.temperatureUnit=temperatureUnit;latestWeather=p;currentTimeZone=p.timeZone;
   const{now,tMax,yMax,diff}=p;
-  document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+  applyTimeMode();updateLocalTime();
+  document.getElementById('unitToggle').setAttribute('aria-pressed',String(temperatureUnit==='F'));
+  document.getElementById('unitC').classList.toggle('active',temperatureUnit==='C');
+  document.getElementById('unitF').classList.toggle('active',temperatureUnit==='F');
+  document.getElementById('dateEl').textContent=now.toLocaleDateString('en-US',{timeZone:p.timeZone,month:'short',day:'numeric',weekday:'short'});
   const selected=renderAdviceLine(p);
-  document.getElementById('flowSection').classList.remove('open');document.getElementById('flowInfo').classList.remove('open');
-  document.getElementById('rainSection').classList.remove('open');
   renderRainStrip(p);
   renderFlow(p);
-  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${yMax}°</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${tMax}°</div></div>`;
+  const mx=Math.max(Math.abs(tMax),Math.abs(yMax),1);document.getElementById('cmp').innerHTML=`<div class="cmp-row"><div class="cmp-l">Yest</div><div class="cmp-track"><div class="cmp-fill fill-y" style="width:${(Math.abs(yMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${formatTemperature(yMax,temperatureUnit)}</div></div><div class="cmp-row"><div class="cmp-l">Today</div><div class="cmp-track"><div class="cmp-fill fill-t" style="width:${(Math.abs(tMax)/mx*100).toFixed(1)}%"></div></div><div class="cmp-v">${formatTemperature(tMax,temperatureUnit)}</div></div>`;
   return selected;
 }
 
@@ -1778,8 +1467,8 @@ function locationKey(loc){return loc?`${loc.lat.toFixed(2)},${loc.lon.toFixed(2)
 function updateFreshness(){
   const el=document.getElementById('freshness');
   if(!el)return;
-  const d=new Date();
-  el.textContent=`Updated ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const d=new Date(lastWeatherFetchAt||Date.now());
+  el.textContent=`Updated ${d.toLocaleTimeString('en-US',{timeZone:currentTimeZone||undefined,hour:'numeric',minute:'2-digit',timeZoneName:'short'})}`;
 }
 function loadBriefingCache(){try{const raw=localStorage.getItem(BRIEFING_CACHE_KEY);return raw?JSON.parse(raw):null}catch{return null}}
 function saveBriefingCache(entry){try{localStorage.setItem(BRIEFING_CACHE_KEY,JSON.stringify(entry))}catch{}}
@@ -1812,7 +1501,7 @@ async function callGeminiPilot(selected){
 }
 function applyGeminiLine(text){
   const el=document.querySelector('#prose .action');
-  if(el)el.textContent=text;
+  if(el&&temperatureUnit==='C')el.textContent=text.replace(/°(?![CF])/g,'°C');
 }
 
 // The one gate every briefing request passes through — manual refresh,
@@ -1822,10 +1511,10 @@ function applyGeminiLine(text){
 // exactly one place. Out of pilot scope (the common case) is a same-tick,
 // no-network no-op.
 async function maybeRefreshBriefing(p,selected,{force=false}={}){
-  if(!p||!isInGeminiPilotScope(selected)||briefingInFlight)return;
+  if(!p||p.temperatureUnit==='F'||!isInGeminiPilotScope(selected)||briefingInFlight)return;
   const locKey=locationKey(currentLoc);
   const dateKey=p.now instanceof Date?p.now.toISOString().split('T')[0]:'';
-  const cacheKey=`${selected.key}:${selected.tier}:${p.band}:${locKey}:${dateKey}`;
+  const cacheKey=`${selected.key}:${selected.tier}:${p.band}:${locKey}:${dateKey}:${selected.meta?.feelsLike}:${selected.meta?.eveningTemp}`;
 
   // Reload on the same day/band/location/signal: apply the cached line
   // (if one was ever accepted) and skip the network call outright,
@@ -1907,7 +1596,9 @@ window.manualRefresh=async function manualRefresh(){
 };
 
 async function init(){
-  applyTimeMode();userVote=null;
+  applyTimeMode();userVote=null;flowCtx=null;rainCtx=null;
+  setChartOpen('flow',false);setChartOpen('rain',false);
+  document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded','false');
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
   document.getElementById('uaddon').classList.remove('on');document.getElementById('freshness').textContent='';document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('rainSection').classList.remove('open');document.getElementById('rainSection').classList.remove('has-rain');document.getElementById('rainSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
   document.getElementById('nearbyProse').innerHTML='<span style="opacity:0.4">Loading nearby reports…</span>';document.getElementById('nearbyCounts').innerHTML='';document.getElementById('nearbyQ').textContent='How is it where you are?';document.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('selected'));

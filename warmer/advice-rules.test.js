@@ -265,7 +265,7 @@ test('precipitation timing: without a rainSeries, falls back to generic umbrella
   // precipitationTiming's own fallback copy in isolation, undisturbed by the
   // item-5 headline-dedup behavior covered separately below.
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35 })).html;
-  assert.ok(html.includes("Rain's possible today, around 35% — an umbrella might be worth it."), `expected the generic possible-rain line to include the probability in: ${html}`);
+  assert.ok(html.includes("Rain's possible today, peaking around 35% — an umbrella might be worth it."), `expected the generic possible-rain line to include the probability in: ${html}`);
 });
 
 test('precipitation timing: a genuinely diffuse forecast (no single hour ever crosses the 40% start threshold, despite an average in the "possible" salience band) also falls back with a number, not a bare hedge', () => {
@@ -276,7 +276,7 @@ test('precipitation timing: a genuinely diffuse forecast (no single hour ever cr
   // than a missing one.
   const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: 35 }));
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 35, rainSeries, nowHour: 10 })).html;
-  assert.ok(html.includes("Rain's possible today, around 35% — an umbrella might be worth it."), `expected the numeric fallback even when the series never crosses the start threshold: ${html}`);
+  assert.ok(html.includes("Rain's possible today, peaking around 35% — an umbrella might be worth it."), `expected the numeric fallback even when the series never crosses the start threshold: ${html}`);
 });
 
 // ---- Rain timing bug: New York and London both said "12am" (item 1) ----
@@ -309,7 +309,7 @@ test('precipitation timing: the "ongoing, no clear time" copy itself (isolated f
 test('precipitation timing: rain already falling now states when it clears, not a (wrong) start time', () => {
   const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour < 15 ? 80 : 10 }));
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 80, rainSeries, nowHour: 10 })).html;
-  assert.ok(html.includes('clears up around 3pm'), `expected a clearing time, not a start time, in: ${html}`);
+  assert.ok(html.includes('less likely around 3pm'), `expected a clearing time, not a start time, in: ${html}`);
   assert.ok(!html.includes('moves in'), `did not expect "moves in" phrasing for rain that's already falling: ${html}`);
 });
 
@@ -391,8 +391,8 @@ test('headline rain-window chip reads the same now-aware timing as the advice li
     { label: 'evening', temp: 18, rain: 80 },
   ];
   const html = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 58, rainSeries, slots, nowHour: 20 })).html;
-  assert.ok(html.includes('Rain should ease up around 11pm.'), `expected the advice line to state the real clearing time in: ${html}`);
-  assert.ok(html.includes('11pm · 58%'), `expected the headline chip to name the same 11pm clearing time as the advice line: ${html}`);
+  assert.ok(html.includes('Rain becomes less likely around 11pm.'), `expected the advice line to state the real clearing time in: ${html}`);
+  assert.ok(html.includes('below 40% from 11pm'), `expected the headline chip to name the same 11pm clearing time as the advice line: ${html}`);
   assert.ok(!html.includes('evening ·'), `did not expect the stale "evening" daypart bucket once rain is already underway: ${html}`);
 });
 
@@ -440,7 +440,7 @@ test('headline dedup: rain is already in the headline, and there\'s no clock tim
 test('headline dedup exception: a concrete rain start/clear time is information the headline never states, so it survives even though the headline already says "rain" (Taiwan case)', () => {
   const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour === 12 ? 86 : 20 }));
   const html = buildProse(baseP({ feels: 22, tMax: 22, diff: 0, evening: 22, maxRain: 86, rainSeries, nowHour: 8 })).html;
-  assert.ok(html.includes('Rain moves in around 12pm'), `expected the advice line to keep the concrete time despite the headline already covering rain: ${html}`);
+  assert.ok(html.includes("Rain's likely from around 12pm"), `expected the advice line to keep the concrete time despite the headline already covering rain: ${html}`);
 });
 
 test('headline dedup: a big evening temperature drop already stated in the trend line is not repeated as diurnal-range advice', () => {
