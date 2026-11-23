@@ -158,7 +158,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .city-card.dark{background:#7B4B49;color:#C9E0EF;--art:rgba(175,173,181,.85);--soft:rgba(201,224,239,.72)}
 .city-card:active{opacity:.85}
 .card-art{position:absolute;inset:0;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
-.card-name{position:absolute;left:21px;top:16px;max-width:190px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-name{position:absolute;left:21px;top:16px;max-width:calc(100% - 42px);font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-temp{position:absolute;right:21px;top:20px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em}
 .card-cond{position:absolute;left:21px;bottom:18px;font-family:'Gelasio',serif;font-style:italic;font-size:20px;line-height:1.1;letter-spacing:-0.04em;color:var(--soft)}
 .card-prev{position:absolute;right:21px;bottom:20px;font-size:14px;line-height:1.2;color:var(--soft)}
@@ -747,6 +747,19 @@ function cardHTML(city,p){
     +`<div class="card-cond">${label}</div>${prev}${del}</div>`;
 }
 
+// Shrink long city names (40px -> 24px) to fit beside the temperature;
+// below 24px the CSS ellipsis takes over.
+function fitCardNames(root=document){
+  root.querySelectorAll('.city-card').forEach(card=>{
+    const name=card.querySelector('.card-name'),temp=card.querySelector('.card-temp');
+    if(!name||!card.clientWidth)return;
+    const avail=card.clientWidth-21-21-(temp?temp.offsetWidth:0)-12;
+    name.style.maxWidth=avail+'px';name.style.fontSize='';
+    let size=40;
+    while(name.scrollWidth>avail&&size>24){size-=2;name.style.fontSize=size+'px'}
+  });
+}
+if(document.fonts)document.fonts.ready.then(()=>fitCardNames());
 // ---- Views ----
 let editing=false;
 function setMenuOpen(open){
@@ -763,11 +776,12 @@ function renderCards(){
   box.classList.toggle('editing',editing);
   document.getElementById('emptyState').hidden=list.length>0;
   box.innerHTML=list.map(c=>cardHTML(c,cardCache.get(c.id)?.p||null)).join('');
+  fitCardNames(box);
   list.forEach(c=>loadCard(c).then(p=>{
     if(view!=='list'||!p)return;
     const el=[...box.children].find(n=>n.dataset.id===c.id);
     if(!el)return;
-    const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);
+    const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);fitCardNames(box);
   }));
 }
 function showList(){
