@@ -133,36 +133,36 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .cs-empty{padding:18px 2px;font-size:14px;color:rgba(var(--text-rgb),0.45)}
 
 /* ---- Phase 2: list screen, cards, pager, menu ---- */
-.list-screen{position:relative;max-width:390px;margin:0 auto;min-height:100vh;padding:calc(env(safe-area-inset-top,0px) + 40px) 24px 96px;background:#C9E0EF;color:#7B4B49}
+.list-screen{position:relative;max-width:390px;margin:0 auto;min-height:100vh;padding:max(74px,calc(env(safe-area-inset-top,0px) + 24px)) 16px 96px;background:#C9E0EF;color:#7B4B49}
 .list-screen[hidden],.pager[hidden],.list-btn[hidden],#dayScreen[hidden]{display:none}
 @media (min-width:640px){.list-screen{margin:48px auto;min-height:calc(100vh - 96px);border-radius:28px}}
 .list-top{position:relative;z-index:3;display:flex;align-items:center;justify-content:center;height:43px;margin-bottom:46px}
 .logo{width:86px;height:43px;background:url('/logo.svg') no-repeat;background-size:auto 100%;background-position:-84px 0}
-.menu-btn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;border-radius:10px;background:#7B4B49;display:flex;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.menu-btn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;border-radius:13px;background:#7B4B49;display:flex;align-items:center;justify-content:center;gap:2px;cursor:pointer}
 .menu-btn span{width:5px;height:5px;border-radius:50%;background:#C9E0EF}
 .menu-btn:active{opacity:.7}
-.menu-panel{position:absolute;right:24px;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:20;min-width:119px;padding:12px;background:#7B4B49;border-radius:12px;box-shadow:0 8px 24px rgba(123,75,73,.25)}
+.menu-panel{position:absolute;right:16px;top:calc(max(74px,env(safe-area-inset-top,0px) + 24px) + 52px);z-index:20;min-width:119px;padding:12px;background:#7B4B49;border-radius:12px;box-shadow:0 8px 24px rgba(123,75,73,.25)}
 .menu-panel button{display:flex;align-items:center;width:100%;height:22px;margin-bottom:8px;padding:0 0 0 18px;position:relative;background:none;border:none;font:inherit;font-size:15px;line-height:22px;color:#C9E0EF;text-align:left;cursor:pointer}
 .menu-panel button:last-child{margin-bottom:0}
 .menu-panel .ck{display:none;position:absolute;left:0;font-style:normal;font-size:12px}
 .menu-panel button[aria-checked=true] .ck{display:inline}
-.city-cards{display:flex;flex-direction:column;gap:16px}
-.city-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:12px;width:100%;min-height:133px;padding:16px 21px 18px;border:none;border-radius:20px;text-align:left;font:inherit;cursor:pointer;overflow:hidden;background:#D9E9F4;color:#7B4B49;--art:#A7969A;--soft:rgba(123,75,73,.72)}
+.city-cards{display:flex;flex-direction:column;gap:8px}
+.city-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:12px;width:100%;min-height:133px;padding:18px 20px;border:none;border-radius:21px;text-align:left;font:inherit;cursor:pointer;overflow:hidden;background:#D9E9F4;color:#7B4B49;--art:#A7969A;--soft:rgba(123,75,73,.72)}
 .city-card.dark{background:#7B4B49;color:#C9E0EF;--art:rgba(175,173,181,.85);--soft:rgba(201,224,239,.72)}
 .city-card:active{opacity:.85}
 .card-art{position:absolute;left:0;right:0;top:50%;height:133px;margin-top:-66.5px;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
 .card-top,.card-bot{position:relative;display:flex;align-items:flex-start;gap:16px}
 .card-bot{align-items:flex-end}
 .card-name{flex:1;min-width:0;font-size:32px;line-height:1.15;font-weight:450;letter-spacing:-0.03em;overflow-wrap:anywhere}
-.card-temp{flex-shrink:0;font-size:32px;line-height:1.15;font-weight:450;letter-spacing:-0.03em}
+.card-temp{flex-shrink:0;font-size:32px;line-height:1.15;font-weight:500;letter-spacing:-0.03em}
 .card-cond{flex:1;min-width:0;font-family:'Gelasio',serif;font-style:italic;font-size:16px;line-height:1.2;letter-spacing:-0.03em;color:var(--soft)}
 .card-prev{flex-shrink:0;font-size:14px;line-height:1.2;color:var(--soft);white-space:nowrap}
 .card-prev b{font-weight:500;color:inherit;margin-left:4px;font-size:15px}
 .card-skel{opacity:.55}
 .card-del{display:none;position:absolute;left:8px;top:8px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:#F17666;color:#fff;font-size:18px;line-height:28px;text-align:center;cursor:pointer}
 .editing .card-del{display:block}
-.search-bar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);width:min(355px,calc(100% - 46px));height:44px;display:flex;align-items:center;gap:10px;padding:0 17px;border:none;border-radius:100px;background:rgba(123,75,73,.10);color:#7B4B49;font:inherit;font-size:16px;cursor:pointer;z-index:5}
-.search-bar:active{background:rgba(123,75,73,.18)}
+.search-bar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);width:min(355px,calc(100% - 46px));height:44px;display:flex;align-items:center;gap:10px;padding:0 17px;border:none;border-radius:100px;background:rgba(201,224,239,.86);-webkit-backdrop-filter:blur(20px) saturate(1.2);backdrop-filter:blur(20px) saturate(1.2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.45);color:#7B4B49;font:inherit;font-size:16px;cursor:pointer;z-index:5}
+.search-bar:active{background:rgba(201,224,239,.75)}
 .empty-state{position:absolute;inset:0;pointer-events:none;background:url('/assets/empty-art.webp') center top/100% auto no-repeat}
 .empty-text{position:absolute;left:0;right:0;top:calc(50% - 44px);text-align:center;font-size:24px;line-height:1.15;font-weight:450;letter-spacing:-0.02em}
 .empty-text em{font-family:'Gelasio',serif;font-weight:400;font-size:24px;letter-spacing:-0.04em}
@@ -176,6 +176,11 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
 .list-btn:active{opacity:.5}
 @media (min-width:640px){.pager,.list-btn{bottom:89px}}
 #dayScreen{padding-bottom:96px}
+@keyframes slideL{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}
+@keyframes slideR{from{transform:translateX(-36px);opacity:0}to{transform:none;opacity:1}}
+#dayScreen.slide-l{animation:slideL .22s cubic-bezier(.2,.8,.2,1)}
+#dayScreen.slide-r{animation:slideR .22s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){#dayScreen.slide-l,#dayScreen.slide-r{animation:none}}
 
 /* ---- Rain panel (opens from the rain pill) ---- */
 .rain-pill{font:inherit;font-size:16.8px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;gap:5px}
@@ -858,7 +863,7 @@ window.showDay=showDay;
 Object.defineProperty(window,'currentCityId',{get:()=>currentCityId});
 function stepCity(dir){
   const list=allCities(),i=list.findIndex(c=>c.id===currentCityId),n=list[i+dir];
-  if(n)showDay(n.id);
+  if(n){showDay(n.id);const d=document.getElementById('dayScreen');d.classList.remove('slide-l','slide-r');void d.offsetWidth;d.classList.add(dir>0?'slide-l':'slide-r')}
 }
 
 // visibilitychange (->visible), focus, and a 60s interval all funnel through here.
@@ -905,13 +910,14 @@ function wireApp(){
     setMenuOpen(false);syncMenu();renderCards();
   }));
   document.getElementById('listBtn').addEventListener('click',showList);
-  let sx=null,sy=null;
+  let sx=null,sy=null,st=0;
   const day=document.getElementById('dayScreen');
-  day.addEventListener('touchstart',e=>{if(e.target.closest('svg')){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+  day.addEventListener('touchstart',e=>{if(e.target.closest('svg')){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=e.timeStamp},{passive:true});
   day.addEventListener('touchend',e=>{
     if(sx==null)return;
-    const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
-    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)stepCity(dx<0?1:-1);
+    const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy,dt=Math.max(e.timeStamp-st,1);sx=null;
+    const ax=Math.abs(dx),flick=ax>=24&&ax/dt>0.3;   // quick flick or a modest drag
+    if((ax>=44||flick)&&ax>Math.abs(dy)*1.2)stepCity(dx<0?1:-1);
   },{passive:true});
 }
 wireApp();
