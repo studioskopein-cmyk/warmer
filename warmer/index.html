@@ -492,7 +492,7 @@ function renderTopbar(p){
   document.getElementById('bigTemp').textContent=formatTemperature(p.nowTemp,temperatureUnit);
   const box=document.getElementById('ydayBox');
   if(!Number.isFinite(p.yesterdayNowTemp)){box.hidden=true;return}
-  const d=p.nowTemp-p.yesterdayNowTemp;
+  const d=p.diff;
   const el=document.getElementById('ydayDelta');
   el.textContent=(d>0?'+':'')+formatDelta(d,temperatureUnit);
   el.className=d>0?'up':d<0?'dn':'';

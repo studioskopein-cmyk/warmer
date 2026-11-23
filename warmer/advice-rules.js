@@ -750,7 +750,7 @@ export function buildProse(p) {
   const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
   const eDrop = eTemp != null ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
-  const dChip = ic(tMax, diff, p.temperatureUnit);
+  const dChip = ic(p.nowTemp ?? tMax, diff, p.temperatureUnit);
   const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${formatTemperature(eTemp, p.temperatureUnit || 'C')}`) : '';
 
   const { text: action, selected: adviceSelected } = computeAdvice(p);

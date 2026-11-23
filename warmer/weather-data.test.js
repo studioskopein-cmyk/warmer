@@ -125,4 +125,5 @@ test('nowTemp is the current hour and yesterdayNowTemp is the same local hour a 
   const p = parse(data, null, new Date('2026-11-05T21:40:00Z'));
   assert.equal(p.nowTemp, 45);
   assert.equal(p.yesterdayNowTemp, 21);
+  assert.equal(p.diff, 24); // sentence + chip + top bar all read this one number
 });
