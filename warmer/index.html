@@ -138,6 +138,47 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .cs-row-name{font-size:16px;font-weight:450;color:rgb(var(--text-rgb))}
 .cs-row-sub{font-size:13px;font-weight:350;color:rgba(var(--text-rgb),0.5);margin-top:2px}
 .cs-empty{padding:18px 2px;font-size:14px;color:rgba(var(--text-rgb),0.45)}
+
+/* ---- Phase 2: list screen, cards, pager, menu ---- */
+.list-screen{position:relative;max-width:390px;margin:0 auto;min-height:100vh;padding:calc(env(safe-area-inset-top,0px) + 40px) 24px 96px;background:#C9E0EF;color:#7B4B49}
+.list-screen[hidden],.pager[hidden],.list-btn[hidden],#dayScreen[hidden]{display:none}
+@media (min-width:640px){.list-screen{margin:48px auto;min-height:calc(100vh - 96px);border-radius:28px}}
+.list-top{position:relative;z-index:3;display:flex;align-items:center;justify-content:center;height:43px;margin-bottom:46px}
+.logo{width:86px;height:43px;background:url('/logo.svg') no-repeat;background-size:auto 100%;background-position:-84px 0}
+.menu-btn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;border-radius:10px;background:#7B4B49;display:flex;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.menu-btn span{width:5px;height:5px;border-radius:50%;background:#C9E0EF}
+.menu-btn:active{opacity:.7}
+.menu-panel{position:absolute;right:24px;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:20;min-width:119px;padding:12px;background:#7B4B49;border-radius:12px;box-shadow:0 8px 24px rgba(123,75,73,.25)}
+.menu-panel button{display:flex;align-items:center;width:100%;height:22px;margin-bottom:8px;padding:0 0 0 18px;position:relative;background:none;border:none;font:inherit;font-size:15px;line-height:22px;color:#C9E0EF;text-align:left;cursor:pointer}
+.menu-panel button:last-child{margin-bottom:0}
+.menu-panel .ck{display:none;position:absolute;left:0;font-style:normal;font-size:12px}
+.menu-panel button[aria-checked=true] .ck{display:inline}
+.city-cards{display:flex;flex-direction:column;gap:16px}
+.city-card{position:relative;display:block;width:100%;height:133px;padding:0;border:none;border-radius:20px;text-align:left;font:inherit;cursor:pointer;overflow:hidden;background:#D9E9F4;color:#7B4B49;--art:#A7969A;--soft:rgba(123,75,73,.72)}
+.city-card.dark{background:#7B4B49;color:#C9E0EF;--art:rgba(175,173,181,.85);--soft:rgba(201,224,239,.72)}
+.city-card:active{opacity:.85}
+.card-art{position:absolute;inset:0;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
+.card-name{position:absolute;left:21px;top:16px;max-width:190px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-temp{position:absolute;right:21px;top:20px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em}
+.card-cond{position:absolute;left:21px;bottom:18px;font-family:'Gelasio',serif;font-style:italic;font-size:20px;line-height:1.1;letter-spacing:-0.04em;color:var(--soft)}
+.card-prev{position:absolute;right:21px;bottom:20px;font-size:14px;line-height:1.2;color:var(--soft)}
+.card-prev b{font-weight:500;color:inherit;margin-left:4px;font-size:15px}
+.card-skel{opacity:.55}
+.card-del{display:none;position:absolute;left:8px;top:8px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:#F17666;color:#fff;font-size:18px;line-height:28px;text-align:center;cursor:pointer}
+.editing .card-del{display:block}
+.search-bar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);width:min(355px,calc(100% - 46px));height:44px;display:flex;align-items:center;gap:10px;padding:0 17px;border:none;border-radius:100px;background:rgba(123,75,73,.10);color:#7B4B49;font:inherit;font-size:16px;cursor:pointer;z-index:5}
+.search-bar:active{background:rgba(123,75,73,.18)}
+.empty-state{position:absolute;inset:0;pointer-events:none;background:url('/assets/empty-art.webp') center top/100% auto no-repeat}
+.empty-text{position:absolute;left:0;right:0;top:calc(50% - 44px);text-align:center;font-size:24px;line-height:1.15;font-weight:450;letter-spacing:-0.02em}
+.empty-text em{font-family:'Gelasio',serif;font-weight:400;font-size:24px;letter-spacing:-0.04em}
+.pager{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);transform:translateX(-50%);display:flex;align-items:center;gap:12px;height:36px;padding:0 16px;color:var(--text);z-index:5}
+.pager i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.3;flex-shrink:0}
+.pager i.on{opacity:1}
+.pager svg{flex-shrink:0;opacity:.3}
+.pager svg.on{opacity:1}
+.list-btn{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);right:max(24px,calc(50% - 195px + 12px));width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text);cursor:pointer;z-index:5}
+.list-btn:active{opacity:.5}
+#dayScreen{padding-bottom:96px}
 @media (prefers-reduced-motion: reduce){
   html,body{transition:none}
   .dot{animation:none;opacity:1}
@@ -147,12 +188,11 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 </style>
 </head>
 <body>
-<main class="app">
+<main class="app" id="dayScreen" hidden>
   <header class="day-top">
-    <button type="button" id="locEl" class="loc-pill" aria-label="Change location"><span id="locElText">—</span><span class="pill-dot" aria-hidden="true"></span><span id="dateEl">—</span></button>
+    <div id="locEl" class="loc-pill"><span id="locElText">—</span><span class="pill-dot" aria-hidden="true"></span><span id="dateEl">—</span></div>
     <div class="yday" id="ydayBox" hidden><div class="yday-row"><span id="ydayTemp">—</span><span class="yday-sep" aria-hidden="true"></span><span id="ydayDelta">—</span></div><div class="yday-label">Yesterday</div></div>
   </header>
-  <div class="loc-fail" id="locFail" role="status">Couldn't find you — <button type="button" id="locFailBtn">choose a city</button> instead.</div>
   <div class="big-temp" id="bigTemp" role="status" aria-label="Current temperature">—</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
@@ -200,6 +240,26 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
   </div>
 </main>
 
+<nav class="pager" id="pager" aria-label="Saved cities" hidden></nav>
+<button type="button" class="list-btn" id="listBtn" aria-label="City list" hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+
+<main class="list-screen" id="listScreen" hidden>
+  <header class="list-top">
+    <div class="logo" role="img" aria-label="Warmer"></div>
+    <button type="button" class="menu-btn" id="menuBtn" aria-label="Menu" aria-haspopup="true" aria-expanded="false"><span></span><span></span><span></span></button>
+  </header>
+  <div class="menu-panel" id="menuPanel" role="menu" hidden>
+    <button type="button" role="menuitem" id="miEdit">Edit list</button>
+    <button type="button" role="menuitemradio" id="miC" data-unit="C"><i class="ck">✓</i>Celsius</button>
+    <button type="button" role="menuitemradio" id="miF" data-unit="F"><i class="ck">✓</i>Fahrenheit</button>
+  </div>
+  <div class="empty-state" id="emptyState" hidden>
+    <div class="empty-text">Let’s check<br>the weather today<br><em>before you go out</em></div>
+  </div>
+  <div class="city-cards" id="cityCards"></div>
+  <button type="button" class="search-bar" id="searchBar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><span>Search your city</span></button>
+</main>
+
 <div id="citySearch">
   <div class="cs-header">
     <button class="cs-back" id="csBack" aria-label="Back">←</button>
@@ -216,33 +276,62 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.js';
 import{formatTemperature,formatDelta,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
 import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
-let currentTimeZone=null,latestWeather=null;
+let currentTimeZone=null,latestWeather=null,view='boot';
 let temperatureUnit;
 try{temperatureUnit=localStorage.getItem('warmer_temperature_unit')==='F'?'F':'C'}catch{temperatureUnit='C'}
 
 // Single source of truth for "what time of day is it" — the evening
 // palette flip AND every band-windowed calculation in parse() both derive
 // from this, so there are never two competing time checks drifting apart.
-function applyTimeMode(){const band=getTimeBand(currentTimeZone?locationClock(new Date(),currentTimeZone).hour:new Date());document.documentElement.classList.toggle('evening',band==='EVENING'||band==='NIGHT')}
+function applyTimeMode(){if(view==='list'){document.documentElement.classList.remove('evening');return}const band=getTimeBand(currentTimeZone?locationClock(new Date(),currentTimeZone).hour:new Date());document.documentElement.classList.toggle('evening',band==='EVENING'||band==='NIGHT')}
 applyTimeMode();
 setInterval(applyTimeMode,60_000);
 
 const emo=c=>c===0?'☀️':c<=2?'⛅':c===3?'☁️':c<=48?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'❄️':c<=82?'🌦️':c<=86?'🌨️':'⛈️';
 
-function getSavedLocation(){try{const raw=localStorage.getItem('warmer_location');return raw?JSON.parse(raw):null}catch{return null}}
-function saveLocation(loc){localStorage.setItem('warmer_location',JSON.stringify(loc))}
-function clearSavedLocation(){localStorage.removeItem('warmer_location')}
+// ---- City storage (Phase 2) ----
+// warmer_cities: [{id,lat,lon,name}] saved by the user. The current-location
+// city is NOT stored: it is resolved from GPS on every launch and shown
+// first (id 'gps'). warmer_last: id of the city whose day screen was open.
+const CITIES_KEY='warmer_cities',LAST_KEY='warmer_last';
+const cityId=(lat,lon)=>`${(+lat).toFixed(2)},${(+lon).toFixed(2)}`;
+function loadSaved(){
+  try{
+    const raw=localStorage.getItem(CITIES_KEY);
+    if(raw){const a=JSON.parse(raw);return Array.isArray(a)?a.filter(c=>c&&Number.isFinite(c.lat)&&Number.isFinite(c.lon)):[]}
+    // One-time migration of the old single manual location.
+    const old=localStorage.getItem('warmer_location');
+    if(old){
+      const o=JSON.parse(old);localStorage.removeItem('warmer_location');
+      if(o&&o.source==='manual'&&Number.isFinite(o.lat)){
+        const list=[{id:cityId(o.lat,o.lon),lat:o.lat,lon:o.lon,name:(o.label||'').split(',')[0].trim()||'City'}];
+        localStorage.setItem(CITIES_KEY,JSON.stringify(list));return list;
+      }
+    }
+  }catch{}
+  return [];
+}
+let savedCities=loadSaved();
+function persistCities(){try{localStorage.setItem(CITIES_KEY,JSON.stringify(savedCities))}catch{}}
+function getLast(){try{return localStorage.getItem(LAST_KEY)}catch{return null}}
+function setLast(id){try{id?localStorage.setItem(LAST_KEY,id):localStorage.removeItem(LAST_KEY)}catch{}}
 
-const geoLoc=()=>new Promise(res=>{
-  const saved=getSavedLocation();
-  if(saved&&saved.source==='manual')return res(saved);
-  if(!navigator.geolocation)return res({lat:52.52,lon:13.41,label:null,source:'gps-failed'});
-  navigator.geolocation.getCurrentPosition(
-    p=>res({lat:p.coords.latitude,lon:p.coords.longitude,label:null,source:'gps'}),
-    ()=>res({lat:52.52,lon:13.41,label:null,source:'gps-failed'}),
-    {timeout:8000,maximumAge:600000}
-  );
-});
+let gpsCity=null,gpsPromise=null;
+function ensureGps(force=false){
+  if(gpsPromise&&!force)return gpsPromise;
+  gpsPromise=new Promise(res=>{
+    if(!navigator.geolocation)return res(null);
+    navigator.geolocation.getCurrentPosition(async p=>{
+      const lat=p.coords.latitude,lon=p.coords.longitude;
+      const name=await geoName(lat,lon);
+      gpsCity={id:'gps',lat,lon,name:name||'Here',gps:true};res(gpsCity);
+    },()=>res(null),{timeout:8000,maximumAge:600000});
+  }).then(c=>{if(!c)gpsCity=null;return c});
+  return gpsPromise;
+}
+const allCities=()=>[...(gpsCity?[gpsCity]:[]),...savedCities];
+const findCity=id=>allCities().find(c=>c.id===id);
+
 async function geoName(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await r.json();return d.address?.suburb||d.address?.city_district||d.address?.city||d.address?.town||'My Location'}catch{return'My Location'}}
 
 let csDebounce=null;
@@ -269,16 +358,16 @@ function renderCityResults(results){
 }
 
 function selectCity(r){
-  const label=[r.name,r.admin1].filter(Boolean).join(', ');
-  saveLocation({lat:r.latitude,lon:r.longitude,label,source:'manual'});
+  const id=cityId(r.latitude,r.longitude);
+  if(!findCity(id)){savedCities.push({id,lat:r.latitude,lon:r.longitude,name:r.name});persistCities()}
   closeCitySearch();
-  init();
+  showList();
 }
 
-function useGpsLocation(){
-  clearSavedLocation();
+async function useGpsLocation(){
   closeCitySearch();
-  init();
+  await ensureGps(true);
+  showList();
 }
 
 function wireCitySearch(){
@@ -289,8 +378,7 @@ function wireCitySearch(){
     const q=e.target.value;
     csDebounce=setTimeout(()=>searchCities(q),350);
   });
-  document.getElementById('locEl').addEventListener('click',openCitySearch);
-  document.getElementById('locFailBtn').addEventListener('click',openCitySearch);
+  document.getElementById('searchBar').addEventListener('click',openCitySearch);
 }
 wireCitySearch();
 wireFlowTouch();
@@ -602,56 +690,198 @@ async function maybeRefreshBriefing(p,selected,{force=false}={}){
   }
 }
 
-// Fetch+parse+render only — no loading-state reset, so a background refresh
-// updates in place instead of flashing back to the loading dots. Always
-// fetches; callers (init/autoRefreshCheck) decide whether the
-// WEATHER_REFETCH_MS cooldown permits calling it at all.
-async function loadWeather(){
-  const loc=await geoLoc();
-  currentLoc=loc;
-  if(loc.source==='gps-failed'){
-    document.getElementById('locElText').textContent='Location unavailable';
-    document.getElementById('locFail').classList.add('on');
-  }else{
-    document.getElementById('locFail').classList.remove('on');
-    document.getElementById('locElText').textContent=(loc.source==='manual'&&loc.label?loc.label.split(',')[0].trim():await geoName(loc.lat,loc.lon));
-  }
-  const[data,airData]=await Promise.all([fetchMultiModel(loc.lat,loc.lon),fetchAirQuality(loc.lat,loc.lon)]);
+// ---- Weather loading ----
+// Fetch+parse+render for the day screen only. Always fetches; callers decide
+// whether the WEATHER_REFETCH_MS cooldown permits calling it.
+async function loadWeather(city){
+  currentLoc=city;
+  document.getElementById('locElText').textContent=city.name;
+  const[data,airData]=await Promise.all([fetchMultiModel(city.lat,city.lon),fetchAirQuality(city.lat,city.lon)]);
+  if(currentLoc!==city)return null; // user moved on while this was loading
   const p=parse(data,airData);
   lastWeatherFetchAt=Date.now();
+  cardCache.set(city.id,{p,at:Date.now()});
   const selected=render(p);
   return{p,selected};
 }
 
-// visibilitychange (→visible), focus, and a 60s interval all funnel through
-// here. document.hidden short-circuits every path uniformly (including the
-// 60s interval tick) rather than each caller re-checking it.
+// ---- Card data (lightweight: same fetch, no air quality, no prose) ----
+const cardCache=new Map(),cardInflight=new Map();
+async function loadCard(city,force=false){
+  const hit=cardCache.get(city.id);
+  if(hit&&!force&&Date.now()-hit.at<WEATHER_REFETCH_MS)return hit.p;
+  if(cardInflight.has(city.id))return cardInflight.get(city.id);
+  const pr=(async()=>{
+    try{const p=parse(await fetchMultiModel(city.lat,city.lon),null);cardCache.set(city.id,{p,at:Date.now()});return p}
+    catch(e){console.debug('card load failed',city.id,e);return hit?hit.p:null}
+    finally{cardInflight.delete(city.id)}
+  })();
+  cardInflight.set(city.id,pr);return pr;
+}
+// WMO daily code -> card art + label. Approximation: the daily code is the
+// day's most significant weather, not necessarily this hour's.
+function cardKind(p){
+  const c=p.tCode,night=p.band==='NIGHT'||p.band==='EVENING';
+  if(c>=96)return['hail','hail'];
+  if(c>=95)return['thunder','thunderstorm'];
+  if(c===66||c===67)return['sleet','sleet'];
+  if((c>=71&&c<=77)||c===85||c===86)return['snow','snow'];
+  if(c>=80&&c<=82)return['showers','showers'];
+  if(c>=61&&c<=65)return['rain','rain'];
+  if(c>=51&&c<=57)return['drizzle','drizzle'];
+  if(c===45||c===48)return['fog','foggy'];
+  if(p.wind>=40&&c<=3)return['wind','windy'];
+  if(c===3)return['cloudy','cloudy'];
+  if(c===1||c===2)return['partly-cloudy','partly cloudy'];
+  return night?['clear-night','clear']:['clear','sunny'];
+}
+const esc=t=>String(t).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function cardHTML(city,p){
+  const del=city.gps?'':`<button type="button" class="card-del" data-del="${esc(city.id)}" aria-label="Remove ${esc(city.name)}">−</button>`;
+  if(!p)return `<div class="city-card card-skel" data-id="${esc(city.id)}"><div class="card-name">${esc(city.name)}</div><div class="card-temp">—</div>${del}</div>`;
+  const[art,label]=cardKind(p),dark=p.band==='EVENING'||p.band==='NIGHT';
+  const prev=Number.isFinite(p.yesterdayNowTemp)?`<div class="card-prev">Yesterday<b>${formatTemperature(p.yesterdayNowTemp,temperatureUnit)}</b></div>`:'';
+  return `<div class="city-card${dark?' dark':''}" role="button" tabindex="0" data-id="${esc(city.id)}" aria-label="${esc(city.name)}, ${formatTemperature(p.nowTemp,temperatureUnit)}, ${label}">`
+    +`<div class="card-art" style="--mask:url(/assets/card/${art}.webp)"></div>`
+    +`<div class="card-name">${esc(city.name)}</div><div class="card-temp">${formatTemperature(p.nowTemp,temperatureUnit)}</div>`
+    +`<div class="card-cond">${label}</div>${prev}${del}</div>`;
+}
+
+// ---- Views ----
+let editing=false;
+function setMenuOpen(open){
+  document.getElementById('menuPanel').hidden=!open;
+  document.getElementById('menuBtn').setAttribute('aria-expanded',String(open));
+}
+function syncMenu(){
+  document.getElementById('miC').setAttribute('aria-checked',String(temperatureUnit==='C'));
+  document.getElementById('miF').setAttribute('aria-checked',String(temperatureUnit==='F'));
+  document.getElementById('miEdit').textContent=editing?'Done':'Edit list';
+}
+function renderCards(){
+  const box=document.getElementById('cityCards'),list=allCities();
+  box.classList.toggle('editing',editing);
+  document.getElementById('emptyState').hidden=list.length>0;
+  box.innerHTML=list.map(c=>cardHTML(c,cardCache.get(c.id)?.p||null)).join('');
+  list.forEach(c=>loadCard(c).then(p=>{
+    if(view!=='list'||!p)return;
+    const el=[...box.children].find(n=>n.dataset.id===c.id);
+    if(!el)return;
+    const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);
+  }));
+}
+function showList(){
+  view='list';latestWeather=null;currentLoc=null;
+  document.getElementById('dayScreen').hidden=true;
+  document.getElementById('pager').hidden=true;document.getElementById('listBtn').hidden=true;
+  document.getElementById('listScreen').hidden=false;
+  applyTimeMode();setMenuOpen(false);syncMenu();renderCards();
+  window.scrollTo(0,0);
+}
+function renderPager(){
+  const list=allCities(),nav=document.getElementById('pager');
+  nav.hidden=list.length<2&&!gpsCity;
+  nav.innerHTML=list.map(c=>c.gps
+    ?`<svg class="${c.id===currentCityId?'on':''}" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M11 1 1 5.2l4 1.6L6.8 11z"/></svg>`
+    :`<i class="${c.id===currentCityId?'on':''}"></i>`).join('');
+}
+let currentCityId=null;
+async function showDay(id){
+  const city=findCity(id);
+  if(!city)return showList();
+  view='day';currentCityId=id;setLast(id);
+  document.getElementById('listScreen').hidden=true;
+  document.getElementById('dayScreen').hidden=false;
+  document.getElementById('listBtn').hidden=false;
+  renderPager();window.scrollTo(0,0);
+  flowCtx=null;rainCtx=null;
+  setChartOpen('flow',false);setChartOpen('rain',false);
+  document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded','false');
+  document.getElementById('flowInfo').classList.remove('open');
+  document.getElementById('uaddon').classList.remove('on');
+  document.getElementById('flowSvg').innerHTML='';document.getElementById('rainSvg').innerHTML='';
+  document.getElementById('rainSection').classList.remove('has-rain');
+  document.getElementById('bigTemp').textContent='—';
+  document.getElementById('ydayBox').hidden=true;
+  document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  document.getElementById('locElText').textContent=city.name;
+  try{
+    const r=await loadWeather(city);
+    if(r)await maybeRefreshBriefing(r.p,r.selected,{force:true});
+  }catch(e){console.error(e);if(currentLoc===city)document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather. <button type="button" class="retry-btn" onclick="showDay(currentCityId)">Try again</button></span>`}
+}
+window.showDay=showDay;
+Object.defineProperty(window,'currentCityId',{get:()=>currentCityId});
+function stepCity(dir){
+  const list=allCities(),i=list.findIndex(c=>c.id===currentCityId),n=list[i+dir];
+  if(n)showDay(n.id);
+}
+
+// visibilitychange (->visible), focus, and a 60s interval all funnel through here.
 async function autoRefreshCheck(){
   if(document.hidden)return;
-  if(Date.now()-lastWeatherFetchAt<WEATHER_REFETCH_MS)return;
+  if(view==='list'){
+    if(!editing&&allCities().some(c=>{const h=cardCache.get(c.id);return !h||Date.now()-h.at>=WEATHER_REFETCH_MS}))renderCards();
+    return;
+  }
+  if(view!=='day'||Date.now()-lastWeatherFetchAt<WEATHER_REFETCH_MS)return;
   try{
-    const{p,selected}=await loadWeather();
-    await maybeRefreshBriefing(p,selected,{force:false});
-  }catch(e){console.error('auto-refresh failed',e);}
+    const city=currentLoc;if(!city)return;
+    const r=await loadWeather(city);
+    if(r)await maybeRefreshBriefing(r.p,r.selected,{force:false});
+  }catch(e){console.error('auto-refresh failed',e)}
 }
 document.addEventListener('visibilitychange',autoRefreshCheck);
 window.addEventListener('focus',autoRefreshCheck);
 setInterval(autoRefreshCheck,60_000);
 
-
-async function init(){
-  applyTimeMode();flowCtx=null;rainCtx=null;
-  setChartOpen('flow',false);setChartOpen('rain',false);
-  document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded','false');
-  document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  document.getElementById('uaddon').classList.remove('on');document.getElementById('flowSection').classList.remove('open');document.getElementById('flowSvg').innerHTML='';document.getElementById('rainSection').classList.remove('open');document.getElementById('rainSection').classList.remove('has-rain');document.getElementById('rainSvg').innerHTML='';document.getElementById('flowLegend').innerHTML='';document.getElementById('flowInfo').classList.remove('open');document.getElementById('flowConsensus').classList.remove('on');
-
-  try{
-    const{p,selected}=await loadWeather();
-    await maybeRefreshBriefing(p,selected,{force:true});
-  }catch(e){console.error(e);document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather. <button type="button" class="retry-btn" onclick="init()">Try again</button></span>`;}
+// ---- Wiring ----
+function wireApp(){
+  const cards=document.getElementById('cityCards');
+  cards.addEventListener('click',e=>{
+    const del=e.target.closest('[data-del]');
+    if(del){
+      const id=del.dataset.del;savedCities=savedCities.filter(c=>c.id!==id);persistCities();
+      if(getLast()===id)setLast(null);
+      renderCards();return;
+    }
+    const card=e.target.closest('.city-card');
+    if(card&&!editing)showDay(card.dataset.id);
+  });
+  cards.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!editing){const c=e.target.closest('.city-card');if(c){e.preventDefault();showDay(c.dataset.id)}}});
+  document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();setMenuOpen(document.getElementById('menuPanel').hidden)});
+  document.addEventListener('click',e=>{if(!e.target.closest('#menuPanel'))setMenuOpen(false)});
+  document.getElementById('miEdit').addEventListener('click',()=>{editing=!editing;setMenuOpen(false);syncMenu();renderCards()});
+  document.querySelectorAll('#menuPanel [data-unit]').forEach(b=>b.addEventListener('click',()=>{
+    temperatureUnit=b.dataset.unit;try{localStorage.setItem('warmer_temperature_unit',temperatureUnit)}catch{}
+    setMenuOpen(false);syncMenu();renderCards();
+  }));
+  document.getElementById('listBtn').addEventListener('click',showList);
+  let sx=null,sy=null;
+  const day=document.getElementById('dayScreen');
+  day.addEventListener('touchstart',e=>{if(e.target.closest('svg')){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+  day.addEventListener('touchend',e=>{
+    if(sx==null)return;
+    const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)stepCity(dx<0?1:-1);
+  },{passive:true});
 }
-window.init=init;init();
+wireApp();
+
+// ---- Boot ----
+async function boot(){
+  syncMenu();
+  const last=getLast();
+  if(last&&last!=='gps'&&findCity(last)){ensureGps().then(()=>{if(view==='day')renderPager()});return showDay(last)}
+  if(last==='gps'){
+    view='day';document.getElementById('dayScreen').hidden=false;
+    const g=await ensureGps();
+    return g?showDay('gps'):showList();
+  }
+  showList();
+  ensureGps().then(()=>{if(view==='list')renderCards()});
+}
+window.init=boot;boot();
 </script>
 </body>
 </html>
