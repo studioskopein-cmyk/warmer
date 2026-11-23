@@ -160,7 +160,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .card-art{position:absolute;inset:0;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
 .card-name{position:absolute;left:21px;top:16px;max-width:calc(100% - 42px);font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-temp{position:absolute;right:21px;top:20px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em}
-.card-cond{position:absolute;left:21px;bottom:18px;font-family:'Gelasio',serif;font-style:italic;font-size:20px;line-height:1.1;letter-spacing:-0.04em;color:var(--soft)}
+.card-cond{position:absolute;left:21px;bottom:18px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Gelasio',serif;font-style:italic;font-size:20px;line-height:1.1;letter-spacing:-0.04em;color:var(--soft)}
 .card-prev{position:absolute;right:21px;bottom:20px;font-size:14px;line-height:1.2;color:var(--soft)}
 .card-prev b{font-weight:500;color:inherit;margin-left:4px;font-size:15px}
 .card-skel{opacity:.55}
@@ -275,6 +275,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 <script type="module">
 import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.js';
 import{formatTemperature,formatDelta,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
+import{cardAction}from'./card-action.js';
 import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
 let currentTimeZone=null,latestWeather=null,view='boot';
 let temperatureUnit;
@@ -744,7 +745,7 @@ function cardHTML(city,p){
   return `<div class="city-card${dark?' dark':''}" role="button" tabindex="0" data-id="${esc(city.id)}" aria-label="${esc(city.name)}, ${formatTemperature(p.nowTemp,temperatureUnit)}, ${label}">`
     +`<div class="card-art" style="--mask:url(/assets/card/${art}.webp)"></div>`
     +`<div class="card-name">${esc(city.name)}</div><div class="card-temp">${formatTemperature(p.nowTemp,temperatureUnit)}</div>`
-    +`<div class="card-cond">${label}</div>${prev}${del}</div>`;
+    +`<div class="card-cond">${esc(cardAction(p))}</div>${prev}${del}</div>`;
 }
 
 // Shrink long city names (40px -> 24px) to fit beside the temperature;
