@@ -527,16 +527,12 @@ function selectRainHour(i){
   const c=cols[i];if(!c)return;
   document.getElementById('rainReadout').textContent=c.dataset.readout;
 }
-// Rain radar link. WetterOnline's address ends in the GERMAN city name
-// (Tokyo -> "tokio"), which we can't derive, so only cities someone has
-// opened and confirmed live here; everything else goes to Windy by coordinates.
-// To add a city: open wetteronline.de/wetterradar/<slug> and, if it loads, add it.
-const WETTERONLINE_RADAR={berlin:'berlin',tokyo:'tokio'};
+// Rain radar link: weather&radar (WetterOnline's international site) takes
+// plain coordinates, so it works for every city with no name lookup.
+// layer=rr is its RainRadar layer; verified opening centered on Tokyo.
 function radarUrl(loc){
-  const key=String(loc.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-  const slug=WETTERONLINE_RADAR[key];
-  if(slug)return `https://www.wetteronline.de/wetterradar/${slug}?mode=compact`;
-  return `https://www.windy.com/?radar,${(+loc.lat).toFixed(3)},${(+loc.lon).toFixed(3)},8`;
+  const ll=`${(+loc.lat).toFixed(4)},${(+loc.lon).toFixed(4)}`;
+  return `https://www.weatherandradar.com/weather-map?layer=rr&center=${ll}&placemark=${ll}`;
 }
 // Bar height is piecewise so the dashed guide lines mean something:
 // 0.5 mm/h sits at 34% (start of "rain"), 2.5 mm/h at 67% (start of "heavy"),
