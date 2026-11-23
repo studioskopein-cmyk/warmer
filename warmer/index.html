@@ -46,14 +46,11 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .yday-sep{width:1px;height:12px;background:var(--chip-bd)}
 .yday-label{font-size:13px}
 .big-temp{width:fit-content;font-size:72px;font-weight:500;line-height:1.1;letter-spacing:-0.03em;margin-bottom:10px;background:linear-gradient(100deg,var(--text) 40%,var(--temp-grad-end) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
-.bottom-bar{margin-top:auto;padding-top:24px;display:flex;justify-content:flex-end}
-.unit-toggle{flex-shrink:0;min-height:32px;padding:4px 8px;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;font:inherit;color:inherit;cursor:pointer}
-.unit-toggle .active{font-weight:600;text-decoration:underline;text-underline-offset:3px}
 .chart-caption{font-size:11px;line-height:1.5;color:var(--muted);margin-bottom:12px}
 .chart-details{font-size:11px;line-height:1.5;color:var(--muted)}
 .chart-details summary{cursor:pointer;padding:4px 0;margin-bottom:8px}
 .chart-readout{font-size:12px;line-height:1.5;min-height:36px;color:var(--text);margin:8px 0 12px;font-variant-numeric:tabular-nums}
-.flow-svg:focus-visible,.unit-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.flow-svg:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .loc-fail{display:none;font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.4}
 .loc-fail.on{display:block}
 .loc-fail button{background:none;border:none;padding:0;margin:0;font:inherit;color:var(--text);text-decoration:underline;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -201,9 +198,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
       </div>
     </div>
   </div>
-  <div class="bottom-bar">
-    <button type="button" id="unitToggle" class="unit-toggle" aria-label="Temperature in Fahrenheit (°F)" aria-pressed="false"><span id="unitC">°C</span> / <span id="unitF">°F</span></button>
-  </div>
 </main>
 
 <div id="citySearch">
@@ -301,11 +295,6 @@ function wireCitySearch(){
 wireCitySearch();
 wireFlowTouch();
 wireRainTouch();
-document.getElementById('unitToggle').addEventListener('click',()=>{
-  temperatureUnit=temperatureUnit==='C'?'F':'C';
-  try{localStorage.setItem('warmer_temperature_unit',temperatureUnit)}catch{}
-  if(latestWeather)render(latestWeather);
-});
 
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
@@ -500,25 +489,20 @@ function renderAdviceLine(p){
 
 function renderTopbar(p){
   document.getElementById('dateEl').textContent=p.now.toLocaleDateString('en-US',{timeZone:p.timeZone,weekday:'short'});
-  // Same basis as the headline sentence's chip (buildProse): forecast-window
-  // high vs yesterday's high, so the top bar and the sentence never disagree.
-  document.getElementById('bigTemp').textContent=formatTemperature(p.tMax,temperatureUnit);
+  document.getElementById('bigTemp').textContent=formatTemperature(p.nowTemp,temperatureUnit);
   const box=document.getElementById('ydayBox');
-  if(!Number.isFinite(p.yMax)){box.hidden=true;return}
-  const d=p.diff;
+  if(!Number.isFinite(p.yesterdayNowTemp)){box.hidden=true;return}
+  const d=p.nowTemp-p.yesterdayNowTemp;
   const el=document.getElementById('ydayDelta');
   el.textContent=(d>0?'+':'')+formatDelta(d,temperatureUnit);
   el.className=d>0?'up':d<0?'dn':'';
-  document.getElementById('ydayTemp').textContent=formatTemperature(p.yMax,temperatureUnit);
+  document.getElementById('ydayTemp').textContent=formatTemperature(p.yesterdayNowTemp,temperatureUnit);
   box.hidden=false;
 }
 function render(p){
   p.temperatureUnit=temperatureUnit;latestWeather=p;currentTimeZone=p.timeZone;
   const{now,tMax,yMax,diff}=p;
   applyTimeMode();renderTopbar(p);
-  document.getElementById('unitToggle').setAttribute('aria-pressed',String(temperatureUnit==='F'));
-  document.getElementById('unitC').classList.toggle('active',temperatureUnit==='C');
-  document.getElementById('unitF').classList.toggle('active',temperatureUnit==='F');
   const selected=renderAdviceLine(p);
   renderRainStrip(p);
   renderFlow(p);

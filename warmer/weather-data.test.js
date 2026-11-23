@@ -117,3 +117,12 @@ test('missing current primary temperature uses a model with a real current readi
   assert.equal(p.feels, 20);
   assert.doesNotMatch(buildProse(p).html, /wind chill/);
 });
+
+test('nowTemp is the current hour and yesterdayNowTemp is the same local hour a day earlier', () => {
+  const data = forecast();
+  const primaryKey = `temperature_2m_${MODELS.find(m => m.primary).id}`;
+  data.hourly[primaryKey] = data.hourly.time.map((_, i) => i);
+  const p = parse(data, null, new Date('2026-11-05T21:40:00Z'));
+  assert.equal(p.nowTemp, 45);
+  assert.equal(p.yesterdayNowTemp, 21);
+});

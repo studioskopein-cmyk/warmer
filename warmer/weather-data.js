@@ -104,7 +104,10 @@ export function parse(data,airData,now=new Date()){
     return values.length>1?Math.max(...values)-Math.min(...values):0;
   }));
   const consensus=rainSpread>=40&&maxRain>=45?'RAIN_SPLIT':maxSpread>=4.5?'LOW':maxSpread>=2.5?'MEDIUM':'HIGH';
-  return{tMax,tMin,yMax,tCode:daily('weathercode',primaryId,today)??0,feels,wind,gust,dewPoint,slots,diff:tMax-yMax,
+  // Current reading and the same local hour yesterday (past_days=1 covers it); drives the top bar.
+  const nowTemp=Math.round(primary.hourly[0].t);
+  const yesterdayNowTemp=tempAtHour(h,-1);
+  return{tMax,tMin,yMax,nowTemp,yesterdayNowTemp,tCode:daily('weathercode',primaryId,today)??0,feels,wind,gust,dewPoint,slots,diff:tMax-yMax,
     now,nowHour:h,timeZone,band,forecastWindow:'next24h',primaryModel:primaryId,todayMorningTemp:tempAtHour(8),tomorrowMorningTemp:tempAtHour(8,1),hourlyByModel,maxSpread,rainSpread,maxRain,rainSeries,
     consensus,modelMaxToday,uvIndex,humidity,europeanAqi:airQuality.europeanAqi,pollenSpecies:airQuality.pollenSpecies};
 }
