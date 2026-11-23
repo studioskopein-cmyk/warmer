@@ -147,14 +147,16 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .menu-panel .ck{display:none;position:absolute;left:0;font-style:normal;font-size:12px}
 .menu-panel button[aria-checked=true] .ck{display:inline}
 .city-cards{display:flex;flex-direction:column;gap:16px}
-.city-card{position:relative;display:block;width:100%;height:133px;padding:0;border:none;border-radius:20px;text-align:left;font:inherit;cursor:pointer;overflow:hidden;background:#D9E9F4;color:#7B4B49;--art:#A7969A;--soft:rgba(123,75,73,.72)}
+.city-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:12px;width:100%;min-height:133px;padding:16px 21px 18px;border:none;border-radius:20px;text-align:left;font:inherit;cursor:pointer;overflow:hidden;background:#D9E9F4;color:#7B4B49;--art:#A7969A;--soft:rgba(123,75,73,.72)}
 .city-card.dark{background:#7B4B49;color:#C9E0EF;--art:rgba(175,173,181,.85);--soft:rgba(201,224,239,.72)}
 .city-card:active{opacity:.85}
-.card-art{position:absolute;inset:0;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
-.card-name{position:absolute;left:21px;top:16px;max-width:calc(100% - 42px);font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-temp{position:absolute;right:21px;top:20px;font-size:40px;line-height:1.1;font-weight:450;letter-spacing:-0.03em}
-.card-cond{position:absolute;left:21px;bottom:18px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Gelasio',serif;font-style:italic;font-size:20px;line-height:1.1;letter-spacing:-0.04em;color:var(--soft)}
-.card-prev{position:absolute;right:21px;bottom:20px;font-size:14px;line-height:1.2;color:var(--soft)}
+.card-art{position:absolute;left:0;right:0;top:50%;height:133px;margin-top:-66.5px;background:var(--art);-webkit-mask:var(--mask) center/100% 100% no-repeat;mask:var(--mask) center/100% 100% no-repeat}
+.card-top,.card-bot{position:relative;display:flex;align-items:flex-start;gap:16px}
+.card-bot{align-items:flex-end}
+.card-name{flex:1;min-width:0;font-size:32px;line-height:1.15;font-weight:450;letter-spacing:-0.03em;overflow-wrap:anywhere}
+.card-temp{flex-shrink:0;font-size:32px;line-height:1.15;font-weight:450;letter-spacing:-0.03em}
+.card-cond{flex:1;min-width:0;font-family:'Gelasio',serif;font-style:italic;font-size:16px;line-height:1.2;letter-spacing:-0.03em;color:var(--soft)}
+.card-prev{flex-shrink:0;font-size:14px;line-height:1.2;color:var(--soft);white-space:nowrap}
 .card-prev b{font-weight:500;color:inherit;margin-left:4px;font-size:15px}
 .card-skel{opacity:.55}
 .card-del{display:none;position:absolute;left:8px;top:8px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:#F17666;color:#fff;font-size:18px;line-height:28px;text-align:center;cursor:pointer}
@@ -780,28 +782,15 @@ function cardKind(p){
 const esc=t=>String(t).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 function cardHTML(city,p){
   const del=city.gps?'':`<button type="button" class="card-del" data-del="${esc(city.id)}" aria-label="Remove ${esc(city.name)}">−</button>`;
-  if(!p)return `<div class="city-card card-skel" data-id="${esc(city.id)}"><div class="card-name">${esc(city.name)}</div><div class="card-temp">—</div>${del}</div>`;
+  if(!p)return `<div class="city-card card-skel" data-id="${esc(city.id)}"><div class="card-top"><div class="card-name">${esc(city.name)}</div><div class="card-temp">—</div></div>${del}</div>`;
   const[art,label]=cardKind(p),dark=p.band==='EVENING'||p.band==='NIGHT';
   const prev=Number.isFinite(p.yesterdayNowTemp)?`<div class="card-prev">Yesterday<b>${formatTemperature(p.yesterdayNowTemp,temperatureUnit)}</b></div>`:'';
   return `<div class="city-card${dark?' dark':''}" role="button" tabindex="0" data-id="${esc(city.id)}" aria-label="${esc(city.name)}, ${formatTemperature(p.nowTemp,temperatureUnit)}, ${label}">`
     +`<div class="card-art" style="--mask:url(/assets/card/${art}.webp)"></div>`
-    +`<div class="card-name">${esc(city.name)}</div><div class="card-temp">${formatTemperature(p.nowTemp,temperatureUnit)}</div>`
-    +`<div class="card-cond">${esc(cardAction(p))}</div>${prev}${del}</div>`;
+    +`<div class="card-top"><div class="card-name">${esc(city.name)}</div><div class="card-temp">${formatTemperature(p.nowTemp,temperatureUnit)}</div></div>`
+    +`<div class="card-bot"><div class="card-cond">${esc(cardAction(p))}</div>${prev}</div>${del}</div>`;
 }
 
-// Shrink long city names (40px -> 24px) to fit beside the temperature;
-// below 24px the CSS ellipsis takes over.
-function fitCardNames(root=document){
-  root.querySelectorAll('.city-card').forEach(card=>{
-    const name=card.querySelector('.card-name'),temp=card.querySelector('.card-temp');
-    if(!name||!card.clientWidth)return;
-    const avail=card.clientWidth-21-21-(temp?temp.offsetWidth:0)-12;
-    name.style.maxWidth=avail+'px';name.style.fontSize='';
-    let size=40;
-    while(name.scrollWidth>avail&&size>24){size-=2;name.style.fontSize=size+'px'}
-  });
-}
-if(document.fonts)document.fonts.ready.then(()=>fitCardNames());
 // ---- Views ----
 let editing=false;
 function setMenuOpen(open){
@@ -818,12 +807,11 @@ function renderCards(){
   box.classList.toggle('editing',editing);
   document.getElementById('emptyState').hidden=list.length>0;
   box.innerHTML=list.map(c=>cardHTML(c,cardCache.get(c.id)?.p||null)).join('');
-  fitCardNames(box);
   list.forEach(c=>loadCard(c).then(p=>{
     if(view!=='list'||!p)return;
     const el=[...box.children].find(n=>n.dataset.id===c.id);
     if(!el)return;
-    const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);fitCardNames(box);
+    const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);
   }));
 }
 function showList(){
