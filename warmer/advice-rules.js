@@ -774,7 +774,7 @@ export function buildProse(p) {
       const noun = timing.level === 'drizzle' ? 'Drizzle' : timing.level === 'heavy' ? 'Heavy rain' : 'Rain';
       const when = timing.phase === 'starting' ? `from ${timing.label}` : timing.phase === 'clearing' ? `until ${timing.label}` : 'for hours';
       // The pill is a button: tapping it opens the hourly rain chart (index.html).
-      const pill = `<button type="button" class="pcip-proof rain-pill" id="rainPill" aria-expanded="false" aria-controls="rainPanel"><span class="mi">water_drop</span>${Math.round(timing.peak)}% · hourly</button>`;
+      const pill = `<button type="button" class="pcip-proof rain-pill" id="rainPill" aria-expanded="false" aria-controls="rainPanel"><span class="mi">water_drop</span>${Math.round(timing.peak)}% · hourly<svg class="rp-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>`;
       prose = `<span class="g">${noun} </span><span class="w">${when}</span>${pill}`;
     } else {
       prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;

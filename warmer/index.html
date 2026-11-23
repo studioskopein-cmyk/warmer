@@ -174,20 +174,35 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 #dayScreen{padding-bottom:96px}
 
 /* ---- Rain panel (opens from the rain pill) ---- */
-.rain-pill{font:inherit;font-size:16.8px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rain-pill{font:inherit;font-size:16.8px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;gap:5px}
+.rain-pill:focus:not(:focus-visible){outline:none}
+.rp-chev{flex-shrink:0;margin-left:1px;transition:transform .2s ease}
+.rain-pill[aria-expanded=true] .rp-chev{transform:rotate(180deg)}
+.rain-radar{display:inline-block;margin:10px 14px 0;font-size:13px;color:var(--text);text-decoration:underline;text-underline-offset:3px}
 .rain-pill:active{opacity:.6}
 .rain-panel{margin:0 0 28px;padding:14px 0 12px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px}
 .rain-panel[hidden]{display:none}
-.rain-scroll{overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 10px;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
+.rain-chart{display:flex;--bt:22px;--bh:72px;--f-rain:.34;--f-heavy:.67}
+.rain-axis{position:relative;flex:0 0 58px;margin-left:10px;font-size:11px;line-height:1.1;color:var(--muted)}
+.rain-axis span{position:absolute;left:0;transform:translateY(-50%);white-space:nowrap}
+.rain-axis small{display:block;font-size:9px;opacity:.7;margin-top:1px}
+.ax-rain{top:calc(var(--bt) + var(--bh)*(1 - var(--f-rain)))}
+.ax-heavy{top:calc(var(--bt) + var(--bh)*(1 - var(--f-heavy)))}
+.rain-scroll{flex:1;min-width:0;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 10px 0 0;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
 .rain-scroll::-webkit-scrollbar{display:none}
-.rain-cols{display:flex;width:max-content;gap:2px}
-.rc{flex:0 0 44px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;background:none;border:none;border-radius:8px;font:inherit;color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rain-cols{position:relative;display:flex;width:max-content;gap:2px}
+.rg{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(var(--text-rgb),.22);pointer-events:none}
+.rg-rain{top:calc(var(--bt) + var(--bh)*(1 - var(--f-rain)))}
+.rg-heavy{top:calc(var(--bt) + var(--bh)*(1 - var(--f-heavy)))}
+.rc{position:relative;z-index:1;flex:0 0 44px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;background:none;border:none;border-radius:8px;font:inherit;color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .rc[aria-pressed=true]{background:var(--chip-bg)}
 .rc-p{font-size:12px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
 .rc.rainy .rc-p{color:rgb(var(--rain-rgb));font-weight:500}
 .rc-bar{display:flex;align-items:flex-end;height:72px;width:100%;justify-content:center}
 .rc-bar i{display:block;width:14px;border-radius:4px 4px 2px 2px;background:rgb(var(--rain-rgb));opacity:.28}
-.rc.rainy .rc-bar i{opacity:.9}
+.rc.rainy .rc-bar i.l1{opacity:.55}
+.rc.rainy .rc-bar i.l2{opacity:.8}
+.rc.rainy .rc-bar i.l3{opacity:1}
 .rc-t{font-size:12px;line-height:1.1;color:var(--muted);white-space:nowrap}
 .rc-t small{display:block;font-size:10px;opacity:.7;margin-top:2px}
 .rc.now .rc-t{color:var(--text);font-weight:500}
@@ -211,9 +226,13 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
   <section class="rain-panel" id="rainPanel" aria-label="Rain, hour by hour" hidden>
-    <div class="rain-scroll" id="rainScroll"><div class="rain-cols" id="rainCols"></div></div>
+    <div class="rain-chart">
+      <div class="rain-axis" aria-hidden="true"><span class="ax-heavy">Heavy</span><span class="ax-rain">Rain</span></div>
+      <div class="rain-scroll" id="rainScroll"><div class="rain-cols" id="rainCols"></div></div>
+    </div>
     <p class="rain-readout" id="rainReadout" aria-live="polite"></p>
-    <p class="chart-caption">Bar height shows how hard it rains; the number is the chance. Mean of three forecast models, hour by hour.</p>
+    <p class="chart-caption">Bars show how hard it rains: above the lower line is rain (0.5 mm/h or more), above the upper line is heavy rain (2.5 mm/h or more). The number above is the chance. Mean of three forecast models, hour by hour.</p>
+    <a class="rain-radar" id="rainRadar" href="https://www.windy.com/" target="_blank" rel="noopener noreferrer">Watch the rain radar<span aria-hidden="true"> ↗</span></a>
   </section>
   <div class="flow-section" id="flowSection">
     <div class="flow-header">
@@ -508,6 +527,14 @@ function selectRainHour(i){
   const c=cols[i];if(!c)return;
   document.getElementById('rainReadout').textContent=c.dataset.readout;
 }
+// Bar height is piecewise so the dashed guide lines mean something:
+// 0.5 mm/h sits at 34% (start of "rain"), 2.5 mm/h at 67% (start of "heavy"),
+// and 7.5 mm/h or more fills the column. Keep in step with --f-rain/--f-heavy in CSS.
+function rainBarHeight(mm){
+  if(!Number.isFinite(mm)||mm<=0)return 0;
+  const f=mm<=0.5?mm/0.5*0.34:mm<=2.5?0.34+(mm-0.5)/2*0.33:Math.min(1,0.67+(mm-2.5)/5*0.33);
+  return Math.max(4,Math.round(f*72));
+}
 function renderRainPanel(p){
   const cols=document.getElementById('rainCols');
   const event=findRainEvent(p.rainSeries,p.nowHour);
@@ -518,13 +545,16 @@ function renderRainPanel(p){
   cols.innerHTML=hourly.map((pt,i)=>{
     const h=hours[i],ser={rain:pt.r,mm:pt.mm},rainy=isRainyHour(ser),lvl=rainLevel(pt.mm);
     if(rainy&&firstRainy<0)firstRainy=i;
-    const height=!Number.isFinite(pt.mm)||pt.mm<=0?0:Math.max(4,Math.round(Math.sqrt(Math.min(pt.mm,4)/4)*72));
+    const height=rainBarHeight(pt.mm),rank={drizzle:1,rain:2,heavy:3}[lvl]||1;
     const day=dayOf(h.time),showDay=i===0||day!==prevDay;prevDay=day;
     const label=i===0?'Now':formatHourLabel(h.hour%24);
     const chance=Number.isFinite(pt.r)?`${Math.round(pt.r)}%`:'—';
     const readout=`${formatHourLabel(h.hour%24)} · ${chance} chance · ${rainy?RAIN_WORDS[lvl]:'Dry'}`+(rainy&&Number.isFinite(pt.mm)?` (about ${formatAmount(pt.mm)} in the hour)`:'');
-    return `<button type="button" class="rc${rainy?' rainy':''}${i===0?' now':''}" data-readout="${readout}" aria-pressed="false" aria-label="${readout}"><span class="rc-p">${chance}</span><span class="rc-bar"><i style="height:${height}px"></i></span><span class="rc-t">${label}${showDay?`<small>${day}</small>`:''}</span></button>`;
+    return `<button type="button" class="rc${rainy?' rainy':''}${i===0?' now':''}" data-readout="${readout}" aria-pressed="false" aria-label="${readout}"><span class="rc-p">${chance}</span><span class="rc-bar"><i class="l${rank}" style="height:${height}px"></i></span><span class="rc-t">${label}${showDay?`<small>${day}</small>`:''}</span></button>`;
   }).join('');
+  cols.insertAdjacentHTML('afterbegin','<div class="rg rg-heavy"></div><div class="rg rg-rain"></div>');
+  const loc=currentLoc;
+  if(loc)document.getElementById('rainRadar').href=`https://www.windy.com/?radar,${(+loc.lat).toFixed(3)},${(+loc.lon).toFixed(3)},8`;
   selectRainHour(Math.max(0,firstRainy));
   setRainOpen(rainOpen);
 }
@@ -856,7 +886,7 @@ setInterval(autoRefreshCheck,60_000);
 function wireApp(){
   document.getElementById('prose').addEventListener('click',e=>{if(e.target.closest('.rain-pill'))setRainOpen(!rainOpen)});
   document.getElementById('rainCols').addEventListener('click',e=>{
-    const c=e.target.closest('.rc');if(c)selectRainHour([...c.parentNode.children].indexOf(c));
+    const c=e.target.closest('.rc');if(c)selectRainHour([...document.querySelectorAll('#rainCols .rc')].indexOf(c));
   });
   const cards=document.getElementById('cityCards');
   cards.addEventListener('click',e=>{
