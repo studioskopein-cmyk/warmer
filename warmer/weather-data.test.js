@@ -52,7 +52,8 @@ test('rain prose and chart share the same available-model mean and interval star
   assert.equal(p.rainSeries.find(x => x.hour === 23).rain, 50);
   assert.equal(chart[7].r, 50);
   assert.ok(Math.abs(chart[7].mm - 0.3) < 1e-9);
-  assert.match(buildProse(p).action, /Rain's possible from around 11pm/);
+  assert.match(buildProse(p).html, /Drizzle <\/span><span class="w">from 11pm/);
+  assert.match(buildProse(p).action, /umbrella|few drops/i);
 });
 
 test('rain fields have independent denominators; missing readings never become dry weather', () => {

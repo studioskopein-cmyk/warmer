@@ -1,3 +1,4 @@
+import { findRainEvent } from './rain-events.js';
 import { formatTemperature, formatDelta, formatHourLabel } from './weather-display.js';
 
 // ============================================================================
@@ -219,7 +220,11 @@ export function collectAdviceSignals(p) {
 
   return {
     uvIndex,
-    precipitationTiming: maxRain,
+    // With an hourly series, only a rain event still ahead of now (a run of
+    // hours at >=40% with a measurable amount, see rain-events.js) is advice.
+    // Rain that already passed, a diffuse low chance, or a high chance with
+    // no amount are not events. Without a series, fall back to the peak chance.
+    precipitationTiming: Array.isArray(p.rainSeries) ? (findRainTiming(p) ? maxRain : null) : maxRain,
     pollen: pollenSpecies,
     // Daily max−min (일교차), not just the evening-slot drop — a real
     // temperature_2m_min reading, not derived.
@@ -380,17 +385,17 @@ function scorePollenSalience(speciesReadings) {
 // started) — this looks for when it *clears* instead; if it doesn't clear
 // within the rest of the day, there's no honest hour to name at all.
 function findRainTiming(context) {
-  const series = context?.rainSeries;
   const nowHour = context?.nowHour ?? (context?.now instanceof Date ? context.now.getHours() : null);
-  if (!Array.isArray(series) || nowHour == null) return null;
-  const upcoming = series.filter(pt => pt.hour >= nowHour);
-  if (upcoming.length === 0 || !Number.isFinite(upcoming[0].rain)) return null;
-  if (upcoming[0].rain >= 40) {
-    const clears = upcoming.find(pt => Number.isFinite(pt.rain) && pt.rain < 40);
-    return clears ? { phase: 'clearing', label: formatHourLabel(clears.hour), probability: clears.rain } : { phase: 'ongoing', label: null };
-  }
-  const starts = upcoming.find(pt => pt.rain >= 40);
-  return starts ? { phase: 'starting', label: formatHourLabel(starts.hour), probability: starts.rain } : null;
+  const ev = findRainEvent(context?.rainSeries, nowHour);
+  if (!ev) return null;
+  return {
+    phase: ev.phase,
+    // starting: the hour it begins; clearing: the hour it stops; ongoing: none.
+    label: ev.phase === 'starting' ? formatHourLabel(ev.startHour) : ev.phase === 'clearing' ? formatHourLabel(ev.endHour) : null,
+    probability: ev.startProb,
+    peak: ev.peak,
+    level: ev.level,
+  };
 }
 /**
  * Stage 2a: how unusual is this one reading, today? v1 implementation is
@@ -454,25 +459,18 @@ export function selectCandidate(scored) {
 
 const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1);
 
+// Headline states WHAT and WHEN ("Rain until 4pm"); this line only says what
+// to DO, by how hard it rains. No clock times or percentages here.
 function describeRainTiming(meta, strong) {
   const t = meta.timing;
-  if (t?.phase === 'starting') {
-    const chance = t.probability >= 70 ? 'likely' : 'possible';
-    return strong ? `Rain's ${chance} from around ${t.label} — bring an umbrella.` : `Rain's ${chance} from around ${t.label}.`;
+  if (t) {
+    if (t.level === 'drizzle') return 'Just a few drops — a hood will do.';
+    if (t.level === 'heavy') return 'Heavy rain — take an umbrella.';
+    return strong ? 'Take an umbrella.' : 'Keep an umbrella close.';
   }
-  if (t?.phase === 'clearing') {
-    return strong ? `Rain becomes less likely around ${t.label} — bring an umbrella until then.` : `Rain becomes less likely around ${t.label}.`;
-  }
-  if (t?.phase === 'ongoing') {
-    return strong ? "Rain's set in for a while — bring an umbrella." : 'On-and-off rain for a while — an umbrella might be worth it.';
-  }
-  // No rainSeries, or a genuinely diffuse forecast (no single hour ever
-  // crosses findRainTiming's 40% threshold, so there's no honest hour to
-  // name) — this used to fall back to a bare "might be worth it" with no
-  // number at all (the London bug: every other city's rain line names a
-  // clock time + probability, London alone read as a vague hedge). meta.value
-  // is the same maxRain reading that put this candidate in its salience tier
-  // in the first place, so the fallback states it instead of going numberless.
+  // No rainSeries, or a genuinely diffuse forecast (no hour crosses the
+  // rain threshold): there is no honest hour to name, so state the peak
+  // chance instead of going numberless (the London bug).
   return strong
     ? `Rain's fairly likely ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — bring an umbrella.`
     : `Rain's possible ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — an umbrella might be worth it.`;
@@ -593,14 +591,27 @@ function nextWindowTemp(p) {
 // headline, the day's temperature swing in the evening-drop trend line) —
 // mirrors buildProse()'s exact branch conditions below so the advice line
 // never restates what the headline already said.
+// Which rain headline buildProse() shows, shared with coveredHeadlineTopics():
+//   'event'   - a rain event is in the series (headline: "Rain until 4pm")
+//   'generic' - no series at all, chance > 40% (headline: "Rain possible")
+//   null      - no rain headline (dry, or a chance without measurable amount)
+function rainHeadlineMode(p) {
+  if (findRainTiming(p)) return 'event';
+  if (!Array.isArray(p.rainSeries) && (p.maxRain ?? 0) > 40) return 'generic';
+  return null;
+}
+
 export function coveredHeadlineTopics(p) {
   const { diff = 0, tMax, maxRain = 0, wind = 0 } = p;
   const { temp: eTemp } = nextWindowTemp(p);
   const eDrop = (tMax != null && eTemp != null) ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
   const covered = new Set();
-  if (maxRain > 40) {
+  const rainMode = rainHeadlineMode(p);
+  if (rainMode === 'generic') {
     covered.add('precipitationTiming');
+  } else if (rainMode === 'event') {
+    // headline names what/when only; the action line still adds what to do.
   } else if (abs >= 2) {
     if (eDrop >= 5 && eTemp != null) covered.add('diurnalRange');
   } else if (wind < 25 && eDrop >= 5 && eTemp != null) {
@@ -756,20 +767,18 @@ export function buildProse(p) {
   const { text: action, selected: adviceSelected } = computeAdvice(p);
 
   let prose = '';
-  if (maxRain > 40) {
-    prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;
-    // Must read the same now-aware timeline the advice line's precipitationTiming
-    // candidate uses (findRainTiming, below) — a separate "first daypart slot
-    // over 40%" lookup here was blind to *now*, so it could label an
-    // already-past or not-yet-started daypart as the window while the advice
-    // line correctly said rain was already falling and named a clearing time
-    // instead (Mexico City: chip said "evening", advice said "ease up around
-    // 11pm" mid-storm). One clock, one threshold, everywhere rain timing is stated.
+  const rainMode = rainHeadlineMode(p);
+  if (rainMode) {
     const timing = findRainTiming(p);
-    const rainWindow = timing?.label ? proof('water_drop', timing.phase === 'clearing'
-      ? `below 40% from ${timing.label}`
-      : `from ${timing.label} · ${Math.round(timing.probability)}%`) : '';
-    if (rainWindow) prose += rainWindow;
+    if (timing) {
+      const noun = timing.level === 'drizzle' ? 'Drizzle' : timing.level === 'heavy' ? 'Heavy rain' : 'Rain';
+      const when = timing.phase === 'starting' ? `from ${timing.label}` : timing.phase === 'clearing' ? `until ${timing.label}` : 'for hours';
+      // The pill is a button: tapping it opens the hourly rain chart (index.html).
+      const pill = `<button type="button" class="pcip-proof rain-pill" id="rainPill" aria-expanded="false" aria-controls="rainPanel"><span class="mi">water_drop</span>${Math.round(timing.peak)}% · hourly</button>`;
+      prose = `<span class="g">${noun} </span><span class="w">${when}</span>${pill}`;
+    } else {
+      prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;
+    }
     if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
   } else if (abs >= 2) {
     // The cold-side words here used to come from `diff` alone, with no gate

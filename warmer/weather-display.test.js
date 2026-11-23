@@ -38,20 +38,19 @@ test('small nonzero precipitation remains visible and missing differs from dry',
   assert.equal(formatAmount(null), '—');
 });
 
-test('rain start badge quotes its own hour probability, not a later peak', () => {
+test('rain start headline names the start hour and the pill shows the event peak', () => {
   const p = { ...base, nowHour: 16, maxRain: 90,
     rainSeries: [{ hour: 16, rain: 5 }, { hour: 23, rain: 45 }, { hour: 24, rain: 90 }] };
-  assert.match(buildProse(p).html, /from 11pm · 45%/);
-  assert.doesNotMatch(buildProse(p).html, /11pm · 90%/);
+  assert.match(buildProse(p).html, /from 11pm/);
+  assert.match(buildProse(p).html, /90% · hourly/);
 });
 
-test('rain clearing badge states a falling chance instead of pairing a dry hour with peak rain', () => {
+test('rain clearing headline names when it stops', () => {
   const p = { ...base, nowHour: 20, maxRain: 90,
     rainSeries: [{ hour: 20, rain: 90 }, { hour: 23, rain: 10 }] };
   const { html, action } = buildProse(p);
-  assert.match(html, /below 40% from 11pm/);
-  assert.doesNotMatch(html, /11pm · 90%/);
-  assert.match(action, /less likely around 11pm/);
+  assert.match(html, /until 11pm/);
+  assert.match(action, /umbrella/i);
 });
 
 test('after midnight the upcoming morning belongs to this day', () => {

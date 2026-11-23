@@ -95,7 +95,7 @@ export function parse(data,airData,now=new Date()){
   const airQuality=parseAirQuality(airData,now);
   const uvIndex=airQuality.uvIndex??at('uv_index','gfs_seamless',current);
   const rainHourly=avgRainHourly(hourlyByModel);
-  const rainSeries=hours.map((pt,i)=>({hour:pt.hour,rain:rainHourly[i].r}));
+  const rainSeries=hours.map((pt,i)=>({hour:pt.hour,rain:rainHourly[i].r,mm:rainHourly[i].mm}));
   const availableRain=rainHourly.map(pt=>pt.r).filter(Number.isFinite);
   const maxRain=availableRain.length?Math.max(...availableRain):null;
   const maxSpread=modelMaxToday.length>1?Math.max(...modelMaxToday)-Math.min(...modelMaxToday):0;

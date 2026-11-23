@@ -95,13 +95,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .flow-body-inner{overflow:hidden;min-height:0}
 .flow-section.open .flow-body-inner{padding:16px 10px 16px}
 .flow-svg{width:100%;height:auto;display:block;overflow:visible;margin-bottom:8px}
-/* Rain card reuses .flow-section's own accordion CSS (defined above) so it
-   opens/closes identically to the temp chart card, but stays fully hidden
-   — not just collapsed — on a rain-free day, via this ID-scoped override
-   rather than a shared class (a shared class would also hide the temp
-   chart on a rain-free day, which is wrong). */
-#rainSection{display:none}
-#rainSection.has-rain{display:block}
 .flow-legend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:10px;color:var(--muted);letter-spacing:0.3px;margin-bottom:10px}
 .flow-legend-item{display:flex;align-items:center;gap:5px}
 .flow-legend-item svg{display:block;flex-shrink:0}
@@ -179,6 +172,27 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .list-btn{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);right:max(24px,calc(50% - 195px + 12px));width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text);cursor:pointer;z-index:5}
 .list-btn:active{opacity:.5}
 #dayScreen{padding-bottom:96px}
+
+/* ---- Rain panel (opens from the rain pill) ---- */
+.rain-pill{font:inherit;font-size:16.8px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rain-pill:active{opacity:.6}
+.rain-panel{margin:0 0 28px;padding:14px 0 12px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px}
+.rain-panel[hidden]{display:none}
+.rain-scroll{overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 10px;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
+.rain-scroll::-webkit-scrollbar{display:none}
+.rain-cols{display:flex;width:max-content;gap:2px}
+.rc{flex:0 0 44px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;background:none;border:none;border-radius:8px;font:inherit;color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rc[aria-pressed=true]{background:var(--chip-bg)}
+.rc-p{font-size:12px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
+.rc.rainy .rc-p{color:rgb(var(--rain-rgb));font-weight:500}
+.rc-bar{display:flex;align-items:flex-end;height:72px;width:100%;justify-content:center}
+.rc-bar i{display:block;width:14px;border-radius:4px 4px 2px 2px;background:rgb(var(--rain-rgb));opacity:.28}
+.rc.rainy .rc-bar i{opacity:.9}
+.rc-t{font-size:12px;line-height:1.1;color:var(--muted);white-space:nowrap}
+.rc-t small{display:block;font-size:10px;opacity:.7;margin-top:2px}
+.rc.now .rc-t{color:var(--text);font-weight:500}
+.rain-readout{min-height:18px;margin:8px 14px 6px;font-size:13px;line-height:1.4;color:var(--text)}
+.rain-panel .chart-caption{margin:0 14px}
 @media (prefers-reduced-motion: reduce){
   html,body{transition:none}
   .dot{animation:none;opacity:1}
@@ -196,6 +210,11 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
   <div class="big-temp" id="bigTemp" role="status" aria-label="Current temperature">—</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
   <div class="uaddon" id="uaddon"></div>
+  <section class="rain-panel" id="rainPanel" aria-label="Rain, hour by hour" hidden>
+    <div class="rain-scroll" id="rainScroll"><div class="rain-cols" id="rainCols"></div></div>
+    <p class="rain-readout" id="rainReadout" aria-live="polite"></p>
+    <p class="chart-caption">Bar height shows how hard it rains; the number is the chance. Mean of three forecast models, hour by hour.</p>
+  </section>
   <div class="flow-section" id="flowSection">
     <div class="flow-header">
       <button type="button" class="flow-header-btn" id="flowHeaderBtn" onclick="toggleFlow()" aria-expanded="false" aria-controls="flowBody">
@@ -217,24 +236,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
           </div>
         </div>
         <div class="flow-consensus" id="flowConsensus"></div>
-      </div>
-    </div>
-  </div>
-  <div class="flow-section" id="rainSection">
-    <div class="flow-header">
-      <button type="button" class="flow-header-btn" id="rainHeaderBtn" onclick="toggleRain()" aria-expanded="false" aria-controls="rainBody">
-        <span class="flow-pivot-text" id="rainPivotText">Rain, hour by hour</span>
-      </button>
-      <button type="button" class="flow-toggle-icon" id="rainToggleIcon" aria-hidden="true" tabindex="-1" onclick="toggleRain()">↓</button>
-    </div>
-    <div class="flow-divider"></div>
-    <div class="flow-body" id="rainBody" inert>
-      <div class="flow-body-inner">
-        <p class="chart-caption" id="rainRange"></p>
-        <svg class="flow-svg" id="rainSvg" tabindex="0" role="slider" aria-label="Precipitation hour" aria-valuemin="0" aria-valuemax="23" aria-valuenow="0" aria-describedby="rainReadout rainExplanation" viewBox="0 0 320 232" xmlns="http://www.w3.org/2000/svg"></svg>
-        <p class="chart-readout" id="rainReadout"></p>
-        <p class="chart-caption" id="rainExplanation">Each column covers one hour. Chance (%) and amount (mm) are separate estimates. Mean of available models; — means no data.</p>
-        <details class="chart-details"><summary>Sources &amp; rain timing</summary><p class="chart-caption">ECMWF, ICON and GFS values are averaged separately for chance and amount; counts show models available out of 3. Chance means more than 0.1 mm. Amount includes rain, showers and snow. Times mark the start of each hour. Rain timing in the headline is approximate, starting when mean chance reaches 40%.</p></details>
       </div>
     </div>
   </div>
@@ -276,6 +277,7 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.js';
 import{formatTemperature,formatDelta,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
 import{cardAction}from'./card-action.js';
+import{findRainEvent,isRainyHour,rainLevel}from'./rain-events.js';
 import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
 let currentTimeZone=null,latestWeather=null,view='boot';
 let temperatureUnit;
@@ -383,7 +385,6 @@ function wireCitySearch(){
 }
 wireCitySearch();
 wireFlowTouch();
-wireRainTouch();
 
 // uv_index stays in this request too (GFS) as a live fallback if the CAMS
 // air-quality call below fails — not a fabricated value, just a second real
@@ -416,7 +417,6 @@ function setChartOpen(name,open){
   document.getElementById(`${name}Body`).inert=!open;
 }
 window.toggleFlow=()=>setChartOpen('flow',!document.getElementById('flowSection').classList.contains('open'));
-window.toggleRain=()=>setChartOpen('rain',!document.getElementById('rainSection').classList.contains('open'));
 
 // Shared by the two info triggers (header title + legend row) so there's one
 // explanation, not two copies to keep in sync. Opening it from the header
@@ -436,7 +436,7 @@ window.toggleFlowInfo=()=>{
 
 
 const FLOW_W=320,FLOW_PAD_X=36,FLOW_INNER_W=FLOW_W-FLOW_PAD_X-14;
-let flowCtx=null,flowDragging=false,rainCtx=null,rainDragging=false;
+let flowCtx=null,flowDragging=false;
 const chartX=i=>FLOW_PAD_X+(i/23)*FLOW_INNER_W;
 const chartText=(x,y,text,anchor='start',size=10)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Aspekta,DM Sans,sans-serif" font-size="${size}" fill="currentColor">${text}</text>`;
 function timeAxis(hours,y){
@@ -489,32 +489,44 @@ function renderFlow(p){
   flowCtx={models,hours:models[0].hourly,yScale};
   drawFlowMarker(0);
 }
-function renderRainStrip(p){
-  const section=document.getElementById('rainSection'),svg=document.getElementById('rainSvg');
+// ---- Rain panel ----
+let rainOpen=false;
+const RAIN_WORDS={dry:'Dry',drizzle:'A few drops',rain:'Rain',heavy:'Heavy rain'};
+function setRainOpen(open){
+  rainOpen=open;
+  document.getElementById('rainPanel').hidden=!open;
+  const pill=document.getElementById('rainPill');if(pill)pill.setAttribute('aria-expanded',String(open));
+  if(open)scrollRainToEvent();
+}
+function scrollRainToEvent(){
+  const sc=document.getElementById('rainScroll'),first=document.querySelector('#rainCols .rc.rainy')||document.querySelector('#rainCols .rc');
+  if(sc&&first)sc.scrollLeft=Math.max(0,first.offsetLeft-sc.offsetLeft-16);
+}
+function selectRainHour(i){
+  const cols=[...document.querySelectorAll('#rainCols .rc')];
+  cols.forEach((c,k)=>c.setAttribute('aria-pressed',String(k===i)));
+  const c=cols[i];if(!c)return;
+  document.getElementById('rainReadout').textContent=c.dataset.readout;
+}
+function renderRainPanel(p){
+  const cols=document.getElementById('rainCols');
+  const event=findRainEvent(p.rainSeries,p.nowHour);
+  if(!event){cols.innerHTML='';rainOpen=false;document.getElementById('rainPanel').hidden=true;return}
   const hourly=avgRainHourly(p.hourlyByModel),hours=p.hourlyByModel[0].hourly;
-  // A probability-only or unavailable forecast must not disappear as "dry".
-  const dry=hourly.every(pt=>pt.r===0&&pt.mm===0);
-  section.classList.toggle('has-rain',!dry);
-  if(dry){svg.innerHTML='';rainCtx=null;return}
-  const mmMax=Math.max(0.1,...hourly.map(pt=>pt.mm).filter(Number.isFinite));
-  const mmTop=mmMax<1?Math.ceil(mmMax*10)/10:Math.ceil(mmMax);
-  const probY=v=>88-v/100*52,amountY=v=>183-v/mmTop*52;
-  let html=chartText(FLOW_PAD_X,15,'Chance (%)')+chartGrid([0,50,100],probY,v=>v);
-  html+=chartText(FLOW_PAD_X,113,'Amount (mm in 1 hour)')+chartGrid([0,mmTop/2,mmTop],amountY,v=>v<1?v.toFixed(2).replace(/0$/,''):v.toFixed(1));
-  hourly.forEach((pt,i)=>{
-    const x=chartX(i),width=7;
-    for(const[key,scale,base,opacity]of[['r',probY,88,0.55],['mm',amountY,183,0.85]]){
-      if(pt[key]==null){html+=chartText(x,base-4,'—','middle',8);continue}
-      if(pt[key]===0)continue;
-      const height=Math.max(1,base-scale(pt[key]));
-      html+=`<rect x="${x-width/2}" y="${base-height}" width="${width}" height="${height}" rx="1" fill="rgb(var(--rain-rgb))" fill-opacity="${opacity}"/>`;
-    }
-  });
-  html+=timeAxis(hours,206)+`<g id="rainMarker" aria-hidden="true"></g>`;
-  svg.innerHTML=html;
-  document.getElementById('rainRange').textContent=chartRange(p);
-  rainCtx={hourly,hours};
-  drawRainMarker(0);
+  const dayOf=t=>new Intl.DateTimeFormat('en-US',{timeZone:p.timeZone,weekday:'short'}).format(new Date(t*1000));
+  let prevDay=null,firstRainy=-1;
+  cols.innerHTML=hourly.map((pt,i)=>{
+    const h=hours[i],ser={rain:pt.r,mm:pt.mm},rainy=isRainyHour(ser),lvl=rainLevel(pt.mm);
+    if(rainy&&firstRainy<0)firstRainy=i;
+    const height=!Number.isFinite(pt.mm)||pt.mm<=0?0:Math.max(4,Math.round(Math.sqrt(Math.min(pt.mm,4)/4)*72));
+    const day=dayOf(h.time),showDay=i===0||day!==prevDay;prevDay=day;
+    const label=i===0?'Now':formatHourLabel(h.hour%24);
+    const chance=Number.isFinite(pt.r)?`${Math.round(pt.r)}%`:'—';
+    const readout=`${formatHourLabel(h.hour%24)} · ${chance} chance · ${rainy?RAIN_WORDS[lvl]:'Dry'}`+(rainy&&Number.isFinite(pt.mm)?` (about ${formatAmount(pt.mm)} in the hour)`:'');
+    return `<button type="button" class="rc${rainy?' rainy':''}${i===0?' now':''}" data-readout="${readout}" aria-pressed="false" aria-label="${readout}"><span class="rc-p">${chance}</span><span class="rc-bar"><i style="height:${height}px"></i></span><span class="rc-t">${label}${showDay?`<small>${day}</small>`:''}</span></button>`;
+  }).join('');
+  selectRainHour(Math.max(0,firstRainy));
+  setRainOpen(rainOpen);
 }
 function drawFlowMarker(idx){
   if(!flowCtx)return;
@@ -526,15 +538,6 @@ function drawFlowMarker(idx){
   const text=`${pointTime(hours[idx])} · ${models.map(m=>`${m.model.label} ${formatTemperature(m.hourly[idx]?.t,temperatureUnit)}`).join(' · ')}`;
   document.getElementById('flowReadout').textContent=text;
   markerState(document.getElementById('flowSvg'),idx,text);
-}
-function drawRainMarker(idx){
-  if(!rainCtx)return;
-  idx=Math.max(0,Math.min(rainCtx.hours.length-1,Math.round(idx)));
-  const pt=rainCtx.hourly[idx],hour=rainCtx.hours[idx],x=chartX(idx);
-  document.getElementById('rainMarker').innerHTML=`<line x1="${x}" y1="28" x2="${x}" y2="186" stroke="currentColor" stroke-opacity="0.4" stroke-dasharray="2,2"/>`;
-  const text=`${pointTime(hour)} · Chance ${pt.r==null?'—':`${Math.round(pt.r)}%`} (${pt.rCount}/3) · Amount ${formatAmount(pt.mm)} / 1h (${pt.mmCount}/3)`;
-  document.getElementById('rainReadout').textContent=text;
-  markerState(document.getElementById('rainSvg'),idx,text);
 }
 function wireChart(id,draw,getContext){
   const svg=document.getElementById(id);
@@ -558,7 +561,6 @@ function wireChart(id,draw,getContext){
   });
 }
 function wireFlowTouch(){wireChart('flowSvg',drawFlowMarker,()=>flowCtx)}
-function wireRainTouch(){wireChart('rainSvg',drawRainMarker,()=>rainCtx)}
 
 // The advice line and its RAIN_SPLIT/LOW caption used to be written to
 // #prose and #uaddon independently — the only thing tying them together was
@@ -593,7 +595,7 @@ function render(p){
   const{now,tMax,yMax,diff}=p;
   applyTimeMode();renderTopbar(p);
   const selected=renderAdviceLine(p);
-  renderRainStrip(p);
+  renderRainPanel(p);
   renderFlow(p);
   return selected;
 }
@@ -809,13 +811,13 @@ async function showDay(id){
   document.getElementById('dayScreen').hidden=false;
   document.getElementById('listBtn').hidden=false;
   renderPager();window.scrollTo(0,0);
-  flowCtx=null;rainCtx=null;
-  setChartOpen('flow',false);setChartOpen('rain',false);
+  flowCtx=null;rainOpen=false;
+  document.getElementById('rainPanel').hidden=true;
+  setChartOpen('flow',false);
   document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded','false');
   document.getElementById('flowInfo').classList.remove('open');
   document.getElementById('uaddon').classList.remove('on');
-  document.getElementById('flowSvg').innerHTML='';document.getElementById('rainSvg').innerHTML='';
-  document.getElementById('rainSection').classList.remove('has-rain');
+  document.getElementById('flowSvg').innerHTML='';document.getElementById('rainCols').innerHTML='';
   document.getElementById('bigTemp').textContent='—';
   document.getElementById('ydayBox').hidden=true;
   document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
@@ -852,6 +854,10 @@ setInterval(autoRefreshCheck,60_000);
 
 // ---- Wiring ----
 function wireApp(){
+  document.getElementById('prose').addEventListener('click',e=>{if(e.target.closest('.rain-pill'))setRainOpen(!rainOpen)});
+  document.getElementById('rainCols').addEventListener('click',e=>{
+    const c=e.target.closest('.rc');if(c)selectRainHour([...c.parentNode.children].indexOf(c));
+  });
   const cards=document.getElementById('cityCards');
   cards.addEventListener('click',e=>{
     const del=e.target.closest('[data-del]');
