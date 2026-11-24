@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=ac_unit,air,compare_arrows,heat,snowflake,thermostat,thunderstorm,water_drop,wb_twilight&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=ac_unit,air,drag_handle,heat,snowflake,thermometer_gain,thermometer_loss,thermostat,thunderstorm,water_drop,wb_twilight&display=block" rel="stylesheet">
 <style>
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
@@ -27,8 +27,8 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73;--rain-rgb:114,128,251;--temp-grad-end:#C47D78;--pill-bd:rgba(123,75,73,.3);--card-bg:rgba(255,255,255,.3);--card-bd:rgba(123,75,73,.14);--sec:rgba(123,75,73,.5);--coral:#ff6f5d;--warn-bg:rgba(255,111,93,.08);--warn-bd:rgba(255,111,93,.48)}
-html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252;--temp-grad-end:#E2C4CF;--pill-bd:rgba(201,224,239,.3);--card-bg:#7B4B49;--card-bd:rgba(201,224,239,.14);--sec:rgba(201,224,239,.5)}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73;--rain-rgb:114,128,251;--temp-grad-end:#C47D78;--pill-bd:rgba(123,75,73,.3);--card-bg:rgba(255,255,255,.3);--card-bd:rgba(123,75,73,.14);--sec:rgba(123,75,73,.5);--coral:#ff6f5d;--coral-t:#B91500;--blue-t:#2A3FF9;--warn-bg:rgba(255,111,93,.08);--warn-bd:rgba(255,111,93,.48)}
+html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252;--temp-grad-end:#E2C4CF;--pill-bd:rgba(201,224,239,.3);--card-bg:#7B4B49;--card-bd:rgba(201,224,239,.14);--sec:rgba(201,224,239,.5);--coral-t:#FFBEB6;--blue-t:#C6CCFD}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
@@ -189,21 +189,25 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
 .pill-x:active{opacity:.6}
 .pill-x:focus:not(:focus-visible){outline:none}
 .pill-x[aria-expanded=true] .pill-chev{transform:rotate(180deg)}
-.pill-warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--coral)}
+.pill-warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--coral-t)}
 .pill-detail{margin:0 0 24px;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:16px;font-family:'Aspekta','DM Sans',sans-serif;color:var(--text)}
 .pill-detail[hidden]{display:none}
 .pill-detail.warn{border-color:var(--warn-bd)}
 .pill-detail p{margin:0}
-.pd-title{font-size:14px;line-height:22px;font-weight:600;color:var(--coral)}
+.pd-title{font-size:14px;line-height:22px;font-weight:600}
 .pd-title-warn{font-size:15px;line-height:24px}
+.pd-t-up{color:var(--coral-t)}.pd-t-down{color:var(--blue-t)}.pd-t-flat{color:var(--text)}
 .pd-rows{font-size:12px;line-height:19px}
 .pd-rows-b{font-weight:600}
 .pd-row{display:flex;gap:16px}
 .pd-row span:first-child{min-width:132px}
 .pd-desc{font-size:12px;line-height:19px;color:var(--sec)}
-.pd-label{font-size:11px;line-height:18px;font-weight:600;color:var(--coral)}
-.pd-act{font-size:12px;line-height:19px;font-weight:600}
-.pd-act-warn{font-size:13px;line-height:21px;font-weight:400}
+.pd-viz{position:relative;height:14px;margin:2px 6px}
+.pd-viz::before{content:'';position:absolute;left:0;right:0;top:6px;height:1px;background:var(--card-bd)}
+.pd-seg{position:absolute;top:5px;height:3px;border-radius:2px;background:currentColor}
+.pd-dot{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;border-radius:50%;box-sizing:border-box;border:2px solid currentColor}
+.pd-dot.cur{background:currentColor}
+.pd-up{color:var(--coral-t)}.pd-down{color:var(--blue-t)}.pd-flat{color:var(--text)}
 
 /* ---- Rain panel (opens from the rain pill) ---- */
 .rain-radar{display:inline-block;margin:10px 14px 0;font-size:13px;color:var(--text);text-decoration:underline;text-underline-offset:3px}
@@ -259,7 +263,6 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
       <div class="rain-scroll" id="rainScroll"><div class="rain-cols" id="rainCols"></div></div>
     </div>
     <p class="rain-readout" id="rainReadout" aria-live="polite"></p>
-    <p class="chart-caption">Bars show how hard it rains: above the lower line is rain (0.5 mm/h or more), above the upper line is heavy rain (2.5 mm/h or more). The number above is the chance. Mean of three forecast models, hour by hour.</p>
     <a class="rain-radar" id="rainRadar" href="https://www.windy.com/" target="_blank" rel="noopener noreferrer">Watch the rain radar<span aria-hidden="true"> ↗</span></a>
   </section>
   <div class="flow-section" id="flowSection">
@@ -606,7 +609,7 @@ function renderRainPanel(p){
     const day=dayOf(h.time),showDay=i===0||day!==prevDay;prevDay=day;
     const label=i===0?'Now':formatHourLabel(h.hour%24);
     const chance=Number.isFinite(pt.r)?`${Math.round(pt.r)}%`:'—';
-    const readout=`${formatHourLabel(h.hour%24)} · ${chance} chance · ${rainy?RAIN_WORDS[lvl]:'Dry'}`+(rainy&&Number.isFinite(pt.mm)?` (about ${formatAmount(pt.mm)} in the hour)`:'');
+    const readout=`${formatHourLabel(h.hour%24)} · ${chance} · ${rainy?RAIN_WORDS[lvl]:'Dry'}`+(rainy&&Number.isFinite(pt.mm)?`, ${formatAmount(pt.mm)}/h`:'');
     return `<button type="button" class="rc${rainy?' rainy':''}${i===0?' now':''}" data-readout="${readout}" aria-pressed="false" aria-label="${readout}"><span class="rc-p">${chance}</span><span class="rc-bar"><i class="l${rank}" style="height:${height}px"></i></span><span class="rc-t">${label}${showDay?`<small>${day}</small>`:''}</span></button>`;
   }).join('');
   cols.insertAdjacentHTML('afterbegin','<div class="rg rg-heavy"></div><div class="rg rg-rain"></div>');

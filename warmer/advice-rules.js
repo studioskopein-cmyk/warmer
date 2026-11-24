@@ -169,7 +169,7 @@ export function pill({ kind = 'std', icon, value, key = '', label = '' }) {
   const aria = label ? ` aria-label="${label}"` : '';
   return `<button type="button" class="${cls}" data-pill="${key}" aria-expanded="false"${aria}>${pillIcon(icon)}<span class="pv">${value}</span>${CHEV}</button>`;
 }
-const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: 'compare_arrows', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
+const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: diff > 0 ? 'thermometer_gain' : diff < 0 ? 'thermometer_loss' : 'drag_handle', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
 const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: formatTemperature(temp, unit || 'C') });
 const windPill = (kmh) => pill({ kind: 'std', icon: 'air', value: `${kmh}km/h` });
 const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: formatTemperature(p.feels, p.temperatureUnit), key: 'feels', label: 'Feels-like temperature, details' });
@@ -399,6 +399,8 @@ function findRainTiming(context) {
     phase: ev.phase,
     // starting: the hour it begins; clearing: the hour it stops; ongoing: none.
     label: ev.phase === 'starting' ? formatHourLabel(ev.startHour) : ev.phase === 'clearing' ? formatHourLabel(ev.endHour) : null,
+    // Series hours 24+ are tomorrow: the action line must not read as "today".
+    nextDay: ev.phase === 'starting' && ev.startHour >= 24,
     probability: ev.startProb,
     peak: ev.peak,
     level: ev.level,
@@ -471,6 +473,7 @@ const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1
 function describeRainTiming(meta, strong) {
   const t = meta.timing;
   if (t) {
+    if (t.nextDay) return t.level === 'drizzle' ? 'Dry today. A hood will do tomorrow.' : 'Dry today. Pack an umbrella for tomorrow.';
     if (t.level === 'drizzle') return 'Just a few drops — a hood will do.';
     if (t.level === 'heavy') return 'Heavy rain — take an umbrella.';
     return strong ? 'Take an umbrella.' : 'Keep an umbrella close.';
@@ -748,16 +751,23 @@ export function alertForConditions(p) {
 // Each card answers one question the pill raises, without repeating the
 // headline sentence: exact numbers, what the number means, one action.
 const row = (label, value) => `<div class="pd-row"><span>${label}</span><span>${value}</span></div>`;
-const card = ({ title, rows, desc, action, warn = false }) => warn
-  ? `<p class="pd-title pd-title-warn">${title}</p><div class="pd-rows pd-rows-b">${rows}</div><p class="pd-desc">${desc}</p><p class="pd-label">What to do</p><p class="pd-act pd-act-warn">${action}</p>`
-  : `<p class="pd-title">${title}</p><div class="pd-rows">${rows}</div><p class="pd-desc">${desc}</p><p class="pd-act">${action}</p>`;
+// Two-point comparison: hollow dot = reference (yesterday / air temp), filled = now / feels.
+// Positions are proportional inside the pair's own range; equal values sit centered.
+const compareViz = (ref, cur, tone) => {
+  const lo = Math.min(ref, cur), hi = Math.max(ref, cur);
+  const pos = v => (hi === lo ? 50 : 8 + (84 * (v - lo)) / (hi - lo));
+  return `<div class="pd-viz pd-${tone}" aria-hidden="true"><i class="pd-seg" style="left:${Math.min(pos(ref), pos(cur))}%;width:${Math.abs(pos(cur) - pos(ref))}%"></i><i class="pd-dot ref" style="left:${pos(ref)}%"></i><i class="pd-dot cur" style="left:${pos(cur)}%"></i></div>`;
+};
+// tone: 'up' (coral) | 'down' (blue) | 'flat' (text color). No sentences: title, numbers, picture.
+const card = ({ title, rows, viz = '', why = '', tone = 'flat', warn = false }) =>
+  `<p class="pd-title pd-t-${tone}${warn ? ' pd-title-warn' : ''}">${title}</p><div class="pd-rows${warn ? ' pd-rows-b' : ''}">${rows}</div>${viz}${why ? `<p class="pd-desc">${why}</p>` : ''}`;
 
 const WARN_DETAIL = {
-  heat: p => ({ title: 'Extreme heat · limit time outdoors', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Heat this strong strains the body, even when you are resting.', action: HEAT_ALERT_ACTION }),
-  freeze: p => ({ title: 'Hard freeze · cover up', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Wind makes it feel much colder, and bare skin cools down fast.', action: COLD_ALERT_ACTION }),
-  wind: p => { const g = p.gust != null ? p.gust : p.wind; return { title: 'Strong wind · stay in if you can', rows: row('Gusts', `${Math.round(g)}km/h`) + row('Average wind', `${Math.round(p.wind)}km/h`), desc: 'Wind this strong can bring down branches and make walking hard.', action: WIND_ALERT_ACTION }; },
-  ice: p => ({ title: 'Ice · watch your step', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Wet roads and shaded spots can freeze, even a few degrees above 0°C.', action: ICE_ALERT_ACTION }),
-  storm: p => ({ title: 'Thunderstorm · move indoors', rows: Number.isFinite(p.maxRain) && p.maxRain > 0 ? row('Rain chance', `${Math.round(p.maxRain)}%`) : row('Forecast', 'Thunderstorm possible'), desc: 'Lightning and sudden gusts can come with it.', action: STORM_ALERT_ACTION }),
+  heat: p => ({ title: 'Extreme heat · limit time outdoors', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Heat this strong strains the body, even when you are resting.' }),
+  freeze: p => ({ title: 'Hard freeze · cover up', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Wind makes it feel much colder, and bare skin cools down fast.' }),
+  wind: p => { const g = p.gust != null ? p.gust : p.wind; return { title: 'Strong wind · stay in if you can', rows: row('Gusts', `${Math.round(g)}km/h`) + row('Average wind', `${Math.round(p.wind)}km/h`), why: 'Wind this strong can bring down branches and make walking hard.' }; },
+  ice: p => ({ title: 'Ice · watch your step', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Wet roads and shaded spots can freeze, even a few degrees above 0°C.' }),
+  storm: p => ({ title: 'Thunderstorm · move indoors', rows: Number.isFinite(p.maxRain) && p.maxRain > 0 ? row('Rain chance', `${Math.round(p.maxRain)}%`) : row('Forecast', 'Thunderstorm possible'), why: 'Lightning and sudden gusts can come with it.' }),
 };
 
 // Returns { html, warn } for a pill key, or null when there is nothing to show.
@@ -765,23 +775,23 @@ export function pillDetailHTML(key, p) {
   const unit = p.temperatureUnit;
   if (key.startsWith('warn:')) {
     const f = WARN_DETAIL[key.slice(5)];
-    return f ? { html: card({ ...f(p), warn: true }), warn: true } : null;
+    return f ? { html: card({ ...f(p), tone: 'up', warn: true }), warn: true } : null;
   }
   if (key === 'feels') {
     const air = p.nowTemp ?? p.tMax;
     const gap = p.feels - air;
     const word = gap >= 2 ? 'Feels warmer' : gap <= -2 ? 'Feels colder' : 'Feels about the same';
-    const rows = row('Air temperature', formatTemperature(air, unit)) + (Number.isFinite(p.humidity) ? row('Humidity', `${Math.round(p.humidity)}%`) : '') + (Number.isFinite(p.wind) ? row('Wind', `${Math.round(p.wind)}km/h`) : '');
-    const desc = gap <= -2 ? 'How cold it feels once wind is counted, not just the air temperature.' : gap >= 2 ? 'How warm it feels once humidity and sun are counted, not just the air temperature.' : 'Wind, humidity, and sun are roughly cancelling out right now.';
-    const action = gap <= -2 ? 'Add a windproof layer.' : gap >= 2 ? 'Wear light, breathable clothing.' : 'Dress for the number on the screen.';
-    return { html: card({ title: `${formatTemperature(p.feels, unit)} · ${word}`, rows, desc, action }), warn: false };
+    const tone = gap >= 2 ? 'up' : gap <= -2 ? 'down' : 'flat';
+    const rows = row('Air temperature', formatTemperature(air, unit)) + (Number.isFinite(p.wind) ? row('Wind', `${Math.round(p.wind)}km/h`) : '') + (Number.isFinite(p.humidity) ? row('Humidity', `${Math.round(p.humidity)}%`) : '');
+    return { html: card({ title: `${formatTemperature(p.feels, unit)} · ${word}`, rows, viz: compareViz(air, p.feels, tone), tone }), warn: false };
   }
   if (key === 'change') {
     const d = p.diff;
-    const word = d > 0 ? 'warmer' : d < 0 ? 'cooler' : 'the same';
-    const rows = row('Now', formatTemperature(p.nowTemp, unit)) + (Number.isFinite(p.yesterdayNowTemp) ? row('Yesterday at this time', formatTemperature(p.yesterdayNowTemp, unit)) : '');
-    const action = d > 0 ? 'Try one less layer than yesterday.' : d < 0 ? 'Try one more layer than yesterday.' : 'Dress the way you did yesterday.';
-    return { html: card({ title: d === 0 ? 'Same as yesterday' : `${formatDelta(Math.abs(d), unit)} ${word} than yesterday`, rows, desc: 'The change since this time yesterday, not the difference in daily highs.', action }), warn: false };
+    const word = d > 0 ? 'warmer' : 'cooler';
+    const tone = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+    const hasY = Number.isFinite(p.yesterdayNowTemp);
+    const rows = row('Now', formatTemperature(p.nowTemp, unit)) + (hasY ? row('Yesterday, same hour', formatTemperature(p.yesterdayNowTemp, unit)) : '');
+    return { html: card({ title: d === 0 ? 'Same as yesterday' : `${formatDelta(Math.abs(d), unit)} ${word} than yesterday`, rows, viz: hasY ? compareViz(p.yesterdayNowTemp, p.nowTemp, tone) : '', tone }), warn: false };
   }
   return null;
 }
