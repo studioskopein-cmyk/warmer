@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=ac_unit,air,drag_handle,heat,snowflake,thermometer_gain,thermometer_loss,thermostat,thunderstorm,water_drop,wb_twilight&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=ac_unit,air,drag_handle,heat,local_florist,masks,snowflake,sunny,thermometer_gain,thermometer_loss,thermostat,thunderstorm,trending_up,water_drop,wb_twilight,weather_snowy&display=block" rel="stylesheet">
 <style>
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
@@ -60,6 +60,8 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .prose .g{color:var(--muted-lg)}
 .prose .w{color:var(--text);font-weight:450}
 .prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
+.prose .action-more{display:block;margin-top:10px;color:var(--text);font-style:italic;font-weight:400;font-size:22px;font-family:'Gelasio',serif;letter-spacing:-0.03em;line-height:1.2}
+.prose .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;line-height:1}
 .uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
 .uaddon.on{display:block}
 .flow-section{margin-top:28px;margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
@@ -208,6 +210,11 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
 .pd-dot{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;border-radius:50%;box-sizing:border-box;border:2px solid currentColor}
 .pd-dot.cur{background:currentColor}
 .pd-up{color:var(--coral-t)}.pd-down{color:var(--blue-t)}.pd-flat{color:var(--text)}
+.pd-scale-bar{position:relative;display:flex;gap:3px;height:6px;margin:6px 6px 0}
+.pd-scale-seg{flex:1;border-radius:3px;background:var(--card-bd)}
+.pd-scale-seg.on{background:currentColor}
+.pd-scale-dot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;box-sizing:border-box;border:2px solid currentColor;background:var(--bg)}
+.pd-scale-lbl{display:flex;justify-content:space-between;margin:6px 6px 0;font-size:11px;line-height:16px;color:var(--sec)}
 
 /* ---- Rain panel (opens from the rain pill) ---- */
 .rain-radar{display:inline-block;margin:10px 14px 0;font-size:13px;color:var(--text);text-decoration:underline;text-underline-offset:3px}
@@ -440,7 +447,7 @@ wireFlowTouch();
 // air-quality call below fails — not a fabricated value, just a second real
 // reading, same pattern as the gust-or-wind fallback in advice-rules.js.
 // Two forecast days cover the next 24 hours, including overnight rain.
-async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=2&timezone=auto&timeformat=unixtime&temperature_unit=celsius&precipitation_unit=mm&wind_speed_unit=kmh`;return(await fetch(url)).json()}
+async function fetchMultiModel(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,snowfall,weathercode,windspeed_10m,uv_index,relative_humidity_2m,dew_point_2m,wind_gusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min&models=${MODELS.map(m=>m.id).join(',')}&past_days=1&forecast_days=2&timezone=auto&timeformat=unixtime&temperature_unit=celsius&precipitation_unit=mm&wind_speed_unit=kmh`;return(await fetch(url)).json()}
 
 // CAMS via Open-Meteo's Air Quality API — ECMWF's recommended UV source
 // (global CAMS coverage, better accuracy than the GFS-only reading above),
@@ -806,7 +813,8 @@ async function loadCard(city,force=false){
   if(hit&&!force&&Date.now()-hit.at<WEATHER_REFETCH_MS)return hit.p;
   if(cardInflight.has(city.id))return cardInflight.get(city.id);
   const pr=(async()=>{
-    try{const p=parse(await fetchMultiModel(city.lat,city.lon),null);cardCache.set(city.id,{p,at:Date.now()});return p}
+    // Cards read air quality too, so the card and the day screen decide from the same data.
+    try{const[data,air]=await Promise.all([fetchMultiModel(city.lat,city.lon),fetchAirQuality(city.lat,city.lon)]);const p=parse(data,air);p.temperatureUnit=temperatureUnit;cardCache.set(city.id,{p,at:Date.now()});return p}
     catch(e){console.debug('card load failed',city.id,e);return hit?hit.p:null}
     finally{cardInflight.delete(city.id)}
   })();

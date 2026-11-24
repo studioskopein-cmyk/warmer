@@ -12,5 +12,6 @@ export function formatAmount(mm){
 export function formatHourLabel(hour){
   const h=hour%24;
   const label=h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`;
+  if(hour===24)return'midnight';
   return hour>=24?`tomorrow ${label}`:label;
 }

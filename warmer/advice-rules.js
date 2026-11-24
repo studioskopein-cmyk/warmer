@@ -58,9 +58,15 @@ export const TEMP_BANDS = [
     bannedWords: [],
   },
   {
+    name: 'nearFreezing', min: 0,
+    adjective: 'cold',
+    eveningPhrase: 'dropping toward freezing',
+    bannedWords: [],
+  },
+  {
     name: 'freezing', min: -Infinity,
     adjective: 'freezing',
-    eveningPhrase: 'dropping toward freezing',
+    eveningPhrase: 'dropping below freezing',
     bannedWords: [],
   },
 ];
@@ -151,7 +157,7 @@ export function bandViolations(temp, text) {
 // one re-derived its own threshold instead of asking bandForTemp(). Every
 // consumer that needs this gate reads this function; none of them re-judge
 // temperature on their own.
-const COLD_WORDING_BANDS = new Set(['chilly', 'cold', 'freezing']);
+const COLD_WORDING_BANDS = new Set(['chilly', 'cold', 'nearFreezing', 'freezing']);
 export function coldWordingAccurate(temp) {
   return COLD_WORDING_BANDS.has(bandForTemp(temp).name);
 }
@@ -171,169 +177,15 @@ export function pill({ kind = 'std', icon, value, key = '', label = '' }) {
 }
 const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: diff > 0 ? 'thermometer_gain' : diff < 0 ? 'thermometer_loss' : 'drag_handle', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
 const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: formatTemperature(temp, unit || 'C') });
-const windPill = (kmh) => pill({ kind: 'std', icon: 'air', value: `${kmh}km/h` });
+const windPill = (kmh, label) => pill({ kind: 'exp', icon: 'air', value: `${kmh}km/h`, key: 'wind', label: label || `Wind ${kmh}km/h, details` });
 const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: formatTemperature(p.feels, p.temperatureUnit), key: 'feels', label: 'Feels-like temperature, details' });
+const feelsPillAt = (value, unit, label, key) => pill({ kind: 'exp', icon: value >= 20 ? 'heat' : 'thermostat', value: formatTemperature(value, unit), key, label });
 
-// ============================================================================
-// ADVICE SCORE PIPELINE — collect → score → select → translate
-//
-// Each variable carries two fixed coefficients and one that moves daily:
-//   selfSensible   (0-1, constant) — how obvious this is by just being outside.
-//   actionability  (0-1, constant) — how much it should actually change what
-//                                    you do.
-//   salience       (0-1, computed per reading) — how unusual today's value is.
-//
-// priority = salience × actionability × (1 − selfSensible)
-//
-// temperature is in this table on purpose: selfSensible = 1.0 makes its
-// priority zero no matter what salience/actionability say, which is what
-// permanently excludes it from the advice line without a special case.
-// ============================================================================
-export const COEFFICIENTS = {
-  uvIndex:             { selfSensible: 0.0, actionability: 0.9 },
-  precipitationTiming:  { selfSensible: 0.1, actionability: 1.0 },
-  pollen:               { selfSensible: 0.0, actionability: 0.8 },
-  diurnalRange:         { selfSensible: 0.2, actionability: 0.9 },
-  windGusts:            { selfSensible: 0.3, actionability: 0.8 },
-  airQuality:           { selfSensible: 0.0, actionability: 0.6 },
-  dewPoint:             { selfSensible: 0.5, actionability: 0.6 },
-  apparentTempGap:      { selfSensible: 0.4, actionability: 0.7 },
-  temperature:          { selfSensible: 1.0, actionability: 0 }, // actionability is moot — see comment above
-};
-
-// Approximate dew point from temp + relative humidity (Magnus-Tetens). Used
-// only when a real dew_point_2m reading isn't available — a physical
-// derivation from two real readings, not a fabricated default; it only
-// produces a value when both inputs are real, otherwise it stays null like
-// everything else in collectAdviceSignals().
-function deriveDewPoint(tempC, relHumidityPct) {
-  if (tempC == null || relHumidityPct == null) return null;
-  const a = 17.27, b = 237.7;
-  const alpha = (a * tempC) / (b + tempC) + Math.log(relHumidityPct / 100);
-  return +((b * alpha) / (a - alpha)).toFixed(1);
-}
-
-/**
- * Stage 1: collect. Reads raw fields off `p` into the variable names the
- * rest of the pipeline knows about. No thresholds, no fallback constants —
- * a variable with no real reading comes out null and is excluded downstream.
- */
-export function collectAdviceSignals(p) {
-  const { feels = null, tMax = null, tMin = null, uvIndex = null, humidity = null,
-          maxRain = null, wind = 0, gust = null,
-          pollenSpecies = null, europeanAqi = null, dewPoint = null } = p;
-
-  const temperature = feels ?? tMax ?? null;
-
-  return {
-    uvIndex,
-    // With an hourly series, only a rain event still ahead of now (a run of
-    // hours at >=40% with a measurable amount, see rain-events.js) is advice.
-    // Rain that already passed, a diffuse low chance, or a high chance with
-    // no amount are not events. Without a series, fall back to the peak chance.
-    precipitationTiming: Array.isArray(p.rainSeries) ? (findRainTiming(p) ? maxRain : null) : maxRain,
-    pollen: pollenSpecies,
-    // Daily max−min (일교차), not just the evening-slot drop — a real
-    // temperature_2m_min reading, not derived.
-    diurnalRange: (tMax != null && tMin != null) ? +(tMax - tMin).toFixed(1) : null,
-    // gust is the real signal (wind_gusts_10m); sustained wind is the best
-    // available stand-in only when no gust reading exists (same pattern
-    // alertForConditions() uses).
-    windGusts: gust ?? (wind || null),
-    airQuality: europeanAqi,
-    // Derived from tMax (actual air temperature), not feels — dew point is a
-    // physical property of actual temp + humidity; using the apparent
-    // (feels-like) temperature here would double-count the humidity effect
-    // dew point is already meant to capture.
-    dewPoint: dewPoint ?? deriveDewPoint(tMax ?? temperature, humidity),
-    apparentTempGap: (feels != null && tMax != null) ? +Math.abs(feels - tMax).toFixed(1) : null,
-    temperature,
-  };
-}
-
-// ============================================================================
-// SALIENCE THRESHOLDS — single source of truth. Everything that decides
-// "is today's reading unusual" lives in this block (SALIENCE_BANDS +
-// POLLEN_SPECIES_BANDS below), so tuning after a month of real distributions
-// means editing here only, nothing scattered across index.html/translate.ts.
-// v1 is threshold bands; scoreSalience() is the one function to swap for a
-// region/season percentile lookup later — collect/select/translate don't change.
-//
-// Ranges are [min, max) unless noted. Sourcing notes per variable:
-//   - windGusts: Beaufort scale, Force 6 (39-49km/h) = "umbrellas used with
-//     difficulty" (Royal Meteorological Society / National Geographic Beaufort
-//     descriptions); Force 8 (62-74km/h) = "twigs break off trees" — the point
-//     real structural umbrella damage becomes likely, not just awkward.
-//   - airQuality: European Environment Agency's official European AQI (EAQI)
-//     bands — 0-20 good, 20-40 fair, 40-60 moderate, 60-80 poor, 80-100 very
-//     poor, 100+ extremely poor.
-//   - pollen (POLLEN_SPECIES_BANDS below): grass/birch cutoffs are UK Met
-//     Office published high-range thresholds; alder/mugwort/olive/ragweed are
-//     reasonable approximations from general aeroallergen literature, not
-//     independently verified per-species EAN cutoffs — revisit with real
-//     regional data if this matters more than "roughly right."
-//   - dewPoint: standard meteorological comfort bands (NWS/AccuWeather-style
-//     dew-point comfort scale) — both a "too dry" and a "too muggy" tail are
-//     notable; the 10-18°C middle is unremarkable on purpose.
-//   - uvIndex: WHO's official UV Index categories (0-2 low, 3-5 moderate,
-//     6-7 high, 8-10 very high, 11+ extreme). Re-tuned after Madrid/Cairo
-//     live testing: the old curve (0.2/0.5/0.75/1.0) put UV in a near-tie
-//     with diurnalRange even on genuinely high-UV days (Madrid's actual
-//     CAMS peak of 7.95 scored only 0.45 priority vs. diurnalRange's 0.43 —
-//     a coin-flip that real day-to-day forecast noise could tip either
-//     way), so UV rarely won even when it should. Raised so a "high" WHO
-//     day (6-7) already scores meaningfully, and "very high"/"extreme"
-//     (8+) score close to the ceiling.
-// ============================================================================
-const SALIENCE_BANDS = {
-  uvIndex: [
-    { min: 3, max: 6, salience: 0.3, tier: 'mild' },
-    { min: 6, max: 8, salience: 0.7, tier: 'moderate' },
-    { min: 8, max: 11, salience: 0.95, tier: 'high' },
-    { min: 11, max: Infinity, salience: 1.0, tier: 'extreme' },
-  ],
-  precipitationTiming: [
-    { min: 30, max: 60, salience: 0.5, tier: 'possible' },
-    { min: 60, max: Infinity, salience: 1.0, tier: 'strong' },
-  ],
-  // Daily max−min, °C.
-  diurnalRange: [
-    { min: 8, max: 12, salience: 0.3, tier: 'mild' },
-    { min: 12, max: 16, salience: 0.6, tier: 'notable' },
-    { min: 16, max: Infinity, salience: 1.0, tier: 'big' },
-  ],
-  // km/h, gust — see Beaufort sourcing note above. Capped at 60: anything at
-  // or above that is already claimed by the P1 wind safety alert in
-  // alertForConditions() (windValue >= 60), so a tier above 60 here would be
-  // dead code — the pipeline never sees a reading that high.
-  windGusts: [
-    { min: 39, max: 50, salience: 0.4, tier: 'notable' },
-    { min: 50, max: 60, salience: 0.75, tier: 'strong' },
-  ],
-  // European AQI (0-100+) — see EAQI sourcing note above.
-  airQuality: [
-    { min: 40, max: 60, salience: 0.25, tier: 'moderate' },
-    { min: 60, max: 80, salience: 0.5, tier: 'poor' },
-    { min: 80, max: 100, salience: 0.75, tier: 'veryPoor' },
-    { min: 100, max: Infinity, salience: 1.0, tier: 'extremelyPoor' },
-  ],
-  // °C — two-sided: both very dry and very muggy air are notable; 10-18°C is
-  // the unremarkable comfortable middle (no band = salience 0).
-  dewPoint: [
-    { min: -Infinity, max: 10, salience: 0.4, tier: 'dry' },
-    { min: 18, max: 21, salience: 0.7, tier: 'muggy' },
-    { min: 21, max: Infinity, salience: 1.0, tier: 'oppressive' },
-  ],
-  apparentTempGap: [
-    { min: 2, max: 4, salience: 0.3, tier: 'mild' },
-    { min: 4, max: 6, salience: 0.6, tier: 'notable' },
-    { min: 6, max: Infinity, salience: 1.0, tier: 'big' },
-  ],
-  // No bands: temperature's priority is zeroed by (1 − selfSensible) = 0
-  // regardless of salience, so it never needs a tier.
-  temperature: [],
-};
-
+// Pollen thresholds (grains/m³), per species: grass/birch cutoffs are UK Met
+// Office published high-range thresholds; alder/mugwort/olive/ragweed are
+// approximations from general aeroallergen literature, not verified per-species
+// cutoffs. UV bands are WHO categories, air quality bands the European AQI
+// (EEA), wind bands follow the Beaufort descriptions (see DAY MESSAGE below).
 // Pollen needs its own table per species (grains/m³) — raw counts aren't
 // comparable across species (see sourcing note above), so each species is
 // scored against its own bands and the pipeline picks the single most
@@ -371,20 +223,6 @@ const POLLEN_SPECIES_BANDS = {
   ],
 };
 
-function scorePollenSalience(speciesReadings) {
-  let best = null;
-  for (const [species, reading] of Object.entries(speciesReadings || {})) {
-    if (reading == null) continue;
-    const bands = POLLEN_SPECIES_BANDS[species];
-    if (!bands) continue;
-    const hit = bands.find(b => reading >= b.min && reading < b.max);
-    if (hit && (!best || hit.salience > best.salience)) {
-      best = { salience: hit.salience, tier: hit.tier, meta: { species, value: reading } };
-    }
-  }
-  return best; // null when every species is null/unremarkable — no candidate
-}
-
 // Searches forward from *now*, never from midnight — searching from hour 0
 // meant an all-day-high-probability rain series always matched hour 0 first,
 // so two cities with completely different actual timing both got "12am."
@@ -400,159 +238,24 @@ function findRainTiming(context) {
     // starting: the hour it begins; clearing: the hour it stops; ongoing: none.
     label: ev.phase === 'starting' ? formatHourLabel(ev.startHour) : ev.phase === 'clearing' ? formatHourLabel(ev.endHour) : null,
     // Series hours 24+ are tomorrow: the action line must not read as "today".
-    nextDay: ev.phase === 'starting' && ev.startHour >= 24,
+    // Daytime: anything from midnight on is tomorrow's. Evening and night:
+    // rain from midnight to 4am is tonight's, from 5am on tomorrow's.
+    nextDay: ev.phase === 'starting' && ev.startHour >= (context?.band === 'EVENING' || context?.band === 'NIGHT' ? 29 : 24),
     probability: ev.startProb,
     peak: ev.peak,
     level: ev.level,
+    type: ev.type || 'rain',
+    nearLevel: ev.nearLevel || ev.level,
+    heavyLaterHour: ev.heavyLaterHour ?? null,
+    // Snow that lies: the event's own total, or everything falling in the
+    // hours ahead if that is more (a dusting now plus more overnight).
+    snowCm: Math.max(ev.snowCm ?? 0, ev.type === 'snow' || ev.snowHours ? (context?.ahead?.snowCm ?? 0) : 0),
+    snowHours: ev.snowHours ?? 0,
+    startHour: ev.startHour,
+    endHour: ev.endHour,
   };
 }
-/**
- * Stage 2a: how unusual is this one reading, today? v1 implementation is
- * threshold bands; a null value (no data) returns null rather than a fake 0,
- * so it reads as "no candidate," not "known to be unremarkable." `meta`
- * carries whatever raw context translate() needs (the actual number, a
- * pollen species, a rain start time) — scoreSalience is the only place that
- * computes it, so a future percentile-based version just needs to keep
- * returning the same {salience, tier, meta} shape.
- */
-export function scoreSalience(variable, value, context = {}) {
-  if (variable === 'pollen') return value ? scorePollenSalience(value) : null;
-  if (value == null) return null;
-  const bands = SALIENCE_BANDS[variable] || [];
-  const hit = bands.find(b => value >= b.min && value < b.max);
-  const meta = { value, temperatureUnit: context.temperatureUnit };
-  if (context.forecastWindow === 'next24h') meta.period = 'in the next 24 hours';
-  if (variable === 'precipitationTiming') meta.timing = findRainTiming(context);
-  // dewPoint's copy states the feels-like gap as a number (see ADVICE_COPY)
-  // instead of adjectives — apparent_temperature is the only source for that.
-  if (variable === 'dewPoint') meta.feelsLike = context?.feels ?? null;
-  // apparentTempGap's own copy must state the actual feels-like number too
-  // (same rule as dewPoint above) — the gap is meta.value, but "way off the
-  // actual number" without the number itself was the bug: this candidate's
-  // translate fn never read context at all, so no meta wiring existed for it.
-  if (variable === 'apparentTempGap') meta.feelsLike = context?.feels ?? null;
-  // diurnalRange's copy needs the actual overnight low (tMin), not just the
-  // size of the drop — a 16° drop from 36° still lands at a shirt-sleeve
-  // 20°, and garment wording is only accurate below coldWordingAccurate()'s
-  // threshold. Without this, translate can only see the delta, which is
-  // exactly how a 34° evening got "dress in layers."
-  if (variable === 'diurnalRange') meta.eveningTemp = context?.tMin ?? null;
-  return hit ? { salience: hit.salience, tier: hit.tier, meta } : { salience: 0, tier: null, meta };
-}
-
-/**
- * Stage 2b: score. priority = salience × actionability × (1 − selfSensible).
- */
-export function scoreCandidates(signals, context = {}) {
-  return Object.entries(signals)
-    .map(([key, value]) => {
-      const s = scoreSalience(key, value, context);
-      if (!s) return null;
-      const coeff = COEFFICIENTS[key];
-      const priority = +(s.salience * coeff.actionability * (1 - coeff.selfSensible)).toFixed(4);
-      return { key, value, salience: s.salience, tier: s.tier, meta: s.meta, actionability: coeff.actionability, priority };
-    })
-    .filter(Boolean);
-}
-
-/**
- * Stage 3: select. Highest priority wins; ties broken by actionability.
- * Returns null when nothing scores above zero.
- */
-export function selectCandidate(scored) {
-  const positive = scored.filter(c => c.priority > 0);
-  if (positive.length === 0) return null;
-  positive.sort((a, b) => b.priority - a.priority || b.actionability - a.actionability);
-  return positive[0];
-}
-
 const pollenLabel = species => species.charAt(0).toUpperCase() + species.slice(1);
-
-// Headline states WHAT and WHEN ("Rain until 4pm"); this line only says what
-// to DO, by how hard it rains. No clock times or percentages here.
-function describeRainTiming(meta, strong) {
-  const t = meta.timing;
-  if (t) {
-    if (t.nextDay) return t.level === 'drizzle' ? 'Dry today. A hood will do tomorrow.' : 'Dry today. Pack an umbrella for tomorrow.';
-    if (t.level === 'drizzle') return 'Just a few drops — a hood will do.';
-    if (t.level === 'heavy') return 'Heavy rain — take an umbrella.';
-    return strong ? 'Take an umbrella.' : 'Keep an umbrella close.';
-  }
-  // No rainSeries, or a genuinely diffuse forecast (no hour crosses the
-  // rain threshold): there is no honest hour to name, so state the peak
-  // chance instead of going numberless (the London bug).
-  return strong
-    ? `Rain's fairly likely ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — bring an umbrella.`
-    : `Rain's possible ${meta.period || 'today'}, peaking around ${Math.round(meta.value)}% — an umbrella might be worth it.`;
-}
-
-// Stage 4: translate. Copy is keyed by variable + salience tier, as a
-// function of that candidate's meta (the actual number/species/time) —
-// never by temperature. Every string here is re-checked by
-// assertNotSelfEvident() before it can reach the screen (see computeAdvice
-// below); SELF_EVIDENT_PHRASES lists what it rejects.
-export const ADVICE_COPY = {
-  uvIndex: {
-    mild: meta => `UV's at ${meta.value} — SPF 30+ is worth it if you'll be out a while.`,
-    moderate: meta => `UV's at ${meta.value} — some shade around midday helps if you're out long.`,
-    high: meta => `UV's at ${meta.value} — skin burns fast at midday; SPF 30+ and a hat earn their keep.`,
-    extreme: meta => `UV's at ${meta.value}, the extreme end — worth planning errands outside midday hours.`,
-  },
-  precipitationTiming: {
-    possible: meta => describeRainTiming(meta, false),
-    strong: meta => describeRainTiming(meta, true),
-  },
-  pollen: {
-    moderate: meta => `${pollenLabel(meta.species)} pollen is creeping up — could irritate allergies today.`,
-    high: meta => `${pollenLabel(meta.species)} pollen is high today — worth an antihistamine before heading out.`,
-    veryHigh: meta => `${pollenLabel(meta.species)} pollen is very high today — an antihistamine earns its keep if you're sensitive.`,
-  },
-  // Garment wording ("grab a layer") is only accurate if the overnight low
-  // itself is cool — a 16° drop from 36° still lands at a shirt-sleeve 20°.
-  // Gated by coldWordingAccurate(meta.eveningTemp), same shared bandForTemp()
-  // table as the trend headline and evening phrase — never a fresh
-  // threshold. Below that gate, still worth naming the swing as information,
-  // just without garment advice. "overnight," not "after sunset": the daily
-  // low consistently lands within an hour of sunrise, not shortly after
-  // sunset — see the timing note on findRainTiming's neighbors above.
-  diurnalRange: {
-    mild: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — worth having a layer on hand.`
-      : `Cools to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} overnight — a comfortable night, nothing dramatic.`,
-    notable: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — bring a layer before you head out later.`
-      : `Nights ease down to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} — well below the daytime high, but still warm.`,
-    big: meta => coldWordingAccurate(meta.eveningTemp)
-      ? `Drops ${formatDelta(meta.value, meta.temperatureUnit)} overnight — dress in layers you can add as it falls.`
-      : `Big swing to about ${formatTemperature(meta.eveningTemp, meta.temperatureUnit)} overnight — a lot cooler than the day, though still mild out.`,
-  },
-  windGusts: {
-    notable: meta => `Gusts to ${Math.round(meta.value)}km/h — umbrellas won't hold up well; a windproof layer's worth it.`,
-    strong: meta => `Gusts to ${Math.round(meta.value)}km/h — secure loose items and dress for the wind.`,
-  },
-  airQuality: {
-    moderate: () => "Air quality's fair today — fine for a walk, maybe ease off a hard outdoor workout.",
-    poor: () => "Air quality's poor — worth moving an intense workout indoors today.",
-    veryPoor: () => 'Air quality is very poor — skip strenuous exercise outside today.',
-    extremelyPoor: () => "Air quality's extremely poor — best to skip outdoor exercise entirely today.",
-  },
-  dewPoint: {
-    dry: meta => `Dew point's down near ${formatTemperature(meta.value, meta.temperatureUnit)} — air's dry; lip balm or lotion helps.`,
-    muggy: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} with the humidity.` : 'Feels a few degrees warmer than the reading, thanks to the humidity.',
-    oppressive: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} with the humidity — that gap is doing real work today.` : 'Feels well above the actual reading today, thanks to the humidity.',
-  },
-  apparentTempGap: {
-    mild: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} than the actual reading — dress by feel, not just the number.` : 'Feels a bit different than the number suggests — dress by feel, not just the reading.',
-    notable: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)}, well off the actual reading — dress for how it feels outside.` : 'Feels noticeably different than the actual temperature — dress for how it feels outside.',
-    big: meta => meta.feelsLike != null ? `Feels closer to ${formatTemperature(meta.feelsLike, meta.temperatureUnit)} — way off the actual reading — trust the feels-like number when you dress.` : 'What it feels like is way off the actual number — trust the feels-like reading when you dress.',
-  },
-};
-
-export function translateCandidate(selected) {
-  if (!selected) return '';
-  const fn = ADVICE_COPY[selected.key]?.[selected.tier];
-  return fn ? fn(selected.meta || {}) : '';
-}
 
 // Final gate, applied once to the rendered string — not per variable. A
 // per-variable check gets re-opened every time a new variable is added (this
@@ -596,178 +299,418 @@ function nextWindowTemp(p) {
   return { temp: p.slots?.[2]?.temp ?? null, when: null };
 }
 
-// Cross-layer dedup: buildProse's own headline/trend copy already states
-// some of these signals in plain language (rain in the "Rain coming"
-// headline, the day's temperature swing in the evening-drop trend line) —
-// mirrors buildProse()'s exact branch conditions below so the advice line
-// never restates what the headline already said.
-// Which rain headline buildProse() shows, shared with coveredHeadlineTopics():
-//   'event'   - a rain event is in the series (headline: "Rain until 4pm")
-//   'generic' - no series at all, chance > 40% (headline: "Rain possible")
-//   null      - no rain headline (dry, or a chance without measurable amount)
-function rainHeadlineMode(p) {
-  if (findRainTiming(p)) return 'event';
-  if (!Array.isArray(p.rainSeries) && (p.maxRain ?? 0) > 40) return 'generic';
-  return null;
-}
+// ============================================================================
+// DAY MESSAGE — what the day screen and the city card say.
+//
+// One decision, two outputs: buildProse() renders it for the day screen and
+// cardSentence() shortens the same decision for the city card, so the two
+// can never say different things.
+//
+// Rules (from the random-city test criteria, Nov 2026):
+//   C1 snow is called snow, and settling snow is announced with its amount.
+//   C2 strength words describe the next hours; a heavier spell later gets
+//      its own time.
+//   C4 numbers live in pills, not in sentences (clock times are fine).
+//   C5 a warning pill shows the number that proves the warning.
+//   C6 the action line never repeats the headline; hard numbers (UV, air
+//      quality, pollen, wind) open a scale from low to high.
+//   C7 everything that will get in the way of the day ahead is mentioned:
+//      the lead and its action, then the next most important item as a
+//      second sentence, then the rest as pills.
+// ============================================================================
 
-export function coveredHeadlineTopics(p) {
-  const { diff = 0, tMax, maxRain = 0, wind = 0 } = p;
-  const { temp: eTemp } = nextWindowTemp(p);
-  const eDrop = (tMax != null && eTemp != null) ? tMax - eTemp : 0;
-  const abs = Math.abs(diff);
-  const covered = new Set();
-  const rainMode = rainHeadlineMode(p);
-  if (rainMode === 'generic') {
-    covered.add('precipitationTiming');
-  } else if (rainMode === 'event') {
-    // headline names what/when only; the action line still adds what to do.
-  } else if (abs >= 2) {
-    if (eDrop >= 5 && eTemp != null) covered.add('diurnalRange');
-  } else if (wind < 25 && eDrop >= 5 && eTemp != null) {
-    covered.add('diurnalRange');
-  }
-  return covered;
-}
-
-// precipitationTiming keeps an exception: the headline never states a clock
-// time, so if this candidate has one to add (a real "starting"/"clearing"
-// hour, not the no-op "ongoing" case), it's still new information even
-// though the headline already said "rain."
-function isDuplicateOfHeadline(candidate, covered) {
-  if (!covered.has(candidate.key)) return false;
-  if (candidate.key === 'precipitationTiming' && candidate.meta?.timing?.label) return false;
-  return true;
-}
-
-/**
- * Runs the full collect → score → select → translate pipeline: picks the
- * highest-priority candidate, and if it either duplicates the headline or
- * fails assertNotSelfEvident, disqualifies it and retries with the
- * next-highest instead — never falls back to a disqualified candidate's
- * text. Logs which variable (if any) won, so real-world distributions can
- * inform threshold tuning later (see SALIENCE_BANDS above).
- */
-export function computeAdvice(p) {
-  const signals = collectAdviceSignals(p);
-  const covered = coveredHeadlineTopics(p);
-  let pool = scoreCandidates(signals, p);
-  let selected = null;
-  let text = '';
-  while (pool.length > 0) {
-    const candidate = selectCandidate(pool);
-    if (!candidate) break;
-    if (isDuplicateOfHeadline(candidate, covered)) {
-      pool = pool.filter(c => c.key !== candidate.key);
-      continue;
-    }
-    const candidateText = translateCandidate(candidate);
-    try {
-      assertNotSelfEvident(candidateText);
-      selected = candidate;
-      text = candidateText;
-      break;
-    } catch {
-      pool = pool.filter(c => c.key !== candidate.key);
-    }
-  }
-  console.debug(selected
-    ? `[advice] selected "${selected.key}" (tier=${selected.tier}, priority=${selected.priority})`
-    : '[advice] no candidate scored above 0, or all disqualified (headline duplicate / self-evident) — action line omitted');
-  return { text, selected };
-}
-
-// ---- P1: safety alerts — a hard top-level branch above everything else. ----
-// Independent of the score pipeline/the trend-and-advice logic in buildProse():
-// reads its own fields and never calls into that pipeline, so it can't be
-// perturbed by anything above. First match wins. These fire on danger, not on
-// how unsensed the reading is — so unlike the pipeline above, it's fine (and
-// intended) for these to sometimes state something already obvious from
-// outside; the raw wording still avoids the fully self-evident phrasing
-// ("it's cold") in favor of the concrete hazard ("icy roads").
 const HEAT_ALERT_ACTION = 'Keep out of the midday sun, and drink more water than usual.';
 const COLD_ALERT_ACTION = 'Cover hands and face, and keep outdoor trips short.';
-// Wind alert deliberately never mentions umbrellas, even when maxRain is high —
-// this is the conflict-suppression the wind branch owns; it doesn't read maxRain at all.
 const WIND_ALERT_ACTION = 'Stay in if you can, and avoid loose objects, trees, and coastal areas outside.';
 const ICE_ALERT_ACTION = 'Watch for icy patches on roads, steps, and bridges, and give yourself extra time to get around.';
 const STORM_ALERT_ACTION = 'Head indoors when you hear thunder, and steer clear of open areas, tall trees, and metal railings.';
 
-export function alertForConditions(p) {
-  const { feels, wind, gust = null, diff = 0, tCode = 0, maxRain = 0 } = p;
-  const windValue = gust != null ? gust : wind;
-  // Explicit p.precip (if ever supplied) wins; otherwise a real precipitation
-  // probability reading of 50%+ stands in — this is a derived read of actual
-  // data, not a fabricated constant.
-  const precip = p.precip ?? (maxRain >= 50);
-  const trendSuffix = Math.abs(diff) >= 3 ? ` · ${formatDelta(Math.abs(diff), p.temperatureUnit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday` : '';
+// Series hours run 0-23 today, 24+ tomorrow (see weather-data.js).
+function whenWord(hour, p) {
+  if (hour == null) return 'today';
+  if (hour >= 24) return hour - 24 < 10 ? 'tomorrow morning' : 'tomorrow';
+  const h = hour % 24;
+  return h >= 18 || (h < 5 && p?.band === 'NIGHT') ? 'tonight' : 'today';
+}
 
-  if (feels >= 36) {
-    return {
-      headline: 'Dangerous heat today — plan around it',
-      action: HEAT_ALERT_ACTION,
-      proof: `${formatTemperature(feels, p.temperatureUnit)} feels-like${trendSuffix}`,
-      icon: 'heat', kind: 'heat',
-    };
+const seriesOf = p => (Array.isArray(p.rainSeries) ? p.rainSeries : []);
+function inWindow(p, hour) {
+  const pt = seriesOf(p).find(x => x.hour === hour);
+  return pt ? !!pt.inWindow : false;
+}
+
+// ---- P1: safety alerts. Read across the hours ahead (p.ahead), not just now,
+// so tonight's freeze or tomorrow's storm is known before leaving the house.
+export function alertForConditions(p) {
+  const A = p.ahead || {};
+  const unit = p.temperatureUnit;
+  const fMax = A.feelsMax?.value ?? p.feels;
+  const fMin = A.feelsMin?.value ?? p.feels;
+  const gust = A.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : p.wind);
+  if (fMax >= 36) {
+    const when = whenWord(A.feelsMax?.hour, p);
+    return { kind: 'heat', icon: 'heat', headline: `Dangerous heat ${when}`, action: HEAT_ALERT_ACTION, value: formatTemperature(fMax, unit), raw: fMax, card: 'Plan around the heat.' };
   }
-  if (feels <= -10) {
-    return {
-      headline: 'A hard freeze — dress for far colder',
-      action: COLD_ALERT_ACTION,
-      proof: `Feels like ${formatTemperature(feels, p.temperatureUnit)}${trendSuffix}`,
-      icon: 'ac_unit', kind: 'freeze',
-    };
+  if (fMin <= -10) {
+    const when = whenWord(A.feelsMin?.hour, p);
+    return { kind: 'freeze', icon: 'ac_unit', headline: `A hard freeze ${when}`, action: COLD_ALERT_ACTION, value: formatTemperature(fMin, unit), raw: fMin, card: 'Hard freeze — bundle up.' };
   }
-  if (windValue >= 60) {
-    return {
-      headline: 'Strong winds today — stay in if you can',
-      action: WIND_ALERT_ACTION,
-      proof: `${windValue}km/h`, value: windValue,
-      icon: 'air', kind: 'wind',
-    };
+  if (gust >= 60) {
+    const when = whenWord(A.gustMax?.hour, p);
+    return { kind: 'wind', icon: 'air', headline: `Strong winds ${when}`, action: WIND_ALERT_ACTION, value: `${gust}km/h`, raw: gust, card: 'Strong wind — stay in if you can.' };
   }
-  // Road/bridge surfaces can ice up several degrees above freezing air temp
-  // (radiative cooling), so this band runs up to +3°C, not just below 0°C.
-  if (feels <= 3 && precip) {
-    return {
-      headline: 'Icy surfaces possible today',
-      action: ICE_ALERT_ACTION,
-      proof: `${formatTemperature(feels, p.temperatureUnit)} with precipitation${trendSuffix}`,
-      icon: 'snowflake', kind: 'ice',
-    };
+  // Ice: freezing rain, or rain/sleet falling while the air sits near 0°C.
+  // Snow on its own is announced as snow (see the precipitation lead).
+  const ev = findRainTiming(p);
+  const evInWindow = ev && inWindow(p, ev.startHour);
+  const low = A.tLow ?? p.nowTemp ?? p.tMax;
+  const wetNearZero = evInWindow && ev.type !== 'snow' && low != null && low <= 1;
+  const legacyIce = !Array.isArray(p.rainSeries) && p.feels <= 3 && (p.precip ?? ((p.maxRain ?? 0) >= 50));
+  if (A.freezingRain || wetNearZero || legacyIce) {
+    const when = ev ? whenWord(ev.startHour, p) : 'today';
+    return { kind: 'ice', icon: 'snowflake', headline: `Icy surfaces possible ${when}`, action: ICE_ALERT_ACTION, value: formatTemperature(low ?? p.feels, unit), raw: low, card: 'Watch for ice underfoot.' };
   }
-  if (tCode >= 95 && tCode <= 99) {
-    return {
-      headline: 'Thunderstorms in the forecast',
-      action: STORM_ALERT_ACTION,
-      proof: `Storm risk today${trendSuffix}`,
-      icon: 'thunderstorm', kind: 'storm',
-    };
+  const storm = A.thunder || (!p.ahead && p.tCode >= 95 && p.tCode <= 99 ? { hour: null } : null);
+  if (storm) {
+    const from = storm.hour != null && storm.hour > p.nowHour ? `from ${formatHourLabel(storm.hour)}` : whenWord(storm.hour, p);
+    return { kind: 'storm', icon: 'thunderstorm', headline: `Thunderstorms possible ${from}`, action: STORM_ALERT_ACTION, value: storm.hour != null ? formatHourLabel(storm.hour % 24) : 'Today', raw: storm.chance, card: 'Storms ahead — plan to be indoors.' };
   }
   return null;
 }
 
+// ---- Precipitation lead ----
+// Snow from about 1cm (0.8 rounds to 1) lies on the ground: say it settles.
+const SNOW_SETTLES_CM = 0.8;
+const PRECIP_NOUN = {
+  rain: { drizzle: 'Drizzle', rain: 'Rain', heavy: 'Heavy rain' },
+  snow: { drizzle: 'Light snow', rain: 'Snow', heavy: 'Heavy snow' },
+  sleet: { drizzle: 'Sleet', rain: 'Sleet', heavy: 'Heavy sleet' },
+  freezing: { drizzle: 'Freezing rain', rain: 'Freezing rain', heavy: 'Freezing rain' },
+};
+function precipHeadline(t) {
+  let noun = PRECIP_NOUN[t.type || 'rain'][t.nearLevel || t.level] || 'Rain';
+  // Mixed events: rain or sleet with some hours of snow say both.
+  if ((t.type === 'rain' || t.type === 'sleet') && t.snowHours > 0) noun = `${noun} and snow`;
+  const when = t.phase === 'starting' ? `from ${t.label}` : t.phase === 'clearing' ? `until ${t.label}` : 'for hours';
+  return { noun, when };
+}
+function precipPill(t) {
+  if (t.type === 'snow' || (t.snowHours > 0 && t.snowCm >= SNOW_SETTLES_CM)) {
+    const settles = t.snowCm >= SNOW_SETTLES_CM, cm = Math.max(1, Math.round(t.snowCm));
+    return pill({ kind: 'exp', icon: 'weather_snowy', value: settles ? `${cm}cm` : `${Math.round(t.peak)}%`, key: 'snow', label: settles ? `About ${cm}cm of snow, details` : 'Snow chance, details' });
+  }
+  return pill({ kind: 'exp', icon: 'water_drop', value: `${Math.round(t.peak)}%`, key: 'rain', label: 'Rain chance, hourly chart' });
+}
+// What to do about it. No numbers here: the pill carries them.
+function precipAction(t) {
+  const later = t.heavyLaterHour != null ? ` It gets heavier around ${formatHourLabel(t.heavyLaterHour)}.` : '';
+  if (t.type === 'snow') {
+    if (t.nextDay) return 'Dry for now — boots with grip for tomorrow.';
+    return (t.snowCm >= SNOW_SETTLES_CM ? 'It will settle — wear boots with grip and give yourself extra time.' : 'A light dusting — mind slippery steps.') + later;
+  }
+  const mixedSettles = t.snowHours > 0 && t.snowCm >= SNOW_SETTLES_CM ? ' Snow may settle.' : '';
+  if (t.type === 'sleet') return (t.nextDay ? 'Dry for now — waterproof shoes for tomorrow.' : 'Wet and slushy — waterproof shoes and an umbrella.') + mixedSettles + later;
+  if (mixedSettles && !t.nextDay) return 'Take an umbrella, and shoes with grip.' + mixedSettles + later;
+  if (t.type === 'freezing') return 'Roads and steps can glaze over — careful footing and extra time.';
+  if (t.nextDay) return t.nearLevel === 'drizzle' ? 'Dry today. A hood will do tomorrow.' : 'Dry today. Pack an umbrella for tomorrow.';
+  if (t.nearLevel === 'drizzle') return 'Just a few drops — a hood will do.' + later;
+  if (t.nearLevel === 'heavy') return 'Take a sturdy umbrella, and waterproof shoes if you can.';
+  return 'Take an umbrella.' + later;
+}
+function precipCard(t) {
+  if (t.type === 'snow') return t.nextDay ? 'Snow tomorrow — boots with grip.' : t.snowCm >= SNOW_SETTLES_CM ? 'Snow — boots with grip.' : 'Light snow — mind your step.';
+  if (t.type === 'sleet') return t.nextDay ? 'Sleet tomorrow — waterproof shoes.' : 'Sleet — umbrella and waterproof shoes.';
+  if (t.type === 'freezing') return 'Freezing rain — mind the ice.';
+  if (t.nextDay) return t.nearLevel === 'drizzle' ? 'Dry today, drizzle tomorrow.' : 'Dry today, umbrella tomorrow.';
+  const { noun, when } = precipHeadline(t);
+  return `${noun} ${when} — ${t.nearLevel === 'drizzle' ? 'a hood will do.' : 'take an umbrella.'}`;
+}
+
+// ---- Heads-up notes: everything else worth knowing before heading out ----
+// prio >= 50 must be mentioned (sentence or pill); lower ones only fill an
+// empty action line.
+const UV_BANDS = [{ to: 3, label: 'Low' }, { to: 6, label: 'Moderate' }, { to: 8, label: 'High' }, { to: 11, label: 'Very high' }, { to: Infinity, label: 'Extreme' }];
+const AQI_BANDS = [{ to: 20, label: 'Good' }, { to: 40, label: 'Fair' }, { to: 60, label: 'Moderate' }, { to: 80, label: 'Poor' }, { to: 100, label: 'Very poor' }, { to: Infinity, label: 'Extremely poor' }];
+const WIND_BANDS = [{ to: 20, label: 'Light' }, { to: 39, label: 'Breezy' }, { to: 50, label: 'Windy' }, { to: 62, label: 'Very windy' }, { to: 89, label: 'Gale' }, { to: Infinity, label: 'Storm' }];
+const SNOW_BANDS = [{ to: 1, label: 'Dusting' }, { to: 5, label: 'Settles' }, { to: 15, label: 'Heavy' }, { to: Infinity, label: 'Very heavy' }];
+const bandLabel = (bands, v) => bands.find(b => v < b.to)?.label;
+
+function pollenTop(p) {
+  let best = null;
+  for (const [species, v] of Object.entries(p.pollenSpecies || {})) {
+    if (v == null) continue;
+    const hit = (POLLEN_SPECIES_BANDS[species] || []).find(b => v >= b.min && v < b.max);
+    if (hit && (!best || hit.salience > best.salience)) best = { species, value: v, tier: hit.tier, salience: hit.salience };
+  }
+  return best;
+}
+
+export function headsUp(p, lead) {
+  const A = p.ahead || {};
+  const unit = p.temperatureUnit;
+  const notes = [];
+  const add = n => notes.push(n);
+  const ev = findRainTiming(p);
+  const skip = new Set(lead?.covers || []);
+  // A note says "tonight"/"tomorrow morning" only if the headline did not already.
+  const said = (lead?.text || '').toLowerCase();
+  const when = h => { const w = whenWord(h, p); return said.includes(w) ? '' : ` ${w}`; };
+
+  if (A.thunder && !skip.has('storm')) {
+    add({ key: 'storm', prio: 95, text: `Thunder possible from ${formatHourLabel(A.thunder.hour)} — head indoors when it rumbles.`, pill: pill({ kind: 'exp', icon: 'thunderstorm', value: formatHourLabel(A.thunder.hour % 24), key: 'storm', label: 'Thunderstorm timing, details' }), card: 'Storms ahead — plan to be indoors.' });
+  }
+  if (ev && !skip.has('precip') && inWindow(p, ev.startHour)) {
+    add({ key: 'precip', prio: 90, text: precipCard(ev), pill: precipPill(ev), card: precipCard(ev) });
+  }
+  const gust = A.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : null);
+  if (gust != null && gust >= 39 && gust < 60 && !skip.has('wind')) {
+    add({ key: 'wind', prio: gust >= 50 ? 70 : 30, text: `Gusty${when(A.gustMax?.hour)} — ${ev ? "umbrellas won't hold up well; " : ''}a windproof layer helps.`, pill: windPill(gust, `Gusts to ${gust}km/h, details`), card: 'Gusty — hold onto your hat.' });
+  }
+  const fMax = A.feelsMax?.value ?? null;
+  if (fMax != null && fMax >= 32 && fMax < 36 && !skip.has('heat')) {
+    add({ key: 'heat', prio: 65, text: `Hot${when(A.feelsMax.hour)} — save long walks for the cooler hours.`, pill: feelsPillAt(fMax, unit, `Feels like ${formatTemperature(fMax, unit)} at its hottest, details`, 'feelsHigh'), card: 'Hot — keep to the shade.' });
+  }
+  const fMin = A.feelsMin?.value ?? null;
+  if (fMin != null && fMin <= -5 && fMin > -10 && !skip.has('cold')) {
+    add({ key: 'cold', prio: 65, text: `Bitter cold${when(A.feelsMin.hour)} — hat and gloves.`, pill: feelsPillAt(fMin, unit, `Feels like ${formatTemperature(fMin, unit)} at its coldest, bitter cold, details`, 'feelsLow'), card: 'Bitter cold — hat and gloves.' });
+  }
+  if ((A.swing ?? 0) >= 10 && !skip.has('swing')) {
+    // Which way the swing runs from now: a sharp drop after the day's high,
+    // or a cold start that warms up a lot by the afternoon.
+    const pts = seriesOf(p).filter(x => x.inWindow && Number.isFinite(x.t));
+    const hi = pts.reduce((a, b) => (b.t > a.t ? b : a), pts[0]);
+    const after = pts.filter(x => x.hour > hi.hour);
+    const lowAfter = after.length ? after.reduce((a, b) => (b.t < a.t ? b : a), after[0]) : null;
+    const nowT = pts[0].t;
+    // Only worth a layer when the cool end really is cool (below about 17°C).
+    if (lowAfter && hi.t - lowAfter.t >= 8 && lowAfter.t < 17) {
+      const when = lowAfter.hour >= 24 ? 'by morning' : lowAfter.hour % 24 >= 18 ? 'tonight' : 'later';
+      add({ key: 'swing', prio: 60, text: `Drops sharply ${when} — bring a layer for later.`, pill: eveningPill(Math.round(lowAfter.t), unit), card: 'Layer up for later.' });
+    } else if (hi.hour > p.nowHour && hi.t - nowT >= 8 && nowT < 17) {
+      add({ key: 'swing', prio: 60, text: `Warms up a lot by ${hi.hour >= 24 ? 'tomorrow ' : ''}${hi.hour % 24 < 12 ? 'late morning' : 'the afternoon'} — wear layers you can take off later.`, pill: pill({ kind: 'std', icon: 'trending_up', value: formatTemperature(Math.round(hi.t), unit) }), card: 'Cool start, warm later — wear layers.' });
+    }
+  }
+  const aqi = p.europeanAqi;
+  if (aqi != null && aqi >= 40) {
+    const tier = aqi >= 100 ? 'extremelyPoor' : aqi >= 80 ? 'veryPoor' : aqi >= 60 ? 'poor' : 'moderate';
+    const text = {
+      moderate: "Air's moderate — fine for a walk; ease off hard workouts outside.",
+      poor: 'Air quality is poor — move intense workouts indoors.',
+      veryPoor: 'Air quality is very poor — skip strenuous exercise outside.',
+      extremelyPoor: 'Air quality is extremely poor — keep time outdoors short.',
+    }[tier];
+    add({ key: 'aqi', prio: aqi >= 60 ? 55 : 20, text, pill: pill({ kind: 'exp', icon: 'masks', value: `AQI ${Math.round(aqi)}`, key: 'aqi', label: `Air quality ${Math.round(aqi)}, details` }), card: aqi >= 100 ? 'Very poor air — keep outdoor time short.' : aqi >= 60 ? 'Poor air — go easy outdoors.' : 'Air is so-so — go easy on hard runs.' });
+  }
+  // Tiers use the rounded value, the same number the pill shows.
+  const uvRaw = A.uvMax?.value ?? (p.uvIndex ?? null);
+  const uv = uvRaw == null ? null : Math.round(uvRaw);
+  if (uv != null && uv >= 6) {
+    const tomorrow = (A.uvMax?.hour ?? 0) >= 24;
+    const text = uv >= 8
+      ? `Sunscreen and a hat ${tomorrow ? 'tomorrow' : 'today'} — skin burns fast at midday.`
+      : `Some shade around midday helps ${tomorrow ? 'tomorrow' : 'today'}.`;
+    add({ key: 'uv', prio: uv >= 8 ? 50 : 25, text, pill: pill({ kind: 'exp', icon: 'sunny', value: `UV ${Math.round(uv)}`, key: 'uv', label: `UV index ${Math.round(uv)}, details` }), card: uv >= 8 ? 'Sunscreen and a hat today.' : 'UV is up — some shade at midday helps.' });
+  }
+  const pol = pollenTop(p);
+  if (pol) {
+    const name = pollenLabel(pol.species);
+    const text = pol.tier === 'moderate' ? `${name} pollen is creeping up — could irritate allergies.` : `${name} pollen is ${pol.tier === 'veryHigh' ? 'very high' : 'high'} — take your antihistamine before heading out.`;
+    add({ key: 'pollen', prio: pol.tier === 'moderate' ? 15 : 50, text, pill: pill({ kind: 'exp', icon: 'local_florist', value: `${name} ${pol.tier === 'veryHigh' ? 'very high' : pol.tier}`, key: 'pollen', label: `${name} pollen ${pol.tier}, details` }), card: 'Pollen is up — take your antihistamine.' });
+  }
+  // Low-priority fillers: they only take an empty action line.
+  const air = p.nowTemp ?? p.tMax;
+  if (p.feels != null && air != null && Math.abs(p.feels - air) >= 4 && !skip.has('feels')) {
+    add({ key: 'feels', prio: 10, text: p.feels < air ? 'Feels colder than it reads — dress for the feel.' : 'Feels warmer than it reads — dress light.', pill: feelsPill(p), card: p.feels < air ? 'Dress for the chill.' : 'Dress light.' });
+  }
+  return notes.sort((a, b) => b.prio - a.prio);
+}
+
+// ---- Temperature lead (no event, no alert) ----
+// "much colder", "a touch cooler"...: one wording for the headline and the card.
+function changeWord(p) {
+  const { diff } = p;
+  const cold = coldWordingAccurate(p.tMax);
+  return diff >= 6 ? 'much warmer' : diff >= 3 ? 'warmer' : diff >= 2 ? 'a bit warmer'
+    : diff <= -6 ? (cold ? 'much colder' : 'much cooler')
+    : diff <= -3 ? (cold ? 'colder' : 'cooler')
+    : (cold ? 'a bit colder' : 'a touch cooler');
+}
+function temperatureLines(p, used) {
+  const { diff, feels, tMax, wind } = p;
+  const unit = p.temperatureUnit;
+  const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
+  // Overnight the "next window" is this morning, which can be warmer than
+  // now: only call it a drop when it is actually lower than the air now.
+  const eDrop = eTemp == null ? 0 : p.band === 'NIGHT' && eTemp >= (p.nowTemp ?? tMax) - 2 ? 0 : tMax - eTemp;
+  const abs = Math.abs(diff);
+  const dChip = diff === 0 ? '' : deltaPill(diff, unit);
+  let html;
+  if (abs >= 2) {
+    html = `<span class="g">It's </span><span class="w">${changeWord(p)}</span><span class="g"> than yesterday</span>${dChip}`;
+  } else {
+    html = `<span class="w">${diff === 0 ? 'Same' : 'Similar'}</span><span class="g"> ${diff === 0 ? 'as' : 'to'} yesterday</span>${dChip}`;
+  }
+  if (eDrop >= 5 && eTemp != null) {
+    used.add('swing');
+    // Same direction as a colder headline: "and", not "but".
+    html += `<br><span class="g">${diff < 0 ? 'and' : 'but'} </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'in the evening'}</span>${eveningPill(eTemp, unit)}`;
+  } else if (wind >= 25 || (p.gust ?? 0) >= 39) {
+    used.add('wind');
+    const g = Math.round(Math.max(p.gust ?? 0, wind));
+    html += `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windPill(g, `Wind up to ${g}km/h, details`)}`;
+  } else if (feels != null && feels <= (p.nowTemp ?? tMax) - 4) {
+    used.add('feels');
+    html += diff < 0
+      ? `<br><span class="g">and the </span><span class="w">wind chill</span><span class="g"> bites</span>${feelsPill(p)}`
+      : `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${feelsPill(p)}`;
+  } else if (feels != null && !((p.ahead?.feelsMax?.value ?? -99) >= 32 || (p.ahead?.feelsMin?.value ?? 99) <= -5)) {
+    // (a heat or cold note says this more usefully in the action line)
+    html += `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
+  }
+  return html;
+}
+
+function neutralCard(p) {
+  const feels = Number.isFinite(p.feels) ? p.feels : p.nowTemp;
+  if (feels <= 0) return 'Hat and gloves weather.';
+  if (feels <= 8) return 'Pack your jacket.';
+  if (feels <= 15) return 'Bring a light jacket.';
+  if (feels >= 22) return 'T-shirt weather.';
+  return 'Nothing special needed.';
+}
+
+// Card for a temperature-led day: it repeats the headline's comparison when
+// that is the news, and adds the most pressing heads-up if there is one.
+function temperatureCard(p, notes) {
+  const top = notes[0];
+  // Same word as the headline: "colder" only where cold wording is accurate.
+  const base = Math.abs(p.diff) >= 2 ? `${changeWord(p).replace(/^\w/, c => c.toUpperCase())} than yesterday` : null;
+  if (base && top && top.prio >= 60) {
+    const [head, tail] = top.card.split(' — ');
+    return tail ? `${base}, ${head.toLowerCase()} — ${tail}` : `${base} — ${top.card.toLowerCase()}`;
+  }
+  // "Dress lighter" only when it is actually mild; a warmer but still cold
+  // day keeps the clothing line it would get anyway.
+  // The clothing half follows the actual feel: "layer up" only when it is
+  // cool, "dress lighter" only when it is mild, otherwise the usual line.
+  if (base) {
+    const feel = p.feels ?? p.nowTemp;
+    const tail = p.diff < 0 && feel < 15 ? 'layer up.' : p.diff > 0 && feel >= 18 ? 'dress lighter.' : neutralCard(p).replace(/^(?!T-shirt)\w/, c => c.toLowerCase());
+    return `${base} — ${tail}`;
+  }
+  if (top) return top.card;
+  return neutralCard(p);
+}
+
+// The one decision both screens use.
+export function decideDay(p) {
+  const unit = p.temperatureUnit;
+  const alert = alertForConditions(p);
+  const ev = findRainTiming(p);
+  const used = new Set();
+  const lines = [];
+  let action = '', card = '', lead = 'temperature';
+
+  if (alert) {
+    lead = alert.kind;
+    used.add(alert.kind === 'ice' || alert.kind === 'storm' ? 'precip' : alert.kind);
+    if (alert.kind === 'freeze') used.add('cold');
+    if (alert.kind === 'storm') used.add('storm');
+    lines.push(`<span class="w">${alert.headline}</span>${pill({ kind: 'warn', icon: alert.icon, value: alert.value, key: `warn:${alert.kind}`, label: `${alert.headline}, details` })}`);
+    action = alert.action;
+    card = alert.card;
+    if (alert.kind === 'ice' && ev) {
+      const { noun, when } = precipHeadline(ev);
+      lines.push(`<span class="g">${noun} </span><span class="w">${when}</span>${precipPill(ev)}`);
+    }
+    const against = (alert.kind === 'freeze' && p.diff > 0) || (alert.kind === 'heat' && p.diff < 0);
+    if (Math.abs(p.diff) >= 3) lines.push(`<span class="g">${against ? 'but' : 'and'} </span><span class="w">${p.diff > 0 ? 'warmer' : coldWordingAccurate(p.tMax) ? 'colder' : 'cooler'}</span><span class="g"> than yesterday</span>${deltaPill(p.diff, unit)}`);
+  } else if (ev) {
+    lead = 'precip';
+    used.add('precip');
+    const { noun, when } = precipHeadline(ev);
+    let l1 = `<span class="g">${noun} </span><span class="w">${when}</span>${precipPill(ev)}`;
+    if (Math.abs(p.diff) >= 3) l1 += ` <span class="g">and ${p.diff > 0 ? 'warmer' : coldWordingAccurate(p.tMax) ? 'colder' : 'cooler'} than yesterday</span>${deltaPill(p.diff, unit)}`;
+    lines.push(l1);
+    action = precipAction(ev);
+    card = precipCard(ev);
+  } else if (!Array.isArray(p.rainSeries) && (p.maxRain ?? 0) > 40) {
+    // No hourly series (old cache): state the chance without inventing an hour.
+    lead = 'precip';
+    used.add('precip');
+    lines.push(`<span class="g">Rain </span><span class="w">${p.maxRain > 85 ? 'coming' : p.maxRain > 70 ? 'likely' : 'possible'}</span>${pill({ kind: 'std', icon: 'water_drop', value: `${Math.round(p.maxRain)}%` })}`);
+    action = p.maxRain >= 60 ? 'Bring an umbrella.' : 'An umbrella might be worth it.';
+    card = 'Keep an umbrella close.';
+  } else {
+    lines.push(temperatureLines(p, used));
+  }
+
+  const notes = headsUp(p, { covers: [...used], text: lines.join(' ').replace(/<[^>]+>/g, ' ') });
+  // The action line holds at most two sentences: the lead's own action and
+  // the most pressing note, or (temperature lead) the two most pressing
+  // notes. Every other must-mention note still shows as a pill.
+  const said = [], extra = [];
+  const room = action ? 1 : 2;
+  for (const n of notes) {
+    if (said.length < room && (n.prio >= 50 || (!action && !said.length))) { said.push(n); continue; }
+    if (n.prio >= 50) extra.push(n);
+  }
+  // The lead's action is the big line; any further sentence is set smaller.
+  const texts = [action, ...said.map(n => n.text)].filter(Boolean);
+  const actionHTML = texts[0] || '';
+  const moreHTML = texts.slice(1).join(' ');
+  if (!card) card = temperatureCard(p, notes);
+  // A pill that would repeat one already in the headline (same icon and value) is dropped.
+  const shown = new Set([...lines.join('').matchAll(/<span class="pi"[^>]*>([^<]*)<\/span><span class="pv">([^<]*)</g)].map(m => m[1] + m[2]));
+  const pills = [...said, ...extra].map(n => n.pill).filter(Boolean).filter(h => {
+    const m = /<span class="pi"[^>]*>([^<]*)<\/span><span class="pv">([^<]*)</.exec(h);
+    return !m || !shown.has(m[1] + m[2]);
+  }).join('');
+  return { lead, lines, action: actionHTML, more: moreHTML, pills, card, notes };
+}
+
+export function buildProse(p) {
+  const d = decideDay(p);
+  const actionPart = d.action || d.pills
+    ? `<br><span class="action">${d.action}</span>${d.more ? `<span class="action-more">${d.more}</span>` : ''}${d.pills ? `<span class="pill-row">${d.pills}</span>` : ''}`
+    : '';
+  return { html: d.lines.join('<br>') + actionPart, action: [d.action, d.more].filter(Boolean).join(' '), selected: null, card: d.card };
+}
+
+export const cardSentence = p => decideDay(p).card;
+
 // ---- Pill detail cards (shown by index.html when an expandable pill opens) ----
 // Each card answers one question the pill raises, without repeating the
-// headline sentence: exact numbers, what the number means, one action.
+// headline sentence: exact numbers, what the number means, one picture.
 const row = (label, value) => `<div class="pd-row"><span>${label}</span><span>${value}</span></div>`;
 // Two-point comparison: hollow dot = reference (yesterday / air temp), filled = now / feels.
-// Positions are proportional inside the pair's own range; equal values sit centered.
 const compareViz = (ref, cur, tone) => {
   const lo = Math.min(ref, cur), hi = Math.max(ref, cur);
   const pos = v => (hi === lo ? 50 : 8 + (84 * (v - lo)) / (hi - lo));
   return `<div class="pd-viz pd-${tone}" aria-hidden="true"><i class="pd-seg" style="left:${Math.min(pos(ref), pos(cur))}%;width:${Math.abs(pos(cur) - pos(ref))}%"></i><i class="pd-dot ref" style="left:${pos(ref)}%"></i><i class="pd-dot cur" style="left:${pos(cur)}%"></i></div>`;
 };
+// Low-to-high scale for numbers people can't read on their own (UV, air
+// quality, pollen, wind, snow). Segments are equal width, one per band; the
+// dot sits inside its band in proportion.
+const scaleViz = (bands, value, name) => {
+  const i = Math.max(0, bands.findIndex(b => value < b.to));
+  const lo = i === 0 ? 0 : bands[i - 1].to;
+  const hi = Number.isFinite(bands[i].to) ? bands[i].to : lo * 1.5 || lo + 1;
+  const pos = ((i + Math.min(1, Math.max(0, (value - lo) / (hi - lo)))) / bands.length) * 100;
+  const segs = bands.map((b, k) => `<i class="pd-scale-seg${k === i ? ' on' : ''}"></i>`).join('');
+  return `<div class="pd-scale" role="img" aria-label="${name}: ${bands[i].label}, on a scale from ${bands[0].label} to ${bands.at(-1).label}"><div class="pd-scale-bar">${segs}<i class="pd-scale-dot" style="left:${pos.toFixed(1)}%"></i></div><div class="pd-scale-lbl"><span>${bands[0].label}</span><span>${bands.at(-1).label}</span></div></div>`;
+};
 // tone: 'up' (coral) | 'down' (blue) | 'flat' (text color). No sentences: title, numbers, picture.
 const card = ({ title, rows, viz = '', why = '', tone = 'flat', warn = false }) =>
   `<p class="pd-title pd-t-${tone}${warn ? ' pd-title-warn' : ''}">${title}</p><div class="pd-rows${warn ? ' pd-rows-b' : ''}">${rows}</div>${viz}${why ? `<p class="pd-desc">${why}</p>` : ''}`;
 
+const atHour = h => (h == null ? '—' : formatHourLabel(h));
 const WARN_DETAIL = {
-  heat: p => ({ title: 'Extreme heat · limit time outdoors', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Heat this strong strains the body, even when you are resting.' }),
-  freeze: p => ({ title: 'Hard freeze · cover up', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Wind makes it feel much colder, and bare skin cools down fast.' }),
-  wind: p => { const g = p.gust != null ? p.gust : p.wind; return { title: 'Strong wind · stay in if you can', rows: row('Gusts', `${Math.round(g)}km/h`) + row('Average wind', `${Math.round(p.wind)}km/h`), why: 'Wind this strong can bring down branches and make walking hard.' }; },
-  ice: p => ({ title: 'Ice · watch your step', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Wet roads and shaded spots can freeze, even a few degrees above 0°C.' }),
-  storm: p => ({ title: 'Thunderstorm · move indoors', rows: Number.isFinite(p.maxRain) && p.maxRain > 0 ? row('Rain chance', `${Math.round(p.maxRain)}%`) : row('Forecast', 'Thunderstorm possible'), why: 'Lightning and sudden gusts can come with it.' }),
+  heat: p => ({ title: 'Extreme heat · limit time outdoors', rows: row('Feels like, at its peak', formatTemperature(p.ahead?.feelsMax?.value ?? p.feels, p.temperatureUnit)) + row('Peak', atHour(p.ahead?.feelsMax?.hour)), why: 'Heat this strong strains the body, even when you are resting.' }),
+  freeze: p => ({ title: 'Hard freeze · cover up', rows: row('Feels like, at its lowest', formatTemperature(p.ahead?.feelsMin?.value ?? p.feels, p.temperatureUnit)) + row('Air temperature now', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), why: 'Wind makes it feel much colder, and bare skin cools down fast.' }),
+  wind: p => { const g = p.ahead?.gustMax?.value ?? (p.gust != null ? p.gust : p.wind); return { title: 'Strong wind · stay in if you can', rows: row('Gusts, at their strongest', `${Math.round(g)}km/h`) + row('Average wind now', `${Math.round(p.wind)}km/h`), viz: scaleViz(WIND_BANDS, g, 'Wind'), why: 'Wind this strong can bring down branches and make walking hard.' }; },
+  ice: p => { const ev = findRainTiming(p); return { title: 'Ice · watch your step', rows: row('Air temperature, lowest', formatTemperature(p.ahead?.tLow ?? p.nowTemp, p.temperatureUnit)) + row('Precipitation', ev ? `${ev.type === 'freezing' ? 'Freezing rain' : ev.type === 'sleet' ? 'Sleet' : 'Rain'} · ${Math.round(ev.peak)}%` : 'Wet surfaces'), why: 'Wet roads and shaded spots can freeze, even a few degrees above 0°C.' }; },
+  storm: p => ({ title: 'Thunderstorm · move indoors', rows: row('From', atHour(p.ahead?.thunder?.hour)) + (p.ahead?.thunder ? row('Rain chance', `${p.ahead.thunder.chance}%`) : ''), why: 'Lightning and sudden gusts can come with it.' }),
 };
 
 // Returns { html, warn } for a pill key, or null when there is nothing to show.
@@ -785,6 +728,16 @@ export function pillDetailHTML(key, p) {
     const rows = row('Air temperature', formatTemperature(air, unit)) + (Number.isFinite(p.wind) ? row('Wind', `${Math.round(p.wind)}km/h`) : '') + (Number.isFinite(p.humidity) ? row('Humidity', `${Math.round(p.humidity)}%`) : '');
     return { html: card({ title: `${formatTemperature(p.feels, unit)} · ${word}`, rows, viz: compareViz(air, p.feels, tone), tone }), warn: false };
   }
+  if (key === 'feelsHigh' || key === 'feelsLow') {
+    const hi = key === 'feelsHigh';
+    const pt = hi ? p.ahead?.feelsMax : p.ahead?.feelsMin;
+    if (!pt) return null;
+    const at = seriesOf(p).find(x => x.hour === pt.hour);
+    const air = at && Number.isFinite(at.t) ? Math.round(at.t) : null;
+    const tone = hi ? 'up' : 'down';
+    const rows = row(hi ? 'Hottest around' : 'Coldest around', atHour(pt.hour)) + (air != null ? row('Air temperature then', formatTemperature(air, unit)) : '');
+    return { html: card({ title: `${formatTemperature(pt.value, unit)} · ${hi ? 'Feels hot' : 'Feels bitter'}`, rows, viz: air != null ? compareViz(air, pt.value, tone) : '', tone }), warn: false };
+  }
   if (key === 'change') {
     const d = p.diff;
     const word = d > 0 ? 'warmer' : 'cooler';
@@ -793,98 +746,35 @@ export function pillDetailHTML(key, p) {
     const rows = row('Now', formatTemperature(p.nowTemp, unit)) + (hasY ? row('Yesterday, same hour', formatTemperature(p.yesterdayNowTemp, unit)) : '');
     return { html: card({ title: d === 0 ? 'Same as yesterday' : `${formatDelta(Math.abs(d), unit)} ${word} than yesterday`, rows, viz: hasY ? compareViz(p.yesterdayNowTemp, p.nowTemp, tone) : '', tone }), warn: false };
   }
+  if (key === 'uv') {
+    const uv = p.ahead?.uvMax?.value ?? p.uvIndex;
+    if (uv == null) return null;
+    return { html: card({ title: `UV ${Math.round(uv)} · ${bandLabel(UV_BANDS, uv)}`, rows: row('Strongest around', atHour(p.ahead?.uvMax?.hour)) + row('Now', p.uvIndex != null ? String(Math.round(p.uvIndex)) : '—'), viz: scaleViz(UV_BANDS, uv, 'UV index') }), warn: false };
+  }
+  if (key === 'aqi') {
+    const a = p.europeanAqi;
+    if (a == null) return null;
+    return { html: card({ title: `Air quality ${Math.round(a)} · ${bandLabel(AQI_BANDS, a)}`, rows: row('Index', 'European AQI'), viz: scaleViz(AQI_BANDS, a, 'Air quality') }), warn: false };
+  }
+  if (key === 'pollen') {
+    const pol = pollenTop(p);
+    if (!pol) return null;
+    const bands = [{ to: POLLEN_SPECIES_BANDS[pol.species][0].min, label: 'Low' }, ...POLLEN_SPECIES_BANDS[pol.species].map(b => ({ to: b.max, label: b.tier === 'veryHigh' ? 'Very high' : b.tier[0].toUpperCase() + b.tier.slice(1) }))];
+    return { html: card({ title: `${pollenLabel(pol.species)} pollen · ${bandLabel(bands, pol.value)}`, rows: row('Grains per m³', String(Math.round(pol.value))), viz: scaleViz(bands, pol.value, `${pollenLabel(pol.species)} pollen`) }), warn: false };
+  }
+  if (key === 'wind') {
+    const g = p.ahead?.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : p.wind);
+    return { html: card({ title: `Gusts ${g}km/h · ${bandLabel(WIND_BANDS, g)}`, rows: row('Strongest around', atHour(p.ahead?.gustMax?.hour)) + row('Average wind now', `${Math.round(p.wind)}km/h`), viz: scaleViz(WIND_BANDS, g, 'Wind') }), warn: false };
+  }
+  if (key === 'snow') {
+    const ev = findRainTiming(p);
+    if (!ev) return null;
+    const cm = ev.snowCm;
+    const span = ev.phase === 'starting' ? `From ${formatHourLabel(ev.startHour)}` : ev.phase === 'clearing' ? `Until ${formatHourLabel(ev.endHour)}` : 'For hours';
+    return { html: card({ title: `${cm >= SNOW_SETTLES_CM ? `About ${Math.max(1, Math.round(cm))}cm` : 'Less than 1cm'} · ${bandLabel(SNOW_BANDS, cm)}`, rows: row('When', span) + row('Chance', `${Math.round(ev.peak)}%`), viz: scaleViz(SNOW_BANDS, cm, 'Snow') }), warn: false };
+  }
+  if (key === 'storm') return { html: card(WARN_DETAIL.storm(p)), warn: false };
   return null;
-}
-
-/**
- * p: { diff, tCode, feels, slots, tMax, maxRain, wind, uvIndex, humidity, ... }
- * Returns the headline HTML. Trend line is delta-based; evening line is
- * absolute-temperature-based; the advice/action line runs the score
- * pipeline above and never reads temperature into its output.
- */
-export function buildProse(p) {
-  const alert = alertForConditions(p);
-  if (alert) {
-    const unit = p.temperatureUnit;
-    const pv = alert.kind === 'wind' ? `${alert.value}km/h`
-      : alert.kind === 'storm' ? (Number.isFinite(p.maxRain) && p.maxRain > 0 ? `${Math.round(p.maxRain)}%` : 'Storm')
-      : formatTemperature(p.feels, unit);
-    const wp = pill({ kind: 'warn', icon: alert.icon, value: pv, key: `warn:${alert.kind}`, label: `${alert.headline}, details` });
-    return {
-      html: `<span class="w">${alert.headline}</span>${wp}<br><span class="action">${alert.action}</span>`,
-      action: alert.action,
-      selected: null,
-    };
-  }
-
-  const { diff, tCode, feels, tMax, maxRain, wind } = p;
-  // eWhen is null in MORNING/DAY (today's own evening slot, existing
-  // wording below already says "in the evening"/"tonight"); in
-  // EVENING/NIGHT it's "tomorrow morning" — today's evening is no longer
-  // upcoming by then, so eTemp itself also switches source (nextWindowTemp).
-  const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
-  const eDrop = eTemp != null ? tMax - eTemp : 0;
-  const abs = Math.abs(diff);
-  const dChip = deltaPill(diff, p.temperatureUnit);
-  const eChip = eDrop >= 5 && eTemp != null ? eveningPill(eTemp, p.temperatureUnit) : '';
-
-  const { text: action, selected: adviceSelected } = computeAdvice(p);
-
-  let prose = '';
-  const rainMode = rainHeadlineMode(p);
-  if (rainMode) {
-    const timing = findRainTiming(p);
-    if (timing) {
-      const noun = timing.level === 'drizzle' ? 'Drizzle' : timing.level === 'heavy' ? 'Heavy rain' : 'Rain';
-      const when = timing.phase === 'starting' ? `from ${timing.label}` : timing.phase === 'clearing' ? `until ${timing.label}` : 'for hours';
-      // The pill is a button: tapping it opens the hourly rain chart (index.html).
-      const rp = pill({ kind: 'exp', icon: 'water_drop', value: `${Math.round(timing.peak)}%`, key: 'rain', label: 'Rain chance, hourly chart' });
-      prose = `<span class="g">${noun} </span><span class="w">${when}</span>${rp}`;
-    } else {
-      prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;
-    }
-    if (abs >= 3) prose += ` <span class="g">and ${diff > 0 ? 'warmer' : 'cooler'} than yesterday</span>${dChip}`;
-  } else if (abs >= 2) {
-    // The cold-side words here used to come from `diff` alone, with no gate
-    // on the actual temperature — so a 36° day that's 2° cooler than
-    // yesterday got called "a bit chilly" (Cairo). The evening phrase below
-    // was already gated by absolute temp via bandForTemp(); this line
-    // wasn't. "chilly/colder" only describe genuinely cool conditions now —
-    // above that, the same-size drop is "cooler," a comparison to
-    // yesterday, not a claim about how the day itself feels. Reads
-    // coldWordingAccurate() (same bandForTemp() table as everywhere else)
-    // rather than its own threshold.
-    const cold = coldWordingAccurate(tMax);
-    const cw = diff >= 6 ? 'much warmer' : diff >= 3 ? 'warmer' : diff >= 2 ? 'a bit warmer'
-      : diff <= -6 ? (cold ? 'much colder' : 'much cooler')
-      : diff <= -3 ? (cold ? 'colder' : 'cooler')
-      : (cold ? 'a bit chilly' : 'a touch cooler');
-    prose = `<span class="g">It's </span><span class="w">${cw}</span><span class="g"> than yesterday</span>${dChip}`;
-    if (eChip) {
-      const phrase = bandForTemp(eTemp).eveningPhrase;
-      prose += `<br><span class="g">but </span><span class="w">${phrase}</span><span class="g"> ${eWhen || 'in the evening'}</span>${eChip}`;
-    }
-  } else {
-    const sameLabel = diff === 0 ? 'Same' : 'Similar';
-    const samePrep = diff === 0 ? 'as' : 'to';
-    prose = `<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
-    const windProof = wind >= 25 ? windPill(wind) : '';
-    const eveProof = eDrop >= 5 && eTemp != null ? eveningPill(eTemp, p.temperatureUnit) : '';
-    const secondary = wind >= 25
-      ? `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
-      : eDrop >= 5 && eTemp != null
-      ? `<br><span class="g">but </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'tonight'}</span>${eveProof}`
-      : feels <= tMax - 4
-      ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${feelsPill(p)}`
-      : `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
-    prose += secondary;
-  }
-
-  return {
-    html: action ? `${prose}<br><span class="action">${action}</span>` : prose,
-    action,
-    selected: adviceSelected,
-  };
 }
 
 // The LOW model-consensus caption (rendered in index.html's #uaddon

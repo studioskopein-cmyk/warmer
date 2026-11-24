@@ -22,6 +22,28 @@ export function isRainyHour(pt) {
   return Number.isFinite(pt?.rain) && pt.rain >= RAIN_RULES.PROB_MIN && rainLevel(pt.mm) !== 'dry';
 }
 
+// What is falling in an hour. Open-Meteo gives snowfall in cm alongside the
+// total precipitation in mm (water); 7 cm of snow is about 10 mm of water.
+// Freezing rain comes only from the weather code (66/67).
+export function precipType(pt) {
+  if (pt?.code === 66 || pt?.code === 67) return 'freezing';
+  const mm = pt?.mm, cm = pt?.cm;
+  if (Number.isFinite(mm) && mm > 0 && Number.isFinite(cm)) {
+    const frac = Math.min(1, (cm * 10 / 7) / mm);
+    if (frac >= 0.6) return 'snow';
+    if (frac >= 0.25) return 'sleet';
+  }
+  if (Number.isFinite(pt?.code) && ((pt.code >= 71 && pt.code <= 77) || pt.code === 85 || pt.code === 86) && !(pt.t > 2)) return 'snow';
+  return 'rain';
+}
+
+// Snow strength from cm per hour: under 0.5 a light fall, 2 or more heavy.
+export function snowLevel(cm) {
+  if (!Number.isFinite(cm) || cm < 0.5) return 'drizzle';
+  return cm < 2 ? 'rain' : 'heavy';
+}
+const hourLevel = pt => (precipType(pt) === 'snow' ? snowLevel(pt.cm) : rainLevel(pt.mm));
+
 export const hasRainyHour = series => Array.isArray(series) && series.some(isRainyHour);
 
 /**
@@ -43,7 +65,19 @@ export function findRainEvent(series, nowHour) {
   const run = upcoming.slice(first, last + 1);
   const level = run.reduce((best, pt) => (RANK[rainLevel(pt.mm)] > RANK[best] ? rainLevel(pt.mm) : best), 'drizzle');
   const clears = last + 1 < upcoming.length;
+  // Wording describes the first three hours of the event; a heavier spell
+  // later is reported separately with its own time (heavyLater).
+  const strongest = pts => pts.reduce((best, pt) => (RANK[hourLevel(pt)] > RANK[best] ? hourLevel(pt) : best), 'drizzle');
+  const nearLevel = strongest(run.slice(0, 3));
+  const laterHeavy = nearLevel !== 'heavy' ? run.slice(3).find(pt => hourLevel(pt) === 'heavy') : null;
+  const types = run.map(precipType);
+  const count = t => types.filter(x => x === t).length;
+  const type = count('freezing') ? 'freezing' : count('snow') * 2 >= run.length ? 'snow' : (count('snow') + count('sleet')) * 2 >= run.length ? 'sleet' : 'rain';
+  const snowCm = Math.round(run.reduce((sum, pt) => sum + (Number.isFinite(pt.cm) ? pt.cm : 0), 0) * 10) / 10;
   return {
+    type, nearLevel, heavyLaterHour: laterHeavy ? laterHeavy.hour : null, snowCm,
+    snowHours: count('snow'),
+    hours: run.length,
     phase: first > 0 ? 'starting' : clears ? 'clearing' : 'ongoing',
     startHour: upcoming[first].hour,
     endHour: clears ? upcoming[last + 1].hour : null,
