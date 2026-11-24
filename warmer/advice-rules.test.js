@@ -205,3 +205,22 @@ test('buildAddendum: the LOW caption needs an action line', () => {
   assert.equal(buildAddendum({ consensus: 'LOW', maxSpread: 5, temperatureUnit: 'C' }, false), '');
   assert.match(buildAddendum({ consensus: 'LOW', maxSpread: 5, temperatureUnit: 'C' }, true), /forecasts disagree/);
 });
+
+test('snow with wind: no umbrella advice, pills say what their number is', () => {
+  const p = baseP({ tMax: 0, nowTemp: 0, feels: -6, nowHour: 15,
+    rainSeries: series(18, (h) => ({ rain: 95, mm: 1, cm: 0.8, t: 0, feels: -7, gust: 52 })),
+    ahead: { snowCm: 8, gustMax: { value: 52, hour: 20 }, feelsMin: { value: -7, hour: 22 } } });
+  const html = buildProse(p).html;
+  assert.ok(!/umbrella/i.test(html), html);
+  const values = [...html.matchAll(/<span class="pv">([^<]*)</g)].map(m => m[1]);
+  for (const v of values) assert.match(v, /[A-Za-z%]/, `pill "${v}" has no word saying what it is`);
+});
+
+test('snow detail card says when it settles, not the headline span again', () => {
+  const p = baseP({ tMax: -1, nowHour: 10,
+    rainSeries: series(10, (h) => ({ rain: 95, mm: 0.5, cm: h >= 13 ? 0.6 : 0.1, t: -2 })), ahead: { snowCm: 0 } });
+  const d = pillDetailHTML('snow', p).html;
+  assert.match(d, /Settles on the ground/);
+  assert.match(d, /1pm|2pm/);
+  assert.ok(!/>When</.test(d), d);
+});

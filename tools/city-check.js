@@ -164,7 +164,7 @@ export function judge(raw, out) {
 
   // C5 — a warning pill's number proves the warning.
   for (const p of P.pills.filter(p => p.warn)) {
-    const n = parseFloat(p.value);
+    const n = parseFloat(String(p.value).replace(/^[A-Za-z ]+/, ""));
     const kind = p.key.replace('warn:', '');
     const ok = kind === 'freeze' ? n <= -10 : kind === 'heat' ? n >= 36 : kind === 'wind' ? n >= 60
       : kind === 'ice' ? (n <= 3 && /°/.test(p.value)) : kind === 'storm' ? !/%$/.test(p.value) : true;

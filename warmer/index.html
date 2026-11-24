@@ -196,6 +196,8 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
 .pill-detail[hidden]{display:none}
 .pill-detail.warn{border-color:var(--warn-bd)}
 .pill-detail p{margin:0}
+/* Inside the prose (opened under its line): reset the big type it would inherit. */
+.prose .pill-detail,.prose .rain-panel{margin:14px 0 18px;font-size:16px;font-weight:400;font-style:normal;letter-spacing:normal;line-height:1.4;font-family:'Aspekta','DM Sans',sans-serif}
 .pd-title{font-size:14px;line-height:22px;font-weight:600}
 .pd-title-warn{font-size:15px;line-height:24px}
 .pd-t-up{color:var(--coral-t)}.pd-t-down{color:var(--blue-t)}.pd-t-flat{color:var(--text)}
@@ -549,9 +551,31 @@ function renderFlow(p){
 // ---- Rain panel ----
 let rainOpen=false;
 const RAIN_WORDS={dry:'Dry',drizzle:'A few drops',rain:'Rain',heavy:'Heavy rain'};
-function setRainOpen(open){
+// Pill details open right under the line that holds the pill, so reading
+// never jumps to the bottom of the text and back. Before the prose is
+// redrawn the panels go back home (innerHTML would destroy them).
+function parkPanels(){
+  const prose=document.getElementById('prose'),ua=document.getElementById('uaddon');
+  const pd=document.getElementById('pillDetail'),rp=document.getElementById('rainPanel');
+  if(pd&&prose.contains(pd))ua.before(pd);
+  if(rp&&prose.contains(rp))ua.after(rp);
+}
+function placeUnderLine(panel,btn){
+  const prose=document.getElementById('prose');
+  if(!panel||!btn||!prose.contains(btn))return;
+  const block=btn.closest('.pill-row,.action-more');
+  if(block){block.after(panel);return}
+  for(let n=btn.nextSibling;n;n=n.nextSibling){
+    if(n.nodeName==='BR'){n.after(panel);return}
+    if(n.nodeType===1&&n.matches('.action,.action-more,.pill-row')){n.before(panel);return}
+  }
+  prose.appendChild(panel);
+}
+function setRainOpen(open,btn){
   rainOpen=open;
-  document.getElementById('rainPanel').hidden=!open;
+  const rp=document.getElementById('rainPanel');
+  if(open)placeUnderLine(rp,btn||document.querySelector('#prose .pill-x[data-pill="rain"]'));else parkPanels();
+  rp.hidden=!open;
   syncPills();
   if(open){closePillDetail();scrollRainToEvent()}
 }
@@ -566,14 +590,16 @@ function syncPills(){
 function closePillDetail(){
   openPillKey=null;
   const el=document.getElementById('pillDetail');if(el){el.hidden=true;el.innerHTML='';el.classList.remove('warn')}
+  parkPanels();
   syncPills();
 }
-function togglePill(key){
-  if(key==='rain'){if(openPillKey)closePillDetail();setRainOpen(!rainOpen);return}
+function togglePill(key,btn){
+  if(key==='rain'){if(openPillKey)closePillDetail();setRainOpen(!rainOpen,btn);return}
   if(openPillKey===key){closePillDetail();return}
   const d=latestWeather&&pillDetailHTML(key,latestWeather);if(!d)return;
   if(rainOpen)setRainOpen(false);
   const el=document.getElementById('pillDetail');
+  parkPanels();placeUnderLine(el,btn||document.querySelector(`#prose .pill-x[data-pill="${key}"]`));
   el.innerHTML=d.html;el.classList.toggle('warn',!!d.warn);el.hidden=false;
   openPillKey=key;syncPills();
 }
@@ -668,7 +694,7 @@ function wireFlowTouch(){wireChart('flowSvg',drawFlowMarker,()=>flowCtx)}
 function renderAdviceLine(p){
   const{html:proseHTML,selected}=buildProse(p);
   const hasAction=proseHTML.includes('class="action"');
-  const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
+  parkPanels();const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
   closePillDetail();syncPills();
   const add=buildAddendum(p,hasAction);
   const uel=document.getElementById('uaddon');
@@ -905,12 +931,12 @@ async function showDay(id){
   document.getElementById('flowSvg').innerHTML='';document.getElementById('rainCols').innerHTML='';
   document.getElementById('bigTemp').textContent='—';
   document.getElementById('ydayBox').hidden=true;
-  document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  parkPanels();document.getElementById('prose').innerHTML='<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
   document.getElementById('locElText').textContent=city.name;
   try{
     const r=await loadWeather(city);
     if(r)await maybeRefreshBriefing(r.p,r.selected,{force:true});
-  }catch(e){console.error(e);if(currentLoc===city)document.getElementById('prose').innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather. <button type="button" class="retry-btn" onclick="showDay(currentCityId)">Try again</button></span>`}
+  }catch(e){console.error(e);if(currentLoc===city)(parkPanels(),document.getElementById('prose')).innerHTML=`<span style="color:var(--muted);font-size:15px">Unable to load weather. <button type="button" class="retry-btn" onclick="showDay(currentCityId)">Try again</button></span>`}
 }
 window.showDay=showDay;
 Object.defineProperty(window,'currentCityId',{get:()=>currentCityId});
@@ -939,7 +965,7 @@ setInterval(autoRefreshCheck,60_000);
 
 // ---- Wiring ----
 function wireApp(){
-  document.getElementById('prose').addEventListener('click',e=>{const b=e.target.closest('.pill-x');if(b)togglePill(b.dataset.pill)});
+  document.getElementById('prose').addEventListener('click',e=>{const b=e.target.closest('.pill-x');if(b)togglePill(b.dataset.pill,b)});
   document.getElementById('rainCols').addEventListener('click',e=>{
     const c=e.target.closest('.rc');if(c)selectRainHour([...document.querySelectorAll('#rainCols .rc')].indexOf(c));
   });

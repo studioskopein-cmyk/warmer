@@ -54,6 +54,9 @@ export const hasRainyHour = series => Array.isArray(series) && series.some(isRai
  * level = strongest hour in the run; peak = highest chance in the run;
  * startProb = chance at the first rainy hour. Returns null when there is none.
  */
+// Snow total (cm) from which it lies on the ground. Shared with advice-rules.js.
+export const SNOW_SETTLES_CM = 0.8;
+
 export function findRainEvent(series, nowHour) {
   if (!Array.isArray(series) || nowHour == null) return null;
   const upcoming = series.filter(pt => pt.hour >= nowHour);
@@ -74,8 +77,11 @@ export function findRainEvent(series, nowHour) {
   const count = t => types.filter(x => x === t).length;
   const type = count('freezing') ? 'freezing' : count('snow') * 2 >= run.length ? 'snow' : (count('snow') + count('sleet')) * 2 >= run.length ? 'sleet' : 'rain';
   const snowCm = Math.round(run.reduce((sum, pt) => sum + (Number.isFinite(pt.cm) ? pt.cm : 0), 0) * 10) / 10;
+  // First hour by which the snow has added up to enough to lie on the ground.
+  let acc = 0, settleHour = null;
+  for (const pt of run) { acc += Number.isFinite(pt.cm) ? pt.cm : 0; if (acc >= SNOW_SETTLES_CM) { settleHour = pt.hour; break; } }
   return {
-    type, nearLevel, heavyLaterHour: laterHeavy ? laterHeavy.hour : null, snowCm,
+    type, nearLevel, heavyLaterHour: laterHeavy ? laterHeavy.hour : null, snowCm, settleHour,
     snowHours: count('snow'),
     hours: run.length,
     phase: first > 0 ? 'starting' : clears ? 'clearing' : 'ongoing',

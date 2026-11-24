@@ -1,4 +1,4 @@
-import { findRainEvent } from './rain-events.js';
+import { findRainEvent, SNOW_SETTLES_CM } from './rain-events.js';
 import { formatTemperature, formatDelta, formatHourLabel } from './weather-display.js';
 
 // ============================================================================
@@ -176,10 +176,10 @@ export function pill({ kind = 'std', icon, value, key = '', label = '' }) {
   return `<button type="button" class="${cls}" data-pill="${key}" aria-expanded="false"${aria}>${pillIcon(icon)}<span class="pv">${value}</span>${CHEV}</button>`;
 }
 const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: diff > 0 ? 'thermometer_gain' : diff < 0 ? 'thermometer_loss' : 'drag_handle', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
-const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: formatTemperature(temp, unit || 'C') });
-const windPill = (kmh, label) => pill({ kind: 'exp', icon: 'air', value: `${kmh}km/h`, key: 'wind', label: label || `Wind ${kmh}km/h, details` });
-const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: formatTemperature(p.feels, p.temperatureUnit), key: 'feels', label: 'Feels-like temperature, details' });
-const feelsPillAt = (value, unit, label, key) => pill({ kind: 'exp', icon: value >= 20 ? 'heat' : 'thermostat', value: formatTemperature(value, unit), key, label });
+const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: `Evening ${formatTemperature(temp, unit || 'C')}` });
+const windPill = (kmh, label) => pill({ kind: 'exp', icon: 'air', value: `Gusts ${kmh}km/h`, key: 'wind', label: label || `Wind ${kmh}km/h, details` });
+const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: `Feels ${formatTemperature(p.feels, p.temperatureUnit)}`, key: 'feels', label: 'Feels-like temperature, details' });
+const feelsPillAt = (value, unit, label, key) => pill({ kind: 'exp', icon: value >= 20 ? 'heat' : 'thermostat', value: `Feels ${formatTemperature(value, unit)}`, key, label });
 
 // Pollen thresholds (grains/m³), per species: grass/birch cutoffs are UK Met
 // Office published high-range thresholds; alder/mugwort/olive/ragweed are
@@ -251,6 +251,7 @@ function findRainTiming(context) {
     // hours ahead if that is more (a dusting now plus more overnight).
     snowCm: Math.max(ev.snowCm ?? 0, ev.type === 'snow' || ev.snowHours ? (context?.ahead?.snowCm ?? 0) : 0),
     snowHours: ev.snowHours ?? 0,
+    settleHour: ev.settleHour ?? null,
     startHour: ev.startHour,
     endHour: ev.endHour,
   };
@@ -349,15 +350,15 @@ export function alertForConditions(p) {
   const gust = A.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : p.wind);
   if (fMax >= 36) {
     const when = whenWord(A.feelsMax?.hour, p);
-    return { kind: 'heat', icon: 'heat', headline: `Dangerous heat ${when}`, action: HEAT_ALERT_ACTION, value: formatTemperature(fMax, unit), raw: fMax, card: 'Plan around the heat.' };
+    return { kind: 'heat', icon: 'heat', headline: `Dangerous heat ${when}`, action: HEAT_ALERT_ACTION, value: `Feels ${formatTemperature(fMax, unit)}`, raw: fMax, card: 'Plan around the heat.' };
   }
   if (fMin <= -10) {
     const when = whenWord(A.feelsMin?.hour, p);
-    return { kind: 'freeze', icon: 'ac_unit', headline: `A hard freeze ${when}`, action: COLD_ALERT_ACTION, value: formatTemperature(fMin, unit), raw: fMin, card: 'Hard freeze — bundle up.' };
+    return { kind: 'freeze', icon: 'ac_unit', headline: `A hard freeze ${when}`, action: COLD_ALERT_ACTION, value: `Feels ${formatTemperature(fMin, unit)}`, raw: fMin, card: 'Hard freeze — bundle up.' };
   }
   if (gust >= 60) {
     const when = whenWord(A.gustMax?.hour, p);
-    return { kind: 'wind', icon: 'air', headline: `Strong winds ${when}`, action: WIND_ALERT_ACTION, value: `${gust}km/h`, raw: gust, card: 'Strong wind — stay in if you can.' };
+    return { kind: 'wind', icon: 'air', headline: `Strong winds ${when}`, action: WIND_ALERT_ACTION, value: `Gusts ${gust}km/h`, raw: gust, card: 'Strong wind — stay in if you can.' };
   }
   // Ice: freezing rain, or rain/sleet falling while the air sits near 0°C.
   // Snow on its own is announced as snow (see the precipitation lead).
@@ -368,7 +369,7 @@ export function alertForConditions(p) {
   const legacyIce = !Array.isArray(p.rainSeries) && p.feels <= 3 && (p.precip ?? ((p.maxRain ?? 0) >= 50));
   if (A.freezingRain || wetNearZero || legacyIce) {
     const when = ev ? whenWord(ev.startHour, p) : 'today';
-    return { kind: 'ice', icon: 'snowflake', headline: `Icy surfaces possible ${when}`, action: ICE_ALERT_ACTION, value: formatTemperature(low ?? p.feels, unit), raw: low, card: 'Watch for ice underfoot.' };
+    return { kind: 'ice', icon: 'snowflake', headline: `Icy surfaces possible ${when}`, action: ICE_ALERT_ACTION, value: `Low ${formatTemperature(low ?? p.feels, unit)}`, raw: low, card: 'Watch for ice underfoot.' };
   }
   const storm = A.thunder || (!p.ahead && p.tCode >= 95 && p.tCode <= 99 ? { hour: null } : null);
   if (storm) {
@@ -380,7 +381,6 @@ export function alertForConditions(p) {
 
 // ---- Precipitation lead ----
 // Snow from about 1cm (0.8 rounds to 1) lies on the ground: say it settles.
-const SNOW_SETTLES_CM = 0.8;
 const PRECIP_NOUN = {
   rain: { drizzle: 'Drizzle', rain: 'Rain', heavy: 'Heavy rain' },
   snow: { drizzle: 'Light snow', rain: 'Snow', heavy: 'Heavy snow' },
@@ -397,7 +397,7 @@ function precipHeadline(t) {
 function precipPill(t) {
   if (t.type === 'snow' || (t.snowHours > 0 && t.snowCm >= SNOW_SETTLES_CM)) {
     const settles = t.snowCm >= SNOW_SETTLES_CM, cm = Math.max(1, Math.round(t.snowCm));
-    return pill({ kind: 'exp', icon: 'weather_snowy', value: settles ? `${cm}cm` : `${Math.round(t.peak)}%`, key: 'snow', label: settles ? `About ${cm}cm of snow, details` : 'Snow chance, details' });
+    return pill({ kind: 'exp', icon: 'weather_snowy', value: settles ? `${cm}cm total` : `${Math.round(t.peak)}%`, key: 'snow', label: settles ? `About ${cm}cm of snow, details` : 'Snow chance, details' });
   }
   return pill({ kind: 'exp', icon: 'water_drop', value: `${Math.round(t.peak)}%`, key: 'rain', label: 'Rain chance, hourly chart' });
 }
@@ -464,7 +464,7 @@ export function headsUp(p, lead) {
   }
   const gust = A.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : null);
   if (gust != null && gust >= 39 && gust < 60 && !skip.has('wind')) {
-    add({ key: 'wind', prio: gust >= 50 ? 70 : 30, text: `Gusty${when(A.gustMax?.hour)} — ${ev ? "umbrellas won't hold up well; " : ''}a windproof layer helps.`, pill: windPill(gust, `Gusts to ${gust}km/h, details`), card: 'Gusty — hold onto your hat.' });
+    add({ key: 'wind', prio: gust >= 50 ? 70 : 30, text: `Gusty${when(A.gustMax?.hour)} — ${ev && ev.type !== 'snow' ? "umbrellas won't hold up well; " : ''}a windproof layer helps.`, pill: windPill(gust, `Gusts to ${gust}km/h, details`), card: 'Gusty — hold onto your hat.' });
   }
   const fMax = A.feelsMax?.value ?? null;
   if (fMax != null && fMax >= 32 && fMax < 36 && !skip.has('heat')) {
@@ -487,7 +487,7 @@ export function headsUp(p, lead) {
       const when = lowAfter.hour >= 24 ? 'by morning' : lowAfter.hour % 24 >= 18 ? 'tonight' : 'later';
       add({ key: 'swing', prio: 60, text: `Drops sharply ${when} — bring a layer for later.`, pill: eveningPill(Math.round(lowAfter.t), unit), card: 'Layer up for later.' });
     } else if (hi.hour > p.nowHour && hi.t - nowT >= 8 && nowT < 17) {
-      add({ key: 'swing', prio: 60, text: `Warms up a lot by ${hi.hour >= 24 ? 'tomorrow ' : ''}${hi.hour % 24 < 12 ? 'late morning' : 'the afternoon'} — wear layers you can take off later.`, pill: pill({ kind: 'std', icon: 'trending_up', value: formatTemperature(Math.round(hi.t), unit) }), card: 'Cool start, warm later — wear layers.' });
+      add({ key: 'swing', prio: 60, text: `Warms up a lot by ${hi.hour >= 24 ? 'tomorrow ' : ''}${hi.hour % 24 < 12 ? 'late morning' : 'the afternoon'} — wear layers you can take off later.`, pill: pill({ kind: 'std', icon: 'trending_up', value: `High ${formatTemperature(Math.round(hi.t), unit)}` }), card: 'Cool start, warm later — wear layers.' });
     }
   }
   const aqi = p.europeanAqi;
@@ -770,8 +770,10 @@ export function pillDetailHTML(key, p) {
     const ev = findRainTiming(p);
     if (!ev) return null;
     const cm = ev.snowCm;
-    const span = ev.phase === 'starting' ? `From ${formatHourLabel(ev.startHour)}` : ev.phase === 'clearing' ? `Until ${formatHourLabel(ev.endHour)}` : 'For hours';
-    return { html: card({ title: `${cm >= SNOW_SETTLES_CM ? `About ${Math.max(1, Math.round(cm))}cm` : 'Less than 1cm'} · ${bandLabel(SNOW_BANDS, cm)}`, rows: row('When', span) + row('Chance', `${Math.round(ev.peak)}%`), viz: scaleViz(SNOW_BANDS, cm, 'Snow') }), warn: false };
+    // The headline already says when it starts or stops; the card answers
+    // the next question: from when does it lie on the ground.
+    const settle = ev.settleHour == null ? (cm >= SNOW_SETTLES_CM ? 'Later' : 'Unlikely') : ev.settleHour <= p.nowHour ? 'Already' : formatHourLabel(ev.settleHour);
+    return { html: card({ title: `${cm >= SNOW_SETTLES_CM ? `About ${Math.max(1, Math.round(cm))}cm in total` : 'Less than 1cm'} · ${bandLabel(SNOW_BANDS, cm)}`, rows: row('Settles on the ground', settle) + row('Chance', `${Math.round(ev.peak)}%`), viz: scaleViz(SNOW_BANDS, cm, 'Snow') }), warn: false };
   }
   if (key === 'storm') return { html: card(WARN_DETAIL.storm(p)), warn: false };
   return null;
