@@ -157,15 +157,22 @@ export function coldWordingAccurate(temp) {
 }
 
 // ---- HTML fragment helpers (presentation only, no weather logic) ----
-const ic = (temp, delta, unit) => {
-  const sign = delta > 0 ? '<span class="up">' : delta < 0 ? '<span class="dn">' : '<span>';
-  const arr = delta > 0 ? '↑' : delta < 0 ? '↓' : '';
-  const abs = Math.abs(delta);
-  const deltaStr = `${delta === 0 ? '±' : delta < 0 ? '-' : ''}${formatDelta(abs, unit)}${arr}`;
-  return `<span class="pcip">${formatTemperature(temp, unit)} <span class="ddot"></span> ${sign}${deltaStr}</span></span>`;
-};
-const proof = (icon, text) => `<span class="pcip-proof"><span class="mi">${icon}</span>${text}</span>`;
-const iconChip = (icon, text) => `<span class="pcip"><span class="mi">${icon}</span> ${text}</span>`;
+// Unified pill component (Figma "Pill system"): standard (static), expandable
+// (button, opens a detail card) and warning (expandable, coral). The detail
+// card content comes from pillDetailHTML() and is shown by index.html.
+const CHEV = '<svg class="pill-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>';
+const pillIcon = (name) => `<span class="pi" aria-hidden="true">${name}</span>`;
+// kind: 'std' | 'exp' | 'warn'. key: detail id (exp/warn only).
+export function pill({ kind = 'std', icon, value, key = '', label = '' }) {
+  if (kind === 'std') return `<span class="pill">${pillIcon(icon)}<span class="pv">${value}</span></span>`;
+  const cls = kind === 'warn' ? 'pill pill-x pill-warn' : 'pill pill-x';
+  const aria = label ? ` aria-label="${label}"` : '';
+  return `<button type="button" class="${cls}" data-pill="${key}" aria-expanded="false"${aria}>${pillIcon(icon)}<span class="pv">${value}</span>${CHEV}</button>`;
+}
+const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: 'compare_arrows', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
+const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: formatTemperature(temp, unit || 'C') });
+const windPill = (kmh) => pill({ kind: 'std', icon: 'air', value: `${kmh}km/h` });
+const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: formatTemperature(p.feels, p.temperatureUnit), key: 'feels', label: 'Feels-like temperature, details' });
 
 // ============================================================================
 // ADVICE SCORE PIPELINE — collect → score → select → translate
@@ -697,7 +704,7 @@ export function alertForConditions(p) {
       headline: 'Dangerous heat today — plan around it',
       action: HEAT_ALERT_ACTION,
       proof: `${formatTemperature(feels, p.temperatureUnit)} feels-like${trendSuffix}`,
-      icon: 'thermostat',
+      icon: 'heat', kind: 'heat',
     };
   }
   if (feels <= -10) {
@@ -705,15 +712,15 @@ export function alertForConditions(p) {
       headline: 'A hard freeze — dress for far colder',
       action: COLD_ALERT_ACTION,
       proof: `Feels like ${formatTemperature(feels, p.temperatureUnit)}${trendSuffix}`,
-      icon: 'thermostat',
+      icon: 'ac_unit', kind: 'freeze',
     };
   }
   if (windValue >= 60) {
     return {
       headline: 'Strong winds today — stay in if you can',
       action: WIND_ALERT_ACTION,
-      proof: `${windValue}km/h`,
-      icon: 'air',
+      proof: `${windValue}km/h`, value: windValue,
+      icon: 'air', kind: 'wind',
     };
   }
   // Road/bridge surfaces can ice up several degrees above freezing air temp
@@ -723,7 +730,7 @@ export function alertForConditions(p) {
       headline: 'Icy surfaces possible today',
       action: ICE_ALERT_ACTION,
       proof: `${formatTemperature(feels, p.temperatureUnit)} with precipitation${trendSuffix}`,
-      icon: 'ac_unit',
+      icon: 'snowflake', kind: 'ice',
     };
   }
   if (tCode >= 95 && tCode <= 99) {
@@ -731,8 +738,50 @@ export function alertForConditions(p) {
       headline: 'Thunderstorms in the forecast',
       action: STORM_ALERT_ACTION,
       proof: `Storm risk today${trendSuffix}`,
-      icon: 'thunderstorm',
+      icon: 'thunderstorm', kind: 'storm',
     };
+  }
+  return null;
+}
+
+// ---- Pill detail cards (shown by index.html when an expandable pill opens) ----
+// Each card answers one question the pill raises, without repeating the
+// headline sentence: exact numbers, what the number means, one action.
+const row = (label, value) => `<div class="pd-row"><span>${label}</span><span>${value}</span></div>`;
+const card = ({ title, rows, desc, action, warn = false }) => warn
+  ? `<p class="pd-title pd-title-warn">${title}</p><div class="pd-rows pd-rows-b">${rows}</div><p class="pd-desc">${desc}</p><p class="pd-label">What to do</p><p class="pd-act pd-act-warn">${action}</p>`
+  : `<p class="pd-title">${title}</p><div class="pd-rows">${rows}</div><p class="pd-desc">${desc}</p><p class="pd-act">${action}</p>`;
+
+const WARN_DETAIL = {
+  heat: p => ({ title: 'Extreme heat · limit time outdoors', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Heat this strong strains the body, even when you are resting.', action: HEAT_ALERT_ACTION }),
+  freeze: p => ({ title: 'Hard freeze · cover up', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Wind makes it feel much colder, and bare skin cools down fast.', action: COLD_ALERT_ACTION }),
+  wind: p => { const g = p.gust != null ? p.gust : p.wind; return { title: 'Strong wind · stay in if you can', rows: row('Gusts', `${Math.round(g)}km/h`) + row('Average wind', `${Math.round(p.wind)}km/h`), desc: 'Wind this strong can bring down branches and make walking hard.', action: WIND_ALERT_ACTION }; },
+  ice: p => ({ title: 'Ice · watch your step', rows: row('Feels like', formatTemperature(p.feels, p.temperatureUnit)) + row('Air temperature', formatTemperature(p.nowTemp ?? p.tMax, p.temperatureUnit)), desc: 'Wet roads and shaded spots can freeze, even a few degrees above 0°C.', action: ICE_ALERT_ACTION }),
+  storm: p => ({ title: 'Thunderstorm · move indoors', rows: Number.isFinite(p.maxRain) && p.maxRain > 0 ? row('Rain chance', `${Math.round(p.maxRain)}%`) : row('Forecast', 'Thunderstorm possible'), desc: 'Lightning and sudden gusts can come with it.', action: STORM_ALERT_ACTION }),
+};
+
+// Returns { html, warn } for a pill key, or null when there is nothing to show.
+export function pillDetailHTML(key, p) {
+  const unit = p.temperatureUnit;
+  if (key.startsWith('warn:')) {
+    const f = WARN_DETAIL[key.slice(5)];
+    return f ? { html: card({ ...f(p), warn: true }), warn: true } : null;
+  }
+  if (key === 'feels') {
+    const air = p.nowTemp ?? p.tMax;
+    const gap = p.feels - air;
+    const word = gap >= 2 ? 'Feels warmer' : gap <= -2 ? 'Feels colder' : 'Feels about the same';
+    const rows = row('Air temperature', formatTemperature(air, unit)) + (Number.isFinite(p.humidity) ? row('Humidity', `${Math.round(p.humidity)}%`) : '') + (Number.isFinite(p.wind) ? row('Wind', `${Math.round(p.wind)}km/h`) : '');
+    const desc = gap <= -2 ? 'How cold it feels once wind is counted, not just the air temperature.' : gap >= 2 ? 'How warm it feels once humidity and sun are counted, not just the air temperature.' : 'Wind, humidity, and sun are roughly cancelling out right now.';
+    const action = gap <= -2 ? 'Add a windproof layer.' : gap >= 2 ? 'Wear light, breathable clothing.' : 'Dress for the number on the screen.';
+    return { html: card({ title: `${formatTemperature(p.feels, unit)} · ${word}`, rows, desc, action }), warn: false };
+  }
+  if (key === 'change') {
+    const d = p.diff;
+    const word = d > 0 ? 'warmer' : d < 0 ? 'cooler' : 'the same';
+    const rows = row('Now', formatTemperature(p.nowTemp, unit)) + (Number.isFinite(p.yesterdayNowTemp) ? row('Yesterday at this time', formatTemperature(p.yesterdayNowTemp, unit)) : '');
+    const action = d > 0 ? 'Try one less layer than yesterday.' : d < 0 ? 'Try one more layer than yesterday.' : 'Dress the way you did yesterday.';
+    return { html: card({ title: d === 0 ? 'Same as yesterday' : `${formatDelta(Math.abs(d), unit)} ${word} than yesterday`, rows, desc: 'The change since this time yesterday, not the difference in daily highs.', action }), warn: false };
   }
   return null;
 }
@@ -746,8 +795,13 @@ export function alertForConditions(p) {
 export function buildProse(p) {
   const alert = alertForConditions(p);
   if (alert) {
+    const unit = p.temperatureUnit;
+    const pv = alert.kind === 'wind' ? `${alert.value}km/h`
+      : alert.kind === 'storm' ? (Number.isFinite(p.maxRain) && p.maxRain > 0 ? `${Math.round(p.maxRain)}%` : 'Storm')
+      : formatTemperature(p.feels, unit);
+    const wp = pill({ kind: 'warn', icon: alert.icon, value: pv, key: `warn:${alert.kind}`, label: `${alert.headline}, details` });
     return {
-      html: `<span class="w">${alert.headline}</span>${proof(alert.icon, alert.proof)}<br><span class="action">${alert.action}</span>`,
+      html: `<span class="w">${alert.headline}</span>${wp}<br><span class="action">${alert.action}</span>`,
       action: alert.action,
       selected: null,
     };
@@ -761,8 +815,8 @@ export function buildProse(p) {
   const { temp: eTemp, when: eWhen } = nextWindowTemp(p);
   const eDrop = eTemp != null ? tMax - eTemp : 0;
   const abs = Math.abs(diff);
-  const dChip = ic(p.nowTemp ?? tMax, diff, p.temperatureUnit);
-  const eChip = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${formatTemperature(eTemp, p.temperatureUnit || 'C')}`) : '';
+  const dChip = deltaPill(diff, p.temperatureUnit);
+  const eChip = eDrop >= 5 && eTemp != null ? eveningPill(eTemp, p.temperatureUnit) : '';
 
   const { text: action, selected: adviceSelected } = computeAdvice(p);
 
@@ -774,8 +828,8 @@ export function buildProse(p) {
       const noun = timing.level === 'drizzle' ? 'Drizzle' : timing.level === 'heavy' ? 'Heavy rain' : 'Rain';
       const when = timing.phase === 'starting' ? `from ${timing.label}` : timing.phase === 'clearing' ? `until ${timing.label}` : 'for hours';
       // The pill is a button: tapping it opens the hourly rain chart (index.html).
-      const pill = `<button type="button" class="pcip-proof rain-pill" id="rainPill" aria-expanded="false" aria-controls="rainPanel"><span class="mi">water_drop</span>${Math.round(timing.peak)}% · hourly<svg class="rp-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>`;
-      prose = `<span class="g">${noun} </span><span class="w">${when}</span>${pill}`;
+      const rp = pill({ kind: 'exp', icon: 'water_drop', value: `${Math.round(timing.peak)}%`, key: 'rain', label: 'Rain chance, hourly chart' });
+      prose = `<span class="g">${noun} </span><span class="w">${when}</span>${rp}`;
     } else {
       prose = `<span class="g">Rain </span><span class="w">${maxRain > 85 ? 'coming' : maxRain > 70 ? 'likely' : 'possible'}</span>`;
     }
@@ -804,14 +858,14 @@ export function buildProse(p) {
     const sameLabel = diff === 0 ? 'Same' : 'Similar';
     const samePrep = diff === 0 ? 'as' : 'to';
     prose = `<span class="w">${sameLabel}</span><span class="g"> ${samePrep} yesterday</span>${dChip}`;
-    const windProof = wind >= 25 ? proof('air', `${wind}km/h`) : '';
-    const eveProof = eDrop >= 5 && eTemp != null ? iconChip('nights_stay', `${formatTemperature(eTemp, p.temperatureUnit || 'C')}`) : '';
+    const windProof = wind >= 25 ? windPill(wind) : '';
+    const eveProof = eDrop >= 5 && eTemp != null ? eveningPill(eTemp, p.temperatureUnit) : '';
     const secondary = wind >= 25
       ? `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windProof}`
       : eDrop >= 5 && eTemp != null
       ? `<br><span class="g">but </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'tonight'}</span>${eveProof}`
       : feels <= tMax - 4
-      ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${proof('thermostat', `${formatTemperature(feels, p.temperatureUnit)}`)}`
+      ? `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${feelsPill(p)}`
       : `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
     prose += secondary;
   }

@@ -19,6 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gelasio:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&icon_names=ac_unit,air,compare_arrows,heat,snowflake,thermostat,thunderstorm,water_drop,wb_twilight&display=block" rel="stylesheet">
 <style>
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-300.woff2') format('woff2');font-weight:300;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-400.woff2') format('woff2');font-weight:400;font-display:swap}
@@ -26,8 +27,8 @@
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-500.woff2') format('woff2');font-weight:500;font-display:swap}
 @font-face{font-family:'Aspekta';src:url('/fonts/Aspekta-600.woff2') format('woff2');font-weight:600;font-display:swap}
 
-:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73;--rain-rgb:114,128,251;--temp-grad-end:#C47D78}
-html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252;--temp-grad-end:#E2C4CF}
+:root{--bg:#C9E0EF;--text:#7B4B49;--muted:rgba(123,75,73,0.94);--muted-lg:rgba(123,75,73,0.50);--dim:rgba(123,75,73,0.72);--chip-bg:rgba(123,75,73,0.07);--chip-bd:rgba(123,75,73,0.16);--line:rgba(123,75,73,0.10);--text-rgb:123,75,73;--surface:rgba(255,255,255,0.40);--accent:#7B4B49;--accent-rgb:123,75,73;--rain-rgb:114,128,251;--temp-grad-end:#C47D78;--pill-bd:rgba(123,75,73,.3);--card-bg:rgba(255,255,255,.3);--card-bd:rgba(123,75,73,.14);--sec:rgba(123,75,73,.5);--coral:#ff6f5d;--warn-bg:rgba(255,111,93,.08);--warn-bd:rgba(255,111,93,.48)}
+html.evening{--bg:#7B4B49;--text:#C9E0EF;--muted:rgba(201,224,239,0.90);--muted-lg:rgba(201,224,239,0.65);--dim:rgba(201,224,239,0.65);--chip-bg:rgba(201,224,239,0.07);--chip-bd:rgba(201,224,239,0.18);--line:rgba(201,224,239,0.10);--text-rgb:201,224,239;--surface:rgba(255,255,255,0.06);--accent:#C5E6FC;--accent-rgb:197,230,252;--temp-grad-end:#E2C4CF;--pill-bd:rgba(201,224,239,.3);--card-bg:#7B4B49;--card-bd:rgba(201,224,239,.14);--sec:rgba(201,224,239,.5)}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);transition:background-color 2s ease}
 body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-weight:450;-webkit-font-smoothing:antialiased;transition:background-color 2s ease,color 1.5s ease;letter-spacing:-0.02em;line-height:1.1}
@@ -61,8 +62,6 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
 .uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
 .uaddon.on{display:block}
-.pcip{display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:3px 10px 3px 8px;font-size:0.42em;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;margin:0 3px;letter-spacing:0;color:var(--text);line-height:1.5;white-space:nowrap;position:relative;top:-4px}
-.pcip .ddot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--muted);margin:0 5px;vertical-align:middle;position:relative;top:-1px}
 .flow-section{margin-top:28px;margin-bottom:32px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px;overflow:hidden}
 .flow-header{display:flex;align-items:center;gap:8px;padding:15px 10px;user-select:none;-webkit-user-select:none}
 .flow-header-btn{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -116,7 +115,6 @@ html.evening .info-btn{color:rgba(var(--text-rgb),0.95)}
 .up{color:#F17666}
 .dn{color:#7280FB}
 .mi{font-family:'Material Icons Round';font-size:12px;font-style:normal;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;margin-right:2px}
-.pcip-proof{max-width:100%;display:inline-flex;align-items:center;background:var(--chip-bg);border:1px solid var(--chip-bd);border-radius:100px;padding:2px 8px 2px 6px;font-size:16.8px;font-weight:400;font-family:'Aspekta','DM Sans',sans-serif;font-style:normal;vertical-align:middle;color:var(--muted);white-space:normal;position:relative;top:-3px;margin-left:3px;line-height:1.5}
 #citySearch{position:fixed;inset:0;z-index:200;background:var(--bg,#EAECEA);max-width:390px;margin:0 auto;display:none;flex-direction:column;padding:20px 17px}
 #citySearch.on{display:flex}
 .cs-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
@@ -182,13 +180,33 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
 #dayScreen.slide-r{animation:slideR .22s cubic-bezier(.2,.8,.2,1)}
 @media (prefers-reduced-motion:reduce){#dayScreen.slide-l,#dayScreen.slide-r{animation:none}}
 
+/* ---- Pill system (Figma): standard / expandable / warning ---- */
+.pill{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border:1px solid var(--pill-bd);border-radius:9999px;background:none;color:var(--text);font-family:'Aspekta','DM Sans',sans-serif;font-size:18px;font-weight:500;line-height:20px;font-style:normal;letter-spacing:0;white-space:nowrap;vertical-align:middle;position:relative;top:-2px;margin:0 3px}
+.pill .pi{font-family:'Material Symbols Rounded';font-weight:400;font-size:20px;line-height:20px;width:20px;height:20px;overflow:hidden;display:inline-block;flex-shrink:0;font-feature-settings:'liga';-webkit-font-feature-settings:'liga';font-style:normal;letter-spacing:normal;text-transform:none;direction:ltr}
+.pill-chev{flex-shrink:0;transition:transform .2s ease}
+.pill-x{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pill-x::after{content:'';position:absolute;left:-3px;right:-3px;top:50%;height:44px;transform:translateY(-50%)}
+.pill-x:active{opacity:.6}
+.pill-x:focus:not(:focus-visible){outline:none}
+.pill-x[aria-expanded=true] .pill-chev{transform:rotate(180deg)}
+.pill-warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--coral)}
+.pill-detail{margin:0 0 24px;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:16px;font-family:'Aspekta','DM Sans',sans-serif;color:var(--text)}
+.pill-detail[hidden]{display:none}
+.pill-detail.warn{border-color:var(--warn-bd)}
+.pill-detail p{margin:0}
+.pd-title{font-size:14px;line-height:22px;font-weight:600;color:var(--coral)}
+.pd-title-warn{font-size:15px;line-height:24px}
+.pd-rows{font-size:12px;line-height:19px}
+.pd-rows-b{font-weight:600}
+.pd-row{display:flex;gap:16px}
+.pd-row span:first-child{min-width:132px}
+.pd-desc{font-size:12px;line-height:19px;color:var(--sec)}
+.pd-label{font-size:11px;line-height:18px;font-weight:600;color:var(--coral)}
+.pd-act{font-size:12px;line-height:19px;font-weight:600}
+.pd-act-warn{font-size:13px;line-height:21px;font-weight:400}
+
 /* ---- Rain panel (opens from the rain pill) ---- */
-.rain-pill{font:inherit;font-size:16.8px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;gap:5px}
-.rain-pill:focus:not(:focus-visible){outline:none}
-.rp-chev{flex-shrink:0;margin-left:1px;transition:transform .2s ease}
-.rain-pill[aria-expanded=true] .rp-chev{transform:rotate(180deg)}
 .rain-radar{display:inline-block;margin:10px 14px 0;font-size:13px;color:var(--text);text-decoration:underline;text-underline-offset:3px}
-.rain-pill:active{opacity:.6}
 .rain-panel{margin:0 0 28px;padding:14px 0 12px;background:var(--surface);border:1px solid var(--chip-bd);border-radius:12px}
 .rain-panel[hidden]{display:none}
 .rain-chart{display:flex;--bt:22px;--bh:72px;--f-rain:.34;--f-heavy:.67}
@@ -233,6 +251,7 @@ html.evening .pager,html.evening .list-btn{background:rgba(255,255,255,.1);borde
   </header>
   <div class="big-temp" id="bigTemp" role="status" aria-label="Current temperature">—</div>
   <div class="prose" id="prose" role="status"><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+  <section class="pill-detail" id="pillDetail" aria-live="polite" hidden></section>
   <div class="uaddon" id="uaddon"></div>
   <section class="rain-panel" id="rainPanel" aria-label="Rain, hour by hour" hidden>
     <div class="rain-chart">
@@ -306,7 +325,7 @@ import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.
 import{formatTemperature,formatDelta,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
 import{cardAction}from'./card-action.js';
 import{findRainEvent,isRainyHour,rainLevel}from'./rain-events.js';
-import{buildProse,buildAddendum,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
+import{buildProse,buildAddendum,pillDetailHTML,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
 let currentTimeZone=null,latestWeather=null,view='boot';
 let temperatureUnit;
 try{temperatureUnit=localStorage.getItem('warmer_temperature_unit')==='F'?'F':'C'}catch{temperatureUnit='C'}
@@ -523,8 +542,30 @@ const RAIN_WORDS={dry:'Dry',drizzle:'A few drops',rain:'Rain',heavy:'Heavy rain'
 function setRainOpen(open){
   rainOpen=open;
   document.getElementById('rainPanel').hidden=!open;
-  const pill=document.getElementById('rainPill');if(pill)pill.setAttribute('aria-expanded',String(open));
-  if(open)scrollRainToEvent();
+  syncPills();
+  if(open){closePillDetail();scrollRainToEvent()}
+}
+// Pill detail card: one open at a time (the rain pill opens #rainPanel instead).
+let openPillKey=null;
+function syncPills(){
+  document.querySelectorAll('#prose .pill-x').forEach(b=>{
+    const k=b.dataset.pill;
+    b.setAttribute('aria-expanded',String(k==='rain'?rainOpen:k===openPillKey));
+  });
+}
+function closePillDetail(){
+  openPillKey=null;
+  const el=document.getElementById('pillDetail');if(el){el.hidden=true;el.innerHTML='';el.classList.remove('warn')}
+  syncPills();
+}
+function togglePill(key){
+  if(key==='rain'){if(openPillKey)closePillDetail();setRainOpen(!rainOpen);return}
+  if(openPillKey===key){closePillDetail();return}
+  const d=latestWeather&&pillDetailHTML(key,latestWeather);if(!d)return;
+  if(rainOpen)setRainOpen(false);
+  const el=document.getElementById('pillDetail');
+  el.innerHTML=d.html;el.classList.toggle('warn',!!d.warn);el.hidden=false;
+  openPillKey=key;syncPills();
 }
 function scrollRainToEvent(){
   const sc=document.getElementById('rainScroll'),first=document.querySelector('#rainCols .rc.rainy')||document.querySelector('#rainCols .rc');
@@ -618,6 +659,7 @@ function renderAdviceLine(p){
   const{html:proseHTML,selected}=buildProse(p);
   const hasAction=proseHTML.includes('class="action"');
   const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
+  closePillDetail();syncPills();
   const add=buildAddendum(p,hasAction);
   const uel=document.getElementById('uaddon');
   if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
@@ -843,7 +885,7 @@ async function showDay(id){
   document.getElementById('dayScreen').hidden=false;
   document.getElementById('listBtn').hidden=false;
   renderPager();window.scrollTo(0,0);
-  flowCtx=null;rainOpen=false;
+  flowCtx=null;rainOpen=false;closePillDetail();
   document.getElementById('rainPanel').hidden=true;
   setChartOpen('flow',false);
   document.getElementById('flowTitleInfoBtn').setAttribute('aria-expanded','false');
@@ -886,7 +928,7 @@ setInterval(autoRefreshCheck,60_000);
 
 // ---- Wiring ----
 function wireApp(){
-  document.getElementById('prose').addEventListener('click',e=>{if(e.target.closest('.rain-pill'))setRainOpen(!rainOpen)});
+  document.getElementById('prose').addEventListener('click',e=>{const b=e.target.closest('.pill-x');if(b)togglePill(b.dataset.pill)});
   document.getElementById('rainCols').addEventListener('click',e=>{
     const c=e.target.closest('.rc');if(c)selectRainHour([...document.querySelectorAll('#rainCols .rc')].indexOf(c));
   });

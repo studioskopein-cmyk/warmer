@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildProse, buildAddendum } from './advice-rules.js';
+import { buildProse, buildAddendum, pillDetailHTML } from './advice-rules.js';
 import { temperatureValue, formatAmount } from './weather-display.js';
 
 const base = { tMax: 20, tMin: 18, yMax: 18, diff: 2, feels: 20, wind: 0, maxRain: 0,
@@ -8,9 +8,12 @@ const base = { tMax: 20, tMin: 18, yMax: 18, diff: 2, feels: 20, wind: 0, maxRai
 
 test('Fahrenheit converts absolute temperature and temperature difference separately', () => {
   const { html } = buildProse({ ...base, temperatureUnit: 'F' });
-  assert.match(html, /68°F/);
   assert.match(html, /4°F/);
   assert.doesNotMatch(html, /20°|36°F|°C/);
+  // Absolute temperatures live in the pill's detail card.
+  const detail = pillDetailHTML('change', { ...base, nowTemp: 20, yesterdayNowTemp: 18, temperatureUnit: 'F' }).html;
+  assert.match(detail, /68°F/);
+  assert.doesNotMatch(detail, /°C/);
 });
 
 test('Fahrenheit presentation preserves Celsius hazard thresholds', () => {
@@ -42,7 +45,7 @@ test('rain start headline names the start hour and the pill shows the event peak
   const p = { ...base, nowHour: 16, maxRain: 90,
     rainSeries: [{ hour: 16, rain: 5 }, { hour: 23, rain: 45 }, { hour: 24, rain: 90 }] };
   assert.match(buildProse(p).html, /from 11pm/);
-  assert.match(buildProse(p).html, /90% · hourly/);
+  assert.match(buildProse(p).html, /data-pill="rain"[\s\S]*90%/);
 });
 
 test('rain clearing headline names when it stops', () => {

@@ -254,7 +254,7 @@ test('rain event (starting): headline says what and when, the action line says o
   const rainSeries = Array.from({ length: 24 }, (_, hour) => ({ hour, rain: hour === 16 ? 70 : 5, mm: hour === 16 ? 1 : 0 }));
   const { html } = buildProse(baseP({ feels: 18, tMax: 18, diff: 0, evening: 18, maxRain: 70, rainSeries, nowHour: 8 }));
   assert.ok(html.includes('from 4pm'), `expected the start time in the headline: ${html}`);
-  assert.ok(html.includes('70% · hourly'), `expected the tappable chance pill: ${html}`);
+  assert.ok(/data-pill="rain"[\s\S]*70%/.test(html), `expected the tappable chance pill: ${html}`);
   const action = html.match(/<span class="action">(.*?)<\/span>/)?.[1] ?? '';
   assert.ok(!/\dpm|%/.test(action), `action line must not repeat time/percent: ${action}`);
   assert.ok(/umbrella/i.test(action), `expected an umbrella instruction: ${action}`);
