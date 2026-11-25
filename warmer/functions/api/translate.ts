@@ -117,7 +117,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         for (let i = 0; i < MODELS.length; i++) {
           try { modelUsed = MODELS[i]; return await call(MODELS[i]); }
           catch (e: any) {
-            if (i === 0) { first = e; if (e?.status !== 429) throw e; continue; }
+            if (i === 0) {
+              first = e;
+              if (e?.status === 503) { // busy, not out of quota: one short retry on the same model
+                await new Promise(r => setTimeout(r, 700));
+                try { return await call(MODELS[0]); } catch (e2: any) { first = e2; }
+              }
+              if (first?.status !== 429 && !(first?.status >= 500)) throw first;
+              continue;
+            }
             throw first; // fallback failed too (e.g. 404): report the original 429 so the client backs off
           }
         }
