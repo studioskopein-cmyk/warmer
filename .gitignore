@@ -25,3 +25,4 @@ lib/
 repro.ts
 repro_multi.ts
 grep_out.txt
+tools/out/

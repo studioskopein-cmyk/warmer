@@ -206,14 +206,14 @@ test('buildAddendum: the LOW caption needs an action line', () => {
   assert.match(buildAddendum({ consensus: 'LOW', maxSpread: 5, temperatureUnit: 'C' }, true), /forecasts disagree/);
 });
 
-test('snow with wind: no umbrella advice, pills say what their number is', () => {
+test('snow with wind: no umbrella advice, two paragraphs only', () => {
   const p = baseP({ tMax: 0, nowTemp: 0, feels: -6, nowHour: 15,
     rainSeries: series(18, (h) => ({ rain: 95, mm: 1, cm: 0.8, t: 0, feels: -7, gust: 52 })),
     ahead: { snowCm: 8, gustMax: { value: 52, hour: 20 }, feelsMin: { value: -7, hour: 22 } } });
   const html = buildProse(p).html;
   assert.ok(!/umbrella/i.test(html), html);
-  const values = [...html.matchAll(/<span class="pv">([^<]*)</g)].map(m => m[1]);
-  for (const v of values) assert.match(v, /[A-Za-z%]/, `pill "${v}" has no word saying what it is`);
+  // Two paragraphs only: sans (weather) and serif (action). No smaller third one.
+  assert.ok(!/action-more/.test(html), html);
 });
 
 test('snow detail card says when it settles, not the headline span again', () => {

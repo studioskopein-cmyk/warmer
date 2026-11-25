@@ -176,10 +176,10 @@ export function pill({ kind = 'std', icon, value, key = '', label = '' }) {
   return `<button type="button" class="${cls}" data-pill="${key}" aria-expanded="false"${aria}>${pillIcon(icon)}<span class="pv">${value}</span>${CHEV}</button>`;
 }
 const deltaPill = (diff, unit) => pill({ kind: 'exp', icon: diff > 0 ? 'thermometer_gain' : diff < 0 ? 'thermometer_loss' : 'drag_handle', value: formatDelta(Math.abs(diff), unit), key: 'change', label: `${formatDelta(Math.abs(diff), unit)} ${diff > 0 ? 'warmer' : 'cooler'} than yesterday, details` });
-const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: `Evening ${formatTemperature(temp, unit || 'C')}` });
-const windPill = (kmh, label) => pill({ kind: 'exp', icon: 'air', value: `Gusts ${kmh}km/h`, key: 'wind', label: label || `Wind ${kmh}km/h, details` });
-const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: `Feels ${formatTemperature(p.feels, p.temperatureUnit)}`, key: 'feels', label: 'Feels-like temperature, details' });
-const feelsPillAt = (value, unit, label, key) => pill({ kind: 'exp', icon: value >= 20 ? 'heat' : 'thermostat', value: `Feels ${formatTemperature(value, unit)}`, key, label });
+const eveningPill = (temp, unit) => pill({ kind: 'std', icon: 'wb_twilight', value: formatTemperature(temp, unit || 'C') });
+const windPill = (kmh, label) => pill({ kind: 'exp', icon: 'air', value: `${kmh}km/h`, key: 'wind', label: label || `Wind ${kmh}km/h, details` });
+const feelsPill = (p) => pill({ kind: 'exp', icon: p.feels >= (p.nowTemp ?? p.tMax) ? 'heat' : 'thermostat', value: formatTemperature(p.feels, p.temperatureUnit), key: 'feels', label: 'Feels-like temperature, details' });
+const feelsPillAt = (value, unit, label, key) => pill({ kind: 'exp', icon: value >= 20 ? 'heat' : 'thermostat', value: formatTemperature(value, unit), key, label });
 
 // Pollen thresholds (grains/m³), per species: grass/birch cutoffs are UK Met
 // Office published high-range thresholds; alder/mugwort/olive/ragweed are
@@ -350,15 +350,15 @@ export function alertForConditions(p) {
   const gust = A.gustMax?.value ?? (p.gust != null ? Math.round(p.gust) : p.wind);
   if (fMax >= 36) {
     const when = whenWord(A.feelsMax?.hour, p);
-    return { kind: 'heat', icon: 'heat', headline: `Dangerous heat ${when}`, action: HEAT_ALERT_ACTION, value: `Feels ${formatTemperature(fMax, unit)}`, raw: fMax, card: 'Plan around the heat.' };
+    return { kind: 'heat', icon: 'heat', headline: `Dangerous heat ${when}`, action: HEAT_ALERT_ACTION, value: formatTemperature(fMax, unit), raw: fMax, card: 'Plan around the heat.' };
   }
   if (fMin <= -10) {
     const when = whenWord(A.feelsMin?.hour, p);
-    return { kind: 'freeze', icon: 'ac_unit', headline: `A hard freeze ${when}`, action: COLD_ALERT_ACTION, value: `Feels ${formatTemperature(fMin, unit)}`, raw: fMin, card: 'Hard freeze — bundle up.' };
+    return { kind: 'freeze', icon: 'ac_unit', headline: `A hard freeze ${when}`, action: COLD_ALERT_ACTION, value: formatTemperature(fMin, unit), raw: fMin, card: 'Hard freeze — bundle up.' };
   }
   if (gust >= 60) {
     const when = whenWord(A.gustMax?.hour, p);
-    return { kind: 'wind', icon: 'air', headline: `Strong winds ${when}`, action: WIND_ALERT_ACTION, value: `Gusts ${gust}km/h`, raw: gust, card: 'Strong wind — stay in if you can.' };
+    return { kind: 'wind', icon: 'air', headline: `Strong winds ${when}`, action: WIND_ALERT_ACTION, value: `${gust}km/h`, raw: gust, card: 'Strong wind — stay in if you can.' };
   }
   // Ice: freezing rain, or rain/sleet falling while the air sits near 0°C.
   // Snow on its own is announced as snow (see the precipitation lead).
@@ -369,7 +369,7 @@ export function alertForConditions(p) {
   const legacyIce = !Array.isArray(p.rainSeries) && p.feels <= 3 && (p.precip ?? ((p.maxRain ?? 0) >= 50));
   if (A.freezingRain || wetNearZero || legacyIce) {
     const when = ev ? whenWord(ev.startHour, p) : 'today';
-    return { kind: 'ice', icon: 'snowflake', headline: `Icy surfaces possible ${when}`, action: ICE_ALERT_ACTION, value: `Low ${formatTemperature(low ?? p.feels, unit)}`, raw: low, card: 'Watch for ice underfoot.' };
+    return { kind: 'ice', icon: 'snowflake', headline: `Icy surfaces possible ${when}`, action: ICE_ALERT_ACTION, value: formatTemperature(low ?? p.feels, unit), raw: low, card: 'Watch for ice underfoot.' };
   }
   const storm = A.thunder || (!p.ahead && p.tCode >= 95 && p.tCode <= 99 ? { hour: null } : null);
   if (storm) {
@@ -397,7 +397,7 @@ function precipHeadline(t) {
 function precipPill(t) {
   if (t.type === 'snow' || (t.snowHours > 0 && t.snowCm >= SNOW_SETTLES_CM)) {
     const settles = t.snowCm >= SNOW_SETTLES_CM, cm = Math.max(1, Math.round(t.snowCm));
-    return pill({ kind: 'exp', icon: 'weather_snowy', value: settles ? `${cm}cm total` : `${Math.round(t.peak)}%`, key: 'snow', label: settles ? `About ${cm}cm of snow, details` : 'Snow chance, details' });
+    return pill({ kind: 'exp', icon: 'weather_snowy', value: settles ? `${cm}cm` : `${Math.round(t.peak)}%`, key: 'snow', label: settles ? `About ${cm}cm of snow, details` : 'Snow chance, details' });
   }
   return pill({ kind: 'exp', icon: 'water_drop', value: `${Math.round(t.peak)}%`, key: 'rain', label: 'Rain chance, hourly chart' });
 }
@@ -487,7 +487,7 @@ export function headsUp(p, lead) {
       const when = lowAfter.hour >= 24 ? 'by morning' : lowAfter.hour % 24 >= 18 ? 'tonight' : 'later';
       add({ key: 'swing', prio: 60, text: `Drops sharply ${when} — bring a layer for later.`, pill: eveningPill(Math.round(lowAfter.t), unit), card: 'Layer up for later.' });
     } else if (hi.hour > p.nowHour && hi.t - nowT >= 8 && nowT < 17) {
-      add({ key: 'swing', prio: 60, text: `Warms up a lot by ${hi.hour >= 24 ? 'tomorrow ' : ''}${hi.hour % 24 < 12 ? 'late morning' : 'the afternoon'} — wear layers you can take off later.`, pill: pill({ kind: 'std', icon: 'trending_up', value: `High ${formatTemperature(Math.round(hi.t), unit)}` }), card: 'Cool start, warm later — wear layers.' });
+      add({ key: 'swing', prio: 60, text: `Warms up a lot by ${hi.hour >= 24 ? 'tomorrow ' : ''}${hi.hour % 24 < 12 ? 'late morning' : 'the afternoon'} — wear layers you can take off later.`, pill: pill({ kind: 'std', icon: 'trending_up', value: formatTemperature(Math.round(hi.t), unit) }), card: 'Cool start, warm later — wear layers.' });
     }
   }
   const aqi = p.europeanAqi;
@@ -666,18 +666,69 @@ export function decideDay(p) {
     const m = /<span class="pi"[^>]*>([^<]*)<\/span><span class="pv">([^<]*)</.exec(h);
     return !m || !shown.has(m[1] + m[2]);
   }).join('');
-  return { lead, lines, action: actionHTML, more: moreHTML, pills, card, notes };
+  return { lead, lines, action: actionHTML, more: moreHTML, pills, card, notes, alert, ev, said, extra };
 }
 
 export function buildProse(p) {
   const d = decideDay(p);
   const actionPart = d.action || d.pills
-    ? `<br><span class="action">${d.action}</span>${d.more ? `<span class="action-more">${d.more}</span>` : ''}${d.pills ? `<span class="pill-row">${d.pills}</span>` : ''}`
+    ? `<br><span class="action">${[d.action, d.more].filter(Boolean).join(' ')}</span>${d.pills ? `<span class="pill-row">${d.pills}</span>` : ''}`
     : '';
   return { html: d.lines.join('<br>') + actionPart, action: [d.action, d.more].filter(Boolean).join(' '), selected: null, card: d.card };
 }
 
 export const cardSentence = p => decideDay(p).card;
+
+// ---- Facts for the AI-written action line (see advice-ai.js) ----
+// Code picks what must be said; the model only writes it. The list is the
+// lead (alert, precipitation event or temperature) plus every note the
+// rule-based line would have said or shown as a must-mention pill.
+const ALERT_KIND = { heat: 'extreme_heat', freeze: 'hard_freeze', wind: 'strong_wind', ice: 'ice', storm: 'thunder' };
+const PRECIP_KIND = { rain: 'rain', snow: 'snow', sleet: 'sleet', freezing: 'freezing_rain' };
+function precipFact(ev, p) {
+  const h = ev.startHour;
+  const when = ev.phase !== 'starting' ? 'now'
+    : h >= 24 ? whenWord(h, p)
+    : h - (p.nowHour ?? h) <= 1 ? 'now'
+    : h % 24 >= 18 ? 'tonight' : 'later';
+  const level = ev.type === 'snow' ? (ev.snowCm >= SNOW_SETTLES_CM ? 'settles' : 'light') : ev.nearLevel || ev.level || 'rain';
+  return { kind: PRECIP_KIND[ev.type] || 'rain', when, level, chance: (ev.peak ?? ev.probability ?? 0) >= 70 ? 'high' : 'medium' };
+}
+function noteFact(n, p, ev) {
+  const A = p.ahead || {};
+  switch (n.key) {
+    case 'storm': return { kind: 'thunder', when: whenWord(A.thunder?.hour, p) };
+    case 'precip': return ev ? precipFact(ev, p) : null;
+    case 'wind': return { kind: 'wind', when: whenWord(A.gustMax?.hour, p), level: (A.gustMax?.value ?? 0) >= 50 ? 'strong' : 'breezy' };
+    case 'heat': return { kind: 'heat', when: whenWord(A.feelsMax?.hour, p), level: 'hot' };
+    case 'cold': return { kind: 'cold', when: whenWord(A.feelsMin?.hour, p), level: 'bitter' };
+    case 'swing': return { kind: /^Drops/.test(n.text) ? 'temp_drop' : 'temp_rise', when: /tonight/.test(n.text) ? 'tonight' : /morning/.test(n.text) ? 'by morning' : 'later' };
+    case 'aqi': { const a = p.europeanAqi; return { kind: 'air_quality', level: a >= 100 ? 'extremely poor' : a >= 80 ? 'very poor' : a >= 60 ? 'poor' : 'moderate' }; }
+    case 'uv': { const u = Math.round(A.uvMax?.value ?? p.uvIndex ?? 0); return { kind: 'uv', when: (A.uvMax?.hour ?? 0) >= 24 ? 'tomorrow' : 'today', level: u >= 8 ? 'very high' : 'high' }; }
+    case 'pollen': { const pol = pollenTop(p); return pol ? { kind: 'pollen', level: pol.tier === 'veryHigh' ? 'very high' : pol.tier, species: pol.species } : null; }
+    case 'feels': return { kind: p.feels < (p.nowTemp ?? p.tMax) ? 'feels_colder' : 'feels_warmer' };
+    default: return null;
+  }
+}
+export function adviceFacts(p) {
+  if (!p) return null;
+  const d = decideDay(p);
+  const mm = [];
+  if (d.alert) mm.push({ kind: ALERT_KIND[d.alert.kind] || 'strong_wind', level: 'warning' });
+  else if (d.lead === 'precip' && d.ev) mm.push(precipFact(d.ev, p));
+  else {
+    const feel = bandForTemp(p.feels ?? p.nowTemp ?? p.tMax)?.adjective;
+    const change = p.diff == null ? null : p.diff === 0 ? 'same as yesterday' : changeWord(p);
+    mm.push({ kind: 'temperature', ...(feel ? { feel } : {}), ...(change ? { change } : {}) });
+  }
+  for (const n of [...d.said, ...d.extra]) {
+    const f = noteFact(n, p, d.ev);
+    if (f && !mm.some(m => m.kind === f.kind)) mm.push(f);
+  }
+  // Pills are evidence, not part of the sentence: drop their icon name and value.
+  const headline = d.lines.join(' ').replace(/<span class="p[iv]"[^>]*>[^<]*<\/span>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return { headline, time_of_day: p.band || 'DAY', must_mention: mm.slice(0, 5) };
+}
 
 // ---- Pill detail cards (shown by index.html when an expandable pill opens) ----
 // Each card answers one question the pill raises, without repeating the

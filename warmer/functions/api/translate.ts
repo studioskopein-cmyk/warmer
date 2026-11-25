@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { generate } from './warmer-engine-v3';
 import { GEMINI_PILOT_SCOPE, GEMINI_PILOT_RELEVANT_FIELD } from '../../advice-rules.js';
+import { sanitizeFacts, buildAdvicePrompt, validateAdvice } from '../../advice-ai.js';
 
 interface Env {
   GEMINI_API_KEY: string;
@@ -65,6 +66,49 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // not real enforcement — anyone can POST to this endpoint directly — so
     // trusting a client-supplied free-text prompt here would make this an
     // open relay against our own metered GEMINI_API_KEY.
+    // AI action line (advice-ai.js). The client sends facts the rule engine
+    // chose; sanitizeFacts() lets through only enum kinds and short lowercase
+    // words, and the prompt is built here. The answer is checked with
+    // validateAdvice(); one retry, then the client keeps its rule-based line.
+    if (body.mode === 'advice') {
+      const API_KEY = context.env.GEMINI_API_KEY;
+      if (!API_KEY) {
+        return new Response(JSON.stringify({ success: false, message: 'API Key missing' }), { status: 500, headers: corsHeaders });
+      }
+      const facts = sanitizeFacts(body.facts);
+      if (!facts) {
+        return new Response(JSON.stringify({ success: false, message: 'facts rejected' }), { status: 400, headers: corsHeaders });
+      }
+      const prompt = buildAdvicePrompt(facts);
+      const ask = async () => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.6, maxOutputTokens: 300, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+          }),
+        });
+        if (!r.ok) throw new Error(`Gemini ${r.status}`);
+        const data: any = await r.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        let o: any = {};
+        try { o = JSON.parse(text); } catch { o = {}; }
+        return validateAdvice(o, facts);
+      };
+      try {
+        let v = await ask();
+        if (!v.ok) v = await ask();
+        if (!v.ok) {
+          return new Response(JSON.stringify({ success: false, message: 'rejected', reasons: v.reasons, draft: { action: v.action, card: v.card } }), { status: 422, headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: true, action: v.action, card: v.card }), { headers: corsHeaders });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ success: false, message: e?.message || 'advice failed' }), { status: 502, headers: corsHeaders });
+      }
+    }
+
     if (body.mode === 'pilot-reword') {
       const API_KEY = context.env.GEMINI_API_KEY;
       const { key, tier, meta } = body;

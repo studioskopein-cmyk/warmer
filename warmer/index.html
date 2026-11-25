@@ -60,7 +60,6 @@ body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Aspekt
 .prose .g{color:var(--muted-lg)}
 .prose .w{color:var(--text);font-weight:450}
 .prose .action{color:var(--text);font-style:italic;font-weight:400;font-size:36px;font-family:'Gelasio',serif;letter-spacing:-0.05em;line-height:1.1}
-.prose .action-more{display:block;margin-top:10px;color:var(--text);font-style:italic;font-weight:400;font-size:22px;font-family:'Gelasio',serif;letter-spacing:-0.03em;line-height:1.2}
 .prose .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;line-height:1}
 .uaddon{display:none;font-style:italic;font-family:'Gelasio',serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.1;letter-spacing:-0.05em;margin-top:6px;opacity:0.85}
 .uaddon.on{display:block}
@@ -337,7 +336,8 @@ import{MODELS,getTimeBand,locationClock,parse,avgRainHourly}from'./weather-data.
 import{formatTemperature,formatDelta,formatAmount,formatHourLabel,temperatureValue}from'./weather-display.js';
 import{cardAction}from'./card-action.js';
 import{findRainEvent,isRainyHour,rainLevel}from'./rain-events.js';
-import{buildProse,buildAddendum,pillDetailHTML,isInGeminiPilotScope,validateGeminiLine}from'./advice-rules.js';
+import{buildProse,buildAddendum,pillDetailHTML,isInGeminiPilotScope,validateGeminiLine,adviceFacts}from'./advice-rules.js';
+import{validateAdvice}from'./advice-ai.js';
 let currentTimeZone=null,latestWeather=null,view='boot';
 let temperatureUnit;
 try{temperatureUnit=localStorage.getItem('warmer_temperature_unit')==='F'?'F':'C'}catch{temperatureUnit='C'}
@@ -691,11 +691,55 @@ function wireFlowTouch(){wireChart('flowSvg',drawFlowMarker,()=>flowCtx)}
 // sync (see buildAddendum's hasAction param in advice-rules.js). This is now
 // the one place that decides both together, so #uaddon can never render
 // without the #prose action line it's meant to modify.
+// ---- AI action line (advice-ai.js) ----
+// The rule-based line renders first; the AI line replaces it once it arrives
+// and passes validateAdvice(). Same facts -> same cached answer, so the day
+// screen and the city card always show the same advice.
+const ADVICE_STORE='warmer_advice_v1',ADVICE_TTL=3*3600e3;
+const adviceMem=new Map(),adviceInflight=new Map();
+function adviceStore(){try{return JSON.parse(localStorage.getItem(ADVICE_STORE)||'{}')}catch{return{}}}
+function cachedAdvice(facts){
+  if(!facts)return null;
+  const k=JSON.stringify(facts);
+  if(adviceMem.has(k))return adviceMem.get(k);
+  const e=adviceStore()[k];
+  if(e&&Date.now()-e.t<ADVICE_TTL){adviceMem.set(k,e.v);return e.v}
+  return null;
+}
+function saveAdvice(facts,v){
+  const k=JSON.stringify(facts);adviceMem.set(k,v);
+  try{const s=adviceStore();s[k]={t:Date.now(),v};const keep=Object.keys(s).sort((a,b)=>s[b].t-s[a].t).slice(0,40);localStorage.setItem(ADVICE_STORE,JSON.stringify(Object.fromEntries(keep.map(x=>[x,s[x]]))))}catch{}
+}
+function getAdvice(p){
+  let facts;try{facts=adviceFacts(p)}catch{return Promise.resolve(null)}
+  if(!facts)return Promise.resolve(null);
+  const hit=cachedAdvice(facts);if(hit)return Promise.resolve(hit);
+  const k=JSON.stringify(facts);
+  if(adviceInflight.has(k))return adviceInflight.get(k);
+  const job=(async()=>{
+    try{
+      const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'advice',facts})});
+      const d=await r.json();
+      if(!d.success)return null;
+      const v={action:d.action,card:d.card};
+      if(!validateAdvice(v,facts).ok)return null;
+      saveAdvice(facts,v);return v;
+    }catch{return null}finally{adviceInflight.delete(k)}
+  })();
+  adviceInflight.set(k,job);return job;
+}
+function applyAdvice(v){
+  const el=document.querySelector('#prose .action');
+  if(el&&v){el.textContent=v.action;el.dataset.src='ai'}
+}
 function renderAdviceLine(p){
   const{html:proseHTML,selected}=buildProse(p);
   const hasAction=proseHTML.includes('class="action"');
   parkPanels();const pe=document.getElementById('prose');pe.innerHTML=proseHTML;pe.classList.add('fu');
   closePillDetail();syncPills();
+  let facts=null;try{facts=adviceFacts(p)}catch{}
+  const hit=cachedAdvice(facts);
+  if(hit)applyAdvice(hit);else getAdvice(p).then(v=>{if(latestWeather===p)applyAdvice(v)});
   const add=buildAddendum(p,hasAction);
   const uel=document.getElementById('uaddon');
   if(add){uel.textContent=add;uel.classList.add('on')}else{uel.classList.remove('on');uel.textContent=''}
@@ -864,6 +908,7 @@ function cardKind(p){
   return night?['clear-night','clear']:['clear','sunny'];
 }
 const esc=t=>String(t).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function cardLine(p){let f=null;try{f=adviceFacts(p)}catch{}return cachedAdvice(f)?.card||cardAction(p)}
 function cardHTML(city,p){
   const del=city.gps?'':`<button type="button" class="card-del" data-del="${esc(city.id)}" aria-label="Remove ${esc(city.name)}">−</button>`;
   if(!p)return `<div class="city-card card-skel" data-id="${esc(city.id)}"><div class="card-top"><div class="card-name">${esc(city.name)}</div><div class="card-temp">—</div></div>${del}</div>`;
@@ -872,7 +917,7 @@ function cardHTML(city,p){
   return `<div class="city-card${dark?' dark':''}" role="button" tabindex="0" data-id="${esc(city.id)}" aria-label="${esc(city.name)}, ${formatTemperature(p.nowTemp,temperatureUnit)}, ${label}">`
     +`<div class="card-art" style="--mask:url(/assets/card/${art}.webp)"></div>`
     +`<div class="card-top"><div class="card-name">${esc(city.name)}</div><div class="card-temp">${formatTemperature(p.nowTemp,temperatureUnit)}</div></div>`
-    +`<div class="card-bot"><div class="card-cond">${esc(cardAction(p))}</div>${prev}</div>${del}</div>`;
+    +`<div class="card-bot"><div class="card-cond">${esc(cardLine(p))}</div>${prev}</div>${del}</div>`;
 }
 
 // ---- Views ----
@@ -896,6 +941,11 @@ function renderCards(){
     const el=[...box.children].find(n=>n.dataset.id===c.id);
     if(!el)return;
     const t=document.createElement('div');t.innerHTML=cardHTML(c,p);el.replaceWith(t.firstElementChild);
+    getAdvice(p).then(v=>{
+      if(!v||view!=='list')return;
+      const cc=[...box.children].find(n=>n.dataset.id===c.id)?.querySelector('.card-cond');
+      if(cc)cc.textContent=v.card;
+    });
   }));
 }
 function showList(){
