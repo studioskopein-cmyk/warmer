@@ -113,11 +113,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         try { o = JSON.parse(text); } catch { o = {}; }
         return validateAdvice(o, facts);
         };
+        let first: any = null;
         for (let i = 0; i < MODELS.length; i++) {
           try { modelUsed = MODELS[i]; return await call(MODELS[i]); }
-          catch (e: any) { if (e?.status !== 429 || i === MODELS.length - 1) throw e; }
+          catch (e: any) {
+            if (i === 0) { first = e; if (e?.status !== 429) throw e; continue; }
+            throw first; // fallback failed too (e.g. 404): report the original 429 so the client backs off
+          }
         }
-        throw new Error('no model');
+        throw first;
       };
       try {
         let v = await ask();
