@@ -93,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } catch { cache = null; }
       // Each model has its own quota. If the main one is out (429), the lighter
       // one answers instead of the user losing the AI line.
-      const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+      const MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
       let modelUsed = MODELS[0];
       const ask = async () => {
         const call = async (model: string) => {
