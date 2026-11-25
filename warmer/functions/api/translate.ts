@@ -80,6 +80,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return new Response(JSON.stringify({ success: false, message: 'facts rejected' }), { status: 400, headers: corsHeaders });
       }
       const prompt = buildAdvicePrompt(facts);
+      // Same facts -> same answer for everyone. Cache API is best-effort: it can
+      // be unavailable (e.g. some hostnames), in which case we just call Gemini.
+      const sha = async (t: string) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+      let cache: any = null, cacheKey: Request | null = null;
+      try {
+        cache = (globalThis as any).caches?.default || null;
+        // Hash the prompt, not just the facts: editing the rules invalidates old answers.
+        cacheKey = new Request(`https://advice.cache.warmer/${await sha(prompt)}`);
+        const hit = cache ? await cache.match(cacheKey) : null;
+        if (hit) return new Response(await hit.text(), { headers: { ...corsHeaders, 'X-Advice-Cache': 'hit' } });
+      } catch { cache = null; }
       const ask = async () => {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
         const r = await fetch(url, {
@@ -90,7 +101,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             generationConfig: { temperature: 0.6, maxOutputTokens: 300, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
           }),
         });
-        if (!r.ok) throw new Error(`Gemini ${r.status}`);
+        if (!r.ok) { const err: any = new Error(`Gemini ${r.status}`); err.status = r.status; throw err; }
         const data: any = await r.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         let o: any = {};
@@ -103,9 +114,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (!v.ok) {
           return new Response(JSON.stringify({ success: false, message: 'rejected', reasons: v.reasons, draft: { action: v.action, card: v.card } }), { status: 422, headers: corsHeaders });
         }
-        return new Response(JSON.stringify({ success: true, action: v.action, card: v.card }), { headers: corsHeaders });
+        const body = JSON.stringify({ success: true, action: v.action, card: v.card });
+        try { if (cache && cacheKey) await cache.put(cacheKey, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=10800' } })); } catch { /* best-effort */ }
+        return new Response(body, { headers: corsHeaders });
       } catch (e: any) {
-        return new Response(JSON.stringify({ success: false, message: e?.message || 'advice failed' }), { status: 502, headers: corsHeaders });
+        // 429 is passed through so the client can back off instead of retrying at once.
+        return new Response(JSON.stringify({ success: false, message: e?.message || 'advice failed' }), { status: e?.status === 429 ? 429 : 502, headers: corsHeaders });
       }
     }
 

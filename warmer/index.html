@@ -710,22 +710,33 @@ function saveAdvice(facts,v){
   const k=JSON.stringify(facts);adviceMem.set(k,v);
   try{const s=adviceStore();s[k]={t:Date.now(),v};const keep=Object.keys(s).sort((a,b)=>s[b].t-s[a].t).slice(0,40);localStorage.setItem(ADVICE_STORE,JSON.stringify(Object.fromEntries(keep.map(x=>[x,s[x]]))))}catch{}
 }
+// One request at a time, with a short gap, so a list of cities does not burst
+// past Gemini's per-minute limit. After a 429 we stop asking for a minute and
+// keep the rule-based lines.
+let adviceChain=Promise.resolve(),adviceCooldownUntil=0;
+function adviceQueue(fn){
+  const run=adviceChain.then(fn,fn);
+  adviceChain=run.then(()=>new Promise(r=>setTimeout(r,400)),()=>new Promise(r=>setTimeout(r,400)));
+  return run;
+}
 function getAdvice(p){
   let facts;try{facts=adviceFacts(p)}catch{return Promise.resolve(null)}
   if(!facts)return Promise.resolve(null);
   const hit=cachedAdvice(facts);if(hit)return Promise.resolve(hit);
   const k=JSON.stringify(facts);
   if(adviceInflight.has(k))return adviceInflight.get(k);
-  const job=(async()=>{
+  const job=adviceQueue(async()=>{
+    if(Date.now()<adviceCooldownUntil)return null;
     try{
       const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'advice',facts})});
+      if(r.status===429)adviceCooldownUntil=Date.now()+60e3;
       const d=await r.json();
       if(!d.success)return null;
       const v={action:d.action,card:d.card};
       if(!validateAdvice(v,facts).ok)return null;
       saveAdvice(facts,v);return v;
     }catch{return null}finally{adviceInflight.delete(k)}
-  })();
+  });
   adviceInflight.set(k,job);return job;
 }
 function applyAdvice(v){
