@@ -93,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } catch { cache = null; }
       // Each model has its own quota. If the main one is out (429), the lighter
       // one answers instead of the user losing the AI line.
-      const MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+      const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
       let modelUsed = MODELS[0];
       const ask = async () => {
         const call = async (model: string) => {
@@ -103,7 +103,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.6, maxOutputTokens: 300, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+            // 3.5 rejects thinkingBudget (400), so only the 3.1 call sets it.
+            generationConfig: { temperature: 0.6, maxOutputTokens: 400, responseMimeType: 'application/json', ...(model.startsWith('gemini-3.1') ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
           }),
         });
         if (!r.ok) { const err: any = new Error(`Gemini ${r.status}`); err.status = r.status; throw err; }
@@ -122,7 +123,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           catch (e: any) {
             first = first || e;
             // 503 means busy, not out of quota: retry the main model a couple of times first.
-            for (let n = 0; e?.status === 503 && i === 0 && n < 2; n++) {
+            for (let n = 0; e?.status === 503 && i === 0 && n < 1; n++) {
               await new Promise(r => setTimeout(r, 700 * (n + 1)));
               try { return await call(MODELS[0]); } catch (e2: any) { e = e2; }
             }
