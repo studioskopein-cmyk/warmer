@@ -93,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } catch { cache = null; }
       // Each model has its own quota. If the main one is out (429), the lighter
       // one answers instead of the user losing the AI line.
-      const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+      const MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
       let modelUsed = MODELS[0];
       const ask = async () => {
         const call = async (model: string) => {
@@ -121,8 +121,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           try { modelUsed = MODELS[i]; return await call(MODELS[i]); }
           catch (e: any) {
             first = first || e;
-            if (e?.status === 503 && i === 0) { // one short retry on the main model
-              await new Promise(r => setTimeout(r, 700));
+            // 503 means busy, not out of quota: retry the main model a couple of times first.
+            for (let n = 0; e?.status === 503 && i === 0 && n < 2; n++) {
+              await new Promise(r => setTimeout(r, 700 * (n + 1)));
               try { return await call(MODELS[0]); } catch (e2: any) { e = e2; }
             }
             if (e?.status !== 429 && !(e?.status >= 500) && e?.status !== 404) throw e;
