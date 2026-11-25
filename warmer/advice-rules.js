@@ -1,4 +1,5 @@
 import { findRainEvent, SNOW_SETTLES_CM } from './rain-events.js';
+import { gearFor } from './gear.js';
 import { formatTemperature, formatDelta, formatHourLabel } from './weather-display.js';
 
 // ============================================================================
@@ -703,7 +704,8 @@ function noteFact(n, p, ev) {
     case 'heat': return { kind: 'heat', when: whenWord(A.feelsMax?.hour, p), level: 'hot' };
     case 'cold': return { kind: 'cold', when: whenWord(A.feelsMin?.hour, p), level: 'bitter' };
     case 'swing': return { kind: /^Drops/.test(n.text) ? 'temp_drop' : 'temp_rise', when: /tonight/.test(n.text) ? 'tonight' : /morning/.test(n.text) ? 'by morning' : 'later' };
-    case 'aqi': { const a = p.europeanAqi; return { kind: 'air_quality', level: a >= 100 ? 'extremely poor' : a >= 80 ? 'very poor' : a >= 60 ? 'poor' : 'moderate' }; }
+    // Moderate air is a pill, not a sentence: nothing to do about it yet.
+    case 'aqi': { const a = p.europeanAqi; return a >= 60 ? { kind: 'air_quality', level: a >= 100 ? 'extremely poor' : a >= 80 ? 'very poor' : 'poor' } : null; }
     case 'uv': { const u = Math.round(A.uvMax?.value ?? p.uvIndex ?? 0); return { kind: 'uv', when: (A.uvMax?.hour ?? 0) >= 24 ? 'tomorrow' : 'today', level: u >= 8 ? 'very high' : 'high' }; }
     case 'pollen': { const pol = pollenTop(p); return pol ? { kind: 'pollen', level: pol.tier === 'veryHigh' ? 'very high' : pol.tier, species: pol.species } : null; }
     case 'feels': return { kind: p.feels < (p.nowTemp ?? p.tMax) ? 'feels_colder' : 'feels_warmer' };
@@ -727,7 +729,31 @@ export function adviceFacts(p) {
   }
   // Pills are evidence, not part of the sentence: drop their icon name and value.
   const headline = d.lines.join(' ').replace(/<span class="p[iv]"[^>]*>[^<]*<\/span>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  return { headline, time_of_day: p.band || 'DAY', must_mention: mm.slice(0, 5) };
+  // What to wear or carry comes before what to do: sort, then keep two topics.
+  // The rest stay as pills. Extremely poor air is a safety topic, so it ranks high.
+  const rank = m => {
+    if (m.level === 'warning') return 0;
+    if (m.kind === 'air_quality') return m.level === 'extremely poor' ? 1 : 4;
+    if (['uv', 'pollen'].includes(m.kind)) return 4;
+    if (['rain', 'snow', 'sleet', 'freezing_rain', 'ice', 'thunder'].includes(m.kind)) return 1;
+    return 2;
+  };
+  const ranked = mm.map((m, i) => [m, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
+  const A = p.ahead || {};
+  const aqi = mm.find(m => m.kind === 'air_quality');
+  const precipM = mm.find(m => ['rain', 'snow', 'sleet', 'freezing_rain', 'thunder'].includes(m.kind));
+  const gear = gearFor({
+    band: bandForTemp(p.feels ?? p.nowTemp ?? p.tMax)?.name,
+    precip: precipM ? { kind: precipM.kind, level: precipM.level } : null,
+    strongWind: mm.some(m => m.kind === 'strong_wind' || (m.kind === 'wind' && m.level === 'strong')),
+    uv: Math.round(A.uvMax?.value ?? p.uvIndex ?? 0),
+    aqi: aqi ? (aqi.level === 'poor' ? 60 : 80) : 0,
+    pollen: mm.some(m => m.kind === 'pollen' && m.level !== 'low'),
+    humidity: p.humidity,
+    tempDrop: mm.some(m => m.kind === 'temp_drop'),
+    settles: precipM?.kind === 'snow' && precipM.level === 'settles',
+  });
+  return { headline, time_of_day: p.band || 'DAY', must_mention: ranked.slice(0, 2), gear };
 }
 
 // ---- Pill detail cards (shown by index.html when an expandable pill opens) ----
