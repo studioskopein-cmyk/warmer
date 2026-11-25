@@ -57,7 +57,7 @@ const EXAMPLES = [
       { kind: 'snow', when: 'later', level: 'settles', chance: 'high' },
       { kind: 'cold', when: 'tonight', level: 'bitter' }],
       gear: ['waterproof boots with grip', 'windproof layer', 'heavy puffer coat', 'hat', 'thick gloves'] },
-    out: { action: 'Puffer coat and waterproof boots with grip tonight — add hat and gloves, since it will be bitter.', card: 'Puffer coat, boots with grip.' },
+    out: { action: 'Puffer coat and waterproof boots with grip tonight — add hat and gloves for the hours after dark.', card: 'Puffer coat, boots with grip.' },
   },
   {
     in: { headline: 'Rain from 3pm', time_of_day: 'MORNING', must_mention: [
@@ -70,7 +70,7 @@ const EXAMPLES = [
       { kind: 'temperature', feel: 'warm', change: 'warmer' },
       { kind: 'uv', when: 'today', level: 'very high' }],
       gear: ['linen shirt', 'shorts', 'hat with brim', 'sunscreen', 'sunglasses', 'water bottle'] },
-    out: { action: 'Linen shirt, hat with brim and sunscreen before you head out — the midday sun is strong.', card: 'Light shirt, hat, sunscreen.' },
+    out: { action: 'Linen shirt, hat with brim and sunscreen before you head out — they cover you through midday.', card: 'Light shirt, hat, sunscreen.' },
   },
 ];
 
@@ -83,7 +83,9 @@ Rules
 1. Talk about at most two topics, the ones in must_mention, in that order. One sentence per topic.
 2. Lead with what to wear or carry. Choose from "gear", which is already ranked and fits today's weather.
    Pick the outer layer first, then up to three more items. Never name clothing that is not in gear.
-3. A reason may follow after an em dash, in a few words.
+3. A reason may follow after an em dash, in a few words, and it says what the item does:
+   "keeps you dry", "blocks the gusts", "covers you at midday". Never describe the weather in the reason:
+   no "it is hot", "it's raining", "the wind is strong", "a hard freeze is expected", "it will drizzle".
 4. No numbers, temperatures, amounts or clock times. The headline and pills carry them.
    Relative words are fine: "tonight", "this afternoon", "tomorrow morning".
 5. Do not restate the headline or say how it feels ("it feels freezing"). Say what to do about it.
@@ -92,10 +94,10 @@ Rules
 8. Everyday words. No weather terms (precipitation, accumulation, wind chill). No exclamation marks or emoji.
    No filler such as "be aware", "consider", "keep in mind", "make sure to".
 9. Warm, never cheesy: no "stay safe", "stay cozy", pet names, or talk about feelings.
-10. Air quality becomes an action:
-    poor: mask if you'll be outside a while or exercising; do hard exercise indoors.
-    very poor: mask when you go out; exercise indoors.
-    extremely poor: stay in if you can; mask if you go out.
+10. Air quality becomes an action. Never write the words "air quality" or "poor", and never name the level.
+    poor: a mask if you'll be outside a while or exercising; do hard exercise indoors.
+    very poor: a mask when you go out; exercise indoors.
+    extremely poor: stay in if you can; a mask if you go out.
 11. Also write a card line: at most 6 words, the same advice in the same order.
 
 Return JSON only: {"action": "...", "card": "..."}
@@ -132,6 +134,10 @@ const COVERS = {
 };
 const JARGON = /precipitation|accumulat|wind chill|apparent temperature|meteorolog|dew point|humidity index/i;
 const CHEESY = /stay safe|stay cozy|cosy|cozy|buddy|friend|enjoy|lovely|darling|sweetie|you've got this/i;
+// A reason that only restates the weather ("it is hot", "the wind is strong", "is expected").
+const WEATHER_WORDS = 'hot|cold|warm|cool|cooler|colder|warmer|chilly|freezing|bitter|bitterly|raining|snowing|windy|breezy|dry|wet|sunny|humid|harsh|strong|intense|dangerous|dangerously|steady|heavy|gusty|icy|slippery';
+const RESTATES = new RegExp(`\\b(?:it(?:'s| is| will be| will likely| might| may)|(?:the )?(?:wind|winds|gusts?|air|sun|rain|snow|heat|weather|conditions|temperatures?|ground|surfaces)(?: is| are| will be| will)|is expected|are expected|will likely (?:rain|snow|drizzle))\\b[^.—]{0,24}(?:\\b(?:${WEATHER_WORDS}|rain|drizzle|snow|freeze|gusts?)\\b|expected)|\\bexpected\\b`, 'i');
+const LEVEL_WORDS = /air quality|\bpoor\b/i;
 const HEDGE = /be aware|consider |keep in mind|make sure|bear in mind|note that/i;
 const GEAR_SKIP = new Set(['with', 'layer', 'light', 'clothes', 'extra', 'quick', 'dry']);
 const gearWords = gear => [...new Set((gear || []).flatMap(g => g.toLowerCase().split(/[\s-]+/)).filter(w => w.length >= 3 && !GEAR_SKIP.has(w)))];
@@ -151,6 +157,8 @@ export function validateAdvice(out, facts) {
     if (JARGON.test(t)) reasons.push(`${name} uses a weather term`);
     if (CHEESY.test(t)) reasons.push(`${name} is cheesy`);
     if (HEDGE.test(t)) reasons.push(`${name} uses filler`);
+    if (RESTATES.test(t)) reasons.push(`${name} restates the weather`);
+    if (LEVEL_WORDS.test(t)) reasons.push(`${name} names the air quality level`);
   }
   const kinds = new Set((facts?.must_mention || []).map(m => m.kind));
   const wet = kinds.has('rain') || kinds.has('sleet');

@@ -224,3 +224,24 @@ test('snow detail card says when it settles, not the headline span again', () =>
   assert.match(d, /1pm|2pm/);
   assert.ok(!/>When</.test(d), d);
 });
+
+// ---- Seoul case: cold day, moderate air, much warmer than yesterday ----
+test('moderate air is a pill only; the serif line says what to wear', () => {
+  const p = baseP({ feels: 5, tMax: 5, nowTemp: 5, diff: 8, europeanAqi: 48 });
+  const d = decideDay(p);
+  assert.match(text(d.action), /^Wear .*coat/, d.action);
+  assert.ok(!/air|moderate|workout/i.test(text(d.action + ' ' + d.more)), d.action + ' ' + d.more);
+  assert.ok(d.pills.includes('AQI 48'), 'the AQI pill is still shown');
+  assert.ok(!/air|moderate/i.test(d.card), d.card);
+});
+
+test('poor air still becomes a sentence', () => {
+  const d = decideDay(baseP({ feels: 12, tMax: 12, europeanAqi: 70 }));
+  assert.match(text(d.action + ' ' + d.more), /Air quality is poor/);
+});
+
+test('the sans paragraph flows: a pill is a word, no line break after it', () => {
+  const { html } = buildProse(baseP({ feels: 0, tMax: 5, nowTemp: 5, diff: 8, wind: 0 }));
+  const paragraph = html.split('<br><span class="action">')[0];
+  assert.ok(!paragraph.includes('<br>'), paragraph);
+});

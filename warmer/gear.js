@@ -89,3 +89,16 @@ export function gearFor(i) {
 
   return out.filter(x => GEAR_ITEMS.has(x)).slice(0, MAX_GEAR);
 }
+
+// Rule-based sentence from the gear list (the fallback when the AI line is not there).
+const CARRY = new Set(['umbrella', 'water bottle', 'sunscreen', 'sunglasses', 'mask']);
+const NO_ARTICLE = /shorts|trousers|gloves|socks|boots|shoes|clothes|warmers|sunglasses|sunscreen/;
+const withArticle = x => (NO_ARTICLE.test(x) ? x : /^[aeiou]/.test(x) ? `an ${x}` : `a ${x}`);
+const joinList = a => (a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a.at(-1)}`);
+export function gearSentence(gear) {
+  const wear = (gear || []).filter(x => !CARRY.has(x)).slice(0, 4).map(withArticle);
+  const carry = (gear || []).filter(x => CARRY.has(x)).slice(0, 2).map(withArticle);
+  if (!wear.length && !carry.length) return '';
+  if (!wear.length) return `Take ${joinList(carry)}.`;
+  return `Wear ${joinList(wear)}${carry.length ? ` — and take ${joinList(carry)}` : ''}.`;
+}

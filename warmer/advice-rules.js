@@ -1,5 +1,5 @@
 import { findRainEvent, SNOW_SETTLES_CM } from './rain-events.js';
-import { gearFor } from './gear.js';
+import { gearFor, gearSentence } from './gear.js';
 import { formatTemperature, formatDelta, formatHourLabel } from './weather-display.js';
 
 // ============================================================================
@@ -495,12 +495,13 @@ export function headsUp(p, lead) {
   if (aqi != null && aqi >= 40) {
     const tier = aqi >= 100 ? 'extremelyPoor' : aqi >= 80 ? 'veryPoor' : aqi >= 60 ? 'poor' : 'moderate';
     const text = {
-      moderate: "Air's moderate — fine for a walk; ease off hard workouts outside.",
+      moderate: '',
       poor: 'Air quality is poor — move intense workouts indoors.',
       veryPoor: 'Air quality is very poor — skip strenuous exercise outside.',
       extremelyPoor: 'Air quality is extremely poor — keep time outdoors short.',
     }[tier];
-    add({ key: 'aqi', prio: aqi >= 60 ? 55 : 20, text, pill: pill({ kind: 'exp', icon: 'masks', value: `AQI ${Math.round(aqi)}`, key: 'aqi', label: `Air quality ${Math.round(aqi)}, details` }), card: aqi >= 100 ? 'Very poor air — keep outdoor time short.' : aqi >= 60 ? 'Poor air — go easy outdoors.' : 'Air is so-so — go easy on hard runs.' });
+    // Moderate air gives nothing to do yet: it stays a pill, never a sentence.
+    add({ key: 'aqi', prio: aqi >= 60 ? 55 : 20, pillOnly: aqi < 60, text, pill: pill({ kind: 'exp', icon: 'masks', value: `AQI ${Math.round(aqi)}`, key: 'aqi', label: `Air quality ${Math.round(aqi)}, details` }), card: aqi >= 100 ? 'Very poor air — keep outdoor time short.' : aqi >= 60 ? 'Poor air — go easy outdoors.' : 'Air is so-so — go easy on hard runs.' });
   }
   // Tiers use the rounded value, the same number the pill shows.
   const uvRaw = A.uvMax?.value ?? (p.uvIndex ?? null);
@@ -554,19 +555,19 @@ function temperatureLines(p, used) {
   if (eDrop >= 5 && eTemp != null) {
     used.add('swing');
     // Same direction as a colder headline: "and", not "but".
-    html += `<br><span class="g">${diff < 0 ? 'and' : 'but'} </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'in the evening'}</span>${eveningPill(eTemp, unit)}`;
+    html += ` <span class="g">${diff < 0 ? 'and' : 'but'} </span><span class="w">${bandForTemp(eTemp).eveningPhrase}</span><span class="g"> ${eWhen || 'in the evening'}</span>${eveningPill(eTemp, unit)}`;
   } else if (wind >= 25 || (p.gust ?? 0) >= 39) {
     used.add('wind');
     const g = Math.round(Math.max(p.gust ?? 0, wind));
-    html += `<br><span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windPill(g, `Wind up to ${g}km/h, details`)}`;
+    html += ` <span class="g">but </span><span class="w">windier</span><span class="g"> today</span>${windPill(g, `Wind up to ${g}km/h, details`)}`;
   } else if (feels != null && feels <= (p.nowTemp ?? tMax) - 4) {
     used.add('feels');
     html += diff < 0
-      ? `<br><span class="g">and the </span><span class="w">wind chill</span><span class="g"> bites</span>${feelsPill(p)}`
-      : `<br><span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${feelsPill(p)}`;
+      ? ` <span class="g">and the </span><span class="w">wind chill</span><span class="g"> bites</span>${feelsPill(p)}`
+      : ` <span class="g">but feels </span><span class="w">colder</span><span class="g"> with wind chill</span>${feelsPill(p)}`;
   } else if (feels != null && !((p.ahead?.feelsMax?.value ?? -99) >= 32 || (p.ahead?.feelsMin?.value ?? 99) <= -5)) {
     // (a heat or cold note says this more usefully in the action line)
-    html += `<br><span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
+    html += ` <span class="g">feels </span><span class="w">${bandForTemp(feels).adjective}</span><span class="g"> out.</span>`;
   }
   return html;
 }
@@ -583,7 +584,7 @@ function neutralCard(p) {
 // Card for a temperature-led day: it repeats the headline's comparison when
 // that is the news, and adds the most pressing heads-up if there is one.
 function temperatureCard(p, notes) {
-  const top = notes[0];
+  const top = notes.find(n => !n.pillOnly);
   // Same word as the headline: "colder" only where cold wording is accurate.
   const base = Math.abs(p.diff) >= 2 ? `${changeWord(p).replace(/^\w/, c => c.toUpperCase())} than yesterday` : null;
   if (base && top && top.prio >= 60) {
@@ -651,13 +652,24 @@ export function decideDay(p) {
   // the most pressing note, or (temperature lead) the two most pressing
   // notes. Every other must-mention note still shows as a pill.
   const said = [], extra = [];
-  const room = action ? 1 : 2;
+  let room = action ? 1 : 2;
+  // Temperature lead: what to wear comes first, from the same gear list the AI gets.
+  let wearAction = '';
+  if (!action) {
+    const lite = notes.filter(n => n.prio >= 50 && !n.pillOnly).map(n => noteFact(n, p, ev)).filter(Boolean);
+    wearAction = gearSentence(gearFromFacts(p, lite));
+    if (wearAction) room = 1;
+  }
+  let softPill = false;
   for (const n of notes) {
-    if (said.length < room && (n.prio >= 50 || (!action && !said.length))) { said.push(n); continue; }
-    if (n.prio >= 50) extra.push(n);
+    if (n.pillOnly) { extra.push(n); continue; }
+    if (said.length < room && (n.prio >= 50 || (!action && !wearAction && !said.length))) { said.push(n); continue; }
+    if (n.prio >= 50) { extra.push(n); continue; }
+    // The strongest minor note, which used to be the whole sentence, keeps its pill.
+    if (wearAction && !softPill) { extra.push(n); softPill = true; }
   }
   // The lead's action is the big line; any further sentence is set smaller.
-  const texts = [action, ...said.map(n => n.text)].filter(Boolean);
+  const texts = [action || wearAction, ...said.map(n => n.text)].filter(Boolean);
   const actionHTML = texts[0] || '';
   const moreHTML = texts.slice(1).join(' ');
   if (!card) card = temperatureCard(p, notes);
@@ -675,7 +687,7 @@ export function buildProse(p) {
   const actionPart = d.action || d.pills
     ? `<br><span class="action">${[d.action, d.more].filter(Boolean).join(' ')}</span>${d.pills ? `<span class="pill-row">${d.pills}</span>` : ''}`
     : '';
-  return { html: d.lines.join('<br>') + actionPart, action: [d.action, d.more].filter(Boolean).join(' '), selected: null, card: d.card };
+  return { html: d.lines.join(' ') + actionPart, action: [d.action, d.more].filter(Boolean).join(' '), selected: null, card: d.card };
 }
 
 export const cardSentence = p => decideDay(p).card;
@@ -712,6 +724,24 @@ function noteFact(n, p, ev) {
     default: return null;
   }
 }
+// Gear for the day from the facts that matter: the one list behind both the AI
+// sentence and the rule-based fallback sentence.
+function gearFromFacts(p, mm) {
+  const A = p.ahead || {};
+  const aqi = mm.find(m => m.kind === 'air_quality');
+  const precipM = mm.find(m => ['rain', 'snow', 'sleet', 'freezing_rain', 'thunder'].includes(m.kind));
+  return gearFor({
+    band: bandForTemp(p.feels ?? p.nowTemp ?? p.tMax)?.name,
+    precip: precipM ? { kind: precipM.kind, level: precipM.level } : null,
+    strongWind: mm.some(m => m.kind === 'strong_wind' || (m.kind === 'wind' && m.level === 'strong')),
+    uv: Math.round(A.uvMax?.value ?? p.uvIndex ?? 0),
+    aqi: aqi ? (aqi.level === 'poor' ? 60 : 80) : 0,
+    pollen: mm.some(m => m.kind === 'pollen' && m.level !== 'low'),
+    humidity: p.humidity,
+    tempDrop: mm.some(m => m.kind === 'temp_drop'),
+    settles: precipM?.kind === 'snow' && precipM.level === 'settles',
+  });
+}
 export function adviceFacts(p) {
   if (!p) return null;
   const d = decideDay(p);
@@ -739,20 +769,7 @@ export function adviceFacts(p) {
     return 2;
   };
   const ranked = mm.map((m, i) => [m, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
-  const A = p.ahead || {};
-  const aqi = mm.find(m => m.kind === 'air_quality');
-  const precipM = mm.find(m => ['rain', 'snow', 'sleet', 'freezing_rain', 'thunder'].includes(m.kind));
-  const gear = gearFor({
-    band: bandForTemp(p.feels ?? p.nowTemp ?? p.tMax)?.name,
-    precip: precipM ? { kind: precipM.kind, level: precipM.level } : null,
-    strongWind: mm.some(m => m.kind === 'strong_wind' || (m.kind === 'wind' && m.level === 'strong')),
-    uv: Math.round(A.uvMax?.value ?? p.uvIndex ?? 0),
-    aqi: aqi ? (aqi.level === 'poor' ? 60 : 80) : 0,
-    pollen: mm.some(m => m.kind === 'pollen' && m.level !== 'low'),
-    humidity: p.humidity,
-    tempDrop: mm.some(m => m.kind === 'temp_drop'),
-    settles: precipM?.kind === 'snow' && precipM.level === 'settles',
-  });
+  const gear = gearFromFacts(p, mm);
   return { headline, time_of_day: p.band || 'DAY', must_mention: ranked.slice(0, 2), gear };
 }
 
