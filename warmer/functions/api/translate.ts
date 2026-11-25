@@ -93,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       } catch { cache = null; }
       // Each model has its own quota. If the main one is out (429), the lighter
       // one answers instead of the user losing the AI line.
-      const MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+      const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
       let modelUsed = MODELS[0];
       const ask = async () => {
         const call = async (model: string) => {
@@ -113,20 +113,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         try { o = JSON.parse(text); } catch { o = {}; }
         return validateAdvice(o, facts);
         };
+        // Try each model in order. Out of quota (429) or busy (5xx) moves on to the next;
+        // anything else (bad request, 404) stops. If all fail, report the first error
+        // so the client sees a 429 as a 429 and backs off.
         let first: any = null;
         for (let i = 0; i < MODELS.length; i++) {
           try { modelUsed = MODELS[i]; return await call(MODELS[i]); }
           catch (e: any) {
-            if (i === 0) {
-              first = e;
-              if (e?.status === 503) { // busy, not out of quota: one short retry on the same model
-                await new Promise(r => setTimeout(r, 700));
-                try { return await call(MODELS[0]); } catch (e2: any) { first = e2; }
-              }
-              if (first?.status !== 429 && !(first?.status >= 500)) throw first;
-              continue;
+            first = first || e;
+            if (e?.status === 503 && i === 0) { // one short retry on the main model
+              await new Promise(r => setTimeout(r, 700));
+              try { return await call(MODELS[0]); } catch (e2: any) { e = e2; }
             }
-            throw first; // fallback failed too (e.g. 404): report the original 429 so the client backs off
+            if (e?.status !== 429 && !(e?.status >= 500) && e?.status !== 404) throw e;
           }
         }
         throw first;
