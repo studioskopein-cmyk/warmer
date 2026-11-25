@@ -91,8 +91,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const hit = cache ? await cache.match(cacheKey) : null;
         if (hit) return new Response(await hit.text(), { headers: { ...corsHeaders, 'X-Advice-Cache': 'hit' } });
       } catch { cache = null; }
+      // Each model has its own quota. If the main one is out (429), the lighter
+      // one answers instead of the user losing the AI line.
+      const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+      let modelUsed = MODELS[0];
       const ask = async () => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+        const call = async (model: string) => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
         const r = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -107,6 +112,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         let o: any = {};
         try { o = JSON.parse(text); } catch { o = {}; }
         return validateAdvice(o, facts);
+        };
+        for (let i = 0; i < MODELS.length; i++) {
+          try { modelUsed = MODELS[i]; return await call(MODELS[i]); }
+          catch (e: any) { if (e?.status !== 429 || i === MODELS.length - 1) throw e; }
+        }
+        throw new Error('no model');
       };
       try {
         let v = await ask();
@@ -116,7 +127,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
         const body = JSON.stringify({ success: true, action: v.action, card: v.card });
         try { if (cache && cacheKey) await cache.put(cacheKey, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=10800' } })); } catch { /* best-effort */ }
-        return new Response(body, { headers: corsHeaders });
+        return new Response(body, { headers: { ...corsHeaders, 'X-Advice-Model': modelUsed } });
       } catch (e: any) {
         // 429 is passed through so the client can back off instead of retrying at once.
         return new Response(JSON.stringify({ success: false, message: e?.message || 'advice failed' }), { status: e?.status === 429 ? 429 : 502, headers: corsHeaders });
